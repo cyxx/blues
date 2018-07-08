@@ -128,7 +128,7 @@ struct object_t {
 	int16_t tile012_xpos;
 	int8_t elevator_direction; // -1,1
 	const uint8_t *trigger3;
-	uint8_t unk4D;
+	uint8_t trigger3_num;
 	// int16_t unk4E;
 	int16_t unk50;
 	uint8_t data51; // health for obj39/40, horizontal direction for other objects
@@ -191,7 +191,7 @@ struct vars_t {
 	struct object_t objects[MAX_OBJECTS];
 	int two_players_flag;
 	int vinyls_count;
-	uint16_t timer_counter3;
+	uint16_t level_loop_counter;
 	int triggers_counter;
 	int update_objects_counter;
 	struct sprite_t sprites_table[MAX_SPRITES];
@@ -289,8 +289,8 @@ extern uint16_t	triggers_get_next_tile_flags(int x, int y);
 extern uint16_t	triggers_get_tile_data(struct object_t *obj);
 extern uint16_t	triggers_get_next_tile_num(int x, int y);
 extern void	level_call_trigger_func(struct object_t *obj, int y);
-extern void	triggers_unk3(struct object_t *obj);
+extern void	triggers_update_tiles1(struct object_t *obj);
 extern int16_t	triggers_get_dy(struct object_t *obj);
-extern void	triggers_unk5(struct object_t *obj);
+extern void	triggers_update_tiles2(struct object_t *obj);
 
 #endif /* GAME_H__ */

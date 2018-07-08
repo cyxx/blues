@@ -5,8 +5,6 @@
 #include "sys.h"
 #include "util.h"
 
-#define HZ 30
-
 void screen_init() {
 	for (int i = 0; i < MAX_SPRITES; ++i) {
 		g_vars.sprites[i] = &g_vars.sprites_table[i];
@@ -85,7 +83,6 @@ void screen_draw_frame(const uint8_t *frame, int a, int b, int c, int d) {
 
 void screen_flip() {
 	g_sys.update_screen(g_res.vga, 1);
-	g_sys.sleep(1000 / HZ);
 }
 
 void screen_unk4() {
@@ -103,7 +100,6 @@ void screen_unk6() {
 	// screen_do_transition2();
 	// _screen_draw_offset += 12;
 	g_sys.update_screen(g_res.vga, 1);
-	g_sys.sleep(1000 / HZ); // get_time
 	memset(g_res.vga, 0, GAME_SCREEN_W * GAME_SCREEN_H);
 }
 

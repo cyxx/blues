@@ -16,16 +16,16 @@ void update_input() {
 }
 
 void do_title_screen() {
-	// _timer_counter = 20;
+	const uint32_t timestamp = g_sys.get_timestamp() + 20 * 1000;
 	load_img("pres.sqz");
 	fade_in_palette();
 	do {
 		update_input();
-//		if (_timer_counter <= 0) {
-//			break;
-//		}
-	} while (g_sys.input.space == 0 && g_sys.input.quit == 0);
-//	timer_unk3();
+		if (g_sys.input.space || g_sys.input.quit) {
+			break;
+		}
+	} while (g_sys.get_timestamp() < timestamp);
+	play_sound(SOUND_0);
 	fade_out_palette();
 	g_sys.input.space = 0;
 	read_file("avtmag.sqv", g_res.avt_sqv);
@@ -58,6 +58,7 @@ void do_select_player() {
 	do {
 		screen_unk4();
 		update_input();
+		const uint32_t timestamp = g_sys.get_timestamp();
 		switch (state) {
 		case 0:
 			screen_add_sprite(95, 155, animframe_0135[frame1]);
@@ -87,7 +88,6 @@ void do_select_player() {
 				screen_vsync();
 				state = 1;
 				frame1 = frame2 = 1;
-				// _timer_counter = 20;
 			} else if (g_sys.input.direction & INPUT_DIRECTION_LEFT) {
 				g_sys.input.direction &= ~INPUT_DIRECTION_LEFT;
 				for (int i = 0; i < colors_count; ++i) {
@@ -97,7 +97,6 @@ void do_select_player() {
 				screen_vsync();
 				state = 2;
 				frame1 = frame2 = 1;
-				// _timer_counter = 20;
 			}
 			break;
 		case 1:
@@ -126,7 +125,6 @@ void do_select_player() {
 				screen_vsync();
 				state = 2;
 				frame1 = frame2 = 1;
-				// _timer_counter = 20;
 			} else if (g_sys.input.direction & INPUT_DIRECTION_LEFT) {
 				g_sys.input.direction &= ~INPUT_DIRECTION_LEFT;
 				for (int i = 0; i < colors_count; ++i) {
@@ -138,7 +136,6 @@ void do_select_player() {
 				screen_vsync();
 				state = 0;
 				frame1 = frame2 = 1;
-				// _timer_counter = 20;
 			}
 			break;
 		case 2:
@@ -164,7 +161,6 @@ void do_select_player() {
 				screen_vsync();
 				state = 0;
 				frame1 = frame2 = 1;
-				// _timer_counter = 20;
 			} else if (g_sys.input.direction & INPUT_DIRECTION_LEFT) {
 				g_sys.input.direction &= ~INPUT_DIRECTION_LEFT;
 				for (int i = 0; i < colors_count; ++i) {
@@ -174,7 +170,6 @@ void do_select_player() {
 				screen_vsync();
 				state = 1;
 				frame1 = frame2 = 1;
-				// _timer_counter = 20;
 			}
 			break;
 		}
@@ -203,14 +198,14 @@ void do_select_player() {
 		}
 		screen_flip();
 		screen_vsync();
-		screen_vsync();
-		screen_vsync();
+		const int diff = (timestamp + (1000 / 30)) - g_sys.get_timestamp();
+		g_sys.sleep(diff < 10 ? 10 : diff);
 		g_vars.screen_draw_offset ^= 0x2000;
 		screen_clear_sprites();
 		if (g_sys.input.space || g_vars.play_demo_flag) {
 			quit = 1;
 		}
-	} while (!quit && g_sys.input.quit == 0);
+	} while (!quit && !g_sys.input.quit);
 }
 
 static void do_inter_screen_helper(int a, int b, int c) {
@@ -276,8 +271,13 @@ static void do_inter_screen() {
 	g_vars.screen_draw_offset = 0x2000;
 	screen_flip();
 	g_vars.screen_h = TILEMAP_SCREEN_H;
-//	_timer_counter = 4;
-//	while (_timer_counter != 0);
+	const uint32_t timestamp = g_sys.get_timestamp() + 4 * 1000;
+	do {
+		update_input();
+		if (g_sys.input.space || g_sys.input.quit) {
+			break;
+		}
+	} while (g_sys.get_timestamp() < timestamp);
 	fade_out_palette();
 }
 

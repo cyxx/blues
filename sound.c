@@ -53,9 +53,11 @@ static ModPlugFile *_mpf;
 
 static void mix(void *param, uint8_t *buf, int len) {
 	memset(buf, 0, len);
-
 	if (_mpf) {
-		ModPlug_Read(_mpf, buf, len);
+		const int count = ModPlug_Read(_mpf, buf, len);
+		if (count == 0) {
+			ModPlug_SeekOrder(_mpf, 0);
+		}
 	}
 	if (_channel.data) {
 		for (int i = 0; i < len; i += sizeof(int16_t)) {

@@ -188,7 +188,7 @@ static void init_level() {
 		obj->tile0_flags = 0;
 		obj->tile012_xpos = 0;
 		obj->elevator_direction = -1;
-		obj->unk4D = 0;
+		obj->trigger3_num = 0;
 		obj->trigger3 = 0;
 		obj->unk50 = 0;
 		// obj->unk4E = 0;
@@ -320,7 +320,7 @@ static void do_level_update_scrolling2() {
 		}
 	}
 	do_level_redraw_tilemap(g_vars.screen_tilemap_xorigin, g_vars.screen_tilemap_yorigin);
-	if ((g_vars.timer_counter3 & 3) == 0) {
+	if ((g_vars.level_loop_counter & 3) == 0) {
 		do_level_update_tiles_anim();
 	}
 	if (g_vars.screen_tilemap_size_w == 20) {
@@ -495,7 +495,7 @@ static void do_level_add_sprite1_case2(struct object_t *obj) {
 		}
 	}
 	if (obj->anim_num < anim_data[0]) {
-		obj->anim_num += (g_vars.timer_counter3 & 1);
+		obj->anim_num += (g_vars.level_loop_counter & 1);
 	} else {
 		obj->anim_num = 1;
 	}
@@ -616,7 +616,7 @@ static void do_level_add_sprite1(struct object_t *obj) {
 		break;
 	}
 	if (obj->type != 100) {
-		if (obj->blinking_counter != 0 && (g_vars.timer_counter3 & 1) != 0) {
+		if (obj->blinking_counter != 0 && (g_vars.level_loop_counter & 1) != 0) {
 			if (obj->facing_left == 0) {
 				screen_add_game_sprite3(obj->screen_xpos, obj->screen_ypos + 1, obj->anim_frame, obj->blinking_counter);
 			} else {
@@ -676,7 +676,7 @@ static void do_level_add_sprite3(struct object_t *obj) {
 	} else if (obj->sprite3_counter == 1) {
 		if (obj->anim_num < anim_data[0]) {
 			if (obj->collide_flag == 0) {
-				obj->anim_num += (g_vars.timer_counter3 & 1);
+				obj->anim_num += (g_vars.level_loop_counter & 1);
 			}
 			obj->anim_frame = anim_data[obj->anim_num];
 		} else {
@@ -698,7 +698,7 @@ static void do_level_add_sprite3(struct object_t *obj) {
 		}
 	}
 	if (obj->type != 100) {
-		if (obj->blinking_counter != 0 && (g_vars.timer_counter3 & 1) != 0) {
+		if (obj->blinking_counter != 0 && (g_vars.level_loop_counter & 1) != 0) {
 			if (obj->facing_left == 0) {
 				screen_add_game_sprite3(obj->screen_xpos, obj->screen_ypos + 1, obj->anim_frame, obj->blinking_counter);
 			} else {
@@ -1175,10 +1175,10 @@ static void do_level_update_input(struct object_t *obj) {
 		return;
 	}
 	obj->xmaxvelocity = 48;
-	if (obj->unk4D == 0) {
-		triggers_unk3(obj);
+	if (obj->trigger3_num == 0) {
+		triggers_update_tiles1(obj);
 	} else {
-		triggers_unk5(obj);
+		triggers_update_tiles2(obj);
 	}
 	if (g_vars.inp_key_space != 0 && g_vars.inp_key_up != 0 && g_vars.inp_key_up_prev == 0 && !g_vars.player2_scrolling_flag) {
 		obj->carry_crate_flag = 1;
@@ -2096,6 +2096,7 @@ void do_level() {
 	// _draw_last_sprite_flag = 0;
 	g_vars.found_music_instrument_flag = 0;
 	do {
+		const uint32_t timestamp = g_sys.get_timestamp();
 		update_input();
 		if (g_vars.inp_keyboard[0xBF] != 0) { // F5
 			play_sound(SOUND_0);
@@ -2122,13 +2123,7 @@ void do_level() {
 			screen_redraw_sprites();
 			draw_foreground_tiles();
 		}
-		// if (_timer_counter != _timer_sync) {
-			// _timer_sync = _timer_counter;
-			// word_21DC7 = _timer_counter2;
-			// _timer_counter2 = 0;
-		// }
-		// ++_timer_counter2;
-		++g_vars.timer_counter3;
+		++g_vars.level_loop_counter;
 		if (1) { // (!_screen_panel_drawn_flag) {
 			draw_level_panel();
 			screen_unk6();
@@ -2137,15 +2132,14 @@ void do_level() {
 			screen_flip();
 			g_vars.screen_draw_offset ^= 0x2000;
 		}
-		// while (_timer_sync_ptr[1] < 3);
+		const int diff = (timestamp + (1000 / 30)) - g_sys.get_timestamp();
+		g_sys.sleep(diff < 10 ? 10 : diff);
 		screen_clear_sprites();
 		// _draw_last_sprite_flag = 1;
-		// _timer_sync_ptr[1] = 0;
 
 	} while (g_sys.input.quit == 0 && !g_vars.quit_level_flag);
 	g_vars.screen_draw_offset -= TILEMAP_OFFSET_Y * 40;
 	screen_unk5();
-	g_vars.screen_draw_offset += TILEMAP_OFFSET_Y * 40;
 	if (g_options.amiga_copper_bars) {
 		g_sys.set_copper_bars(0);
 	}

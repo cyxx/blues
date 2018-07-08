@@ -593,9 +593,6 @@ static void trigger_func_op40(struct object_t *obj) {
 	}
 	obj->unk2F = 0;
 	obj->special_anim = 21;
-	// if (_timer_counter != _timer_sync) {
-	//	_timer_sync = _timer_counter;
-	// }
 	if (counter == 0) {
 		play_music(g_vars.music_num);
 	}
@@ -739,7 +736,7 @@ void level_call_trigger_func(struct object_t *obj, int y) {
 	}
 }
 
-void triggers_unk3(struct object_t *obj) {
+void triggers_update_tiles1(struct object_t *obj) {
 	struct object_t *obj35 = &g_vars.objects[35];
 	struct object_t *obj37 = &g_vars.objects[37];
 	if (obj->yvelocity >= 0 && obj->special_anim != 18) {
@@ -765,7 +762,7 @@ void triggers_unk3(struct object_t *obj) {
 			obj->unk60 = p[9];
 		}
 		if (p[8] != 0) {
-			if (obj->data5F == g_vars.level + 1) { // instrument found
+			if (obj->data5F == g_vars.level + 1) { // music instrument must have been found to complete the level
 				if (obj->flag_end_level == 0) {
 					play_sound(SOUND_13);
 					obj->flag_end_level = 1;
@@ -819,7 +816,7 @@ void triggers_unk3(struct object_t *obj) {
 			if (obj->special_anim == 21) {
 				play_sound(SOUND_8);
 			}
-			if (obj->data5F == 0 && p[7] != 0) { // music instrument found
+			if (obj->data5F == 0 && p[7] != 0) { // found music instrument
 				if (!g_vars.two_players_flag) {
 					obj->data5F = p[7];
 				} else {
@@ -901,7 +898,7 @@ void triggers_unk3(struct object_t *obj) {
 			}
 		}
 	} else {
-		obj->unk4D = p[0];
+		obj->trigger3_num = p[0];
 	}
 }
 
@@ -911,14 +908,14 @@ int16_t triggers_get_dy(struct object_t *obj) {
 	return g_res.triggers[num].op_table1[obj->xpos & 15] - 1;
 }
 
-void triggers_unk5(struct object_t *obj) {
+void triggers_update_tiles2(struct object_t *obj) {
 	int offset = 2;
 	int _si = offset;
 	const uint8_t *p = obj->trigger3;
 	if (p[1] < 10) {
-		int count = obj->unk4D - 1;
-		_si += (p[1] << 2) * count;
-		while ((p[1] << 2) > offset) {
+		const int num = obj->trigger3_num - 1;
+		_si += (p[1] << 2) * num;
+		while (offset < (p[1] << 2)) {
 			do_level_update_tile(p[_si], p[_si + 1], p[_si + 2]);
 			offset += 4;
 			_si += 4;
@@ -936,5 +933,5 @@ void triggers_unk5(struct object_t *obj) {
 		obj->xmaxvelocity = ABS(obj->xvelocity);
 		do_level_player_hit(obj);
 	}
-	obj->unk4D = 0;
+	obj->trigger3_num = 0;
 }

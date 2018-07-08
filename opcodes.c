@@ -154,8 +154,9 @@ static void object_func_op5(struct object_t *obj) {
 	obj->xmaxvelocity = 32;
 }
 
+// bird
 static void object_func_op8(struct object_t *obj) {
-	if (triggers_get_tile_type(obj->xpos16 + 2 - obj->facing_left * 4, obj->ypos16) == 1) {
+	if (triggers_get_tile_type(obj->xpos16 + 2 - obj->facing_left * 4, obj->ypos16) != 1) {
 		obj->moving_direction ^= 1;
 	}
 	obj->direction_lr = obj->moving_direction + 1;
