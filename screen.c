@@ -160,6 +160,7 @@ void screen_add_game_sprite4(int x, int y, int frame, int blinking_counter) {
 }
 
 static void decode_graphics(int spr_type, int start, int end) {
+	const bool amiga = g_options.amiga_sprites && start != 0;
 	struct sys_rect_t r[MAX_SPR_FRAMES];
 	uint8_t *data = (uint8_t *)calloc(MAX_SPRITESHEET_W * MAX_SPRITESHEET_H, 1);
 	if (data) {
@@ -179,11 +180,19 @@ static void decode_graphics(int spr_type, int start, int end) {
 				}
 				current_x = 0;
 				max_h = h;
-				decode_ega_spr(ptr, w, w, h, data, MAX_SPRITESHEET_W, current_x, current_y);
+				if (amiga) {
+					decode_amiga_planar8(ptr, w / 8, h, 4, data, MAX_SPRITESHEET_W, current_x, current_y);
+				} else {
+					decode_ega_spr(ptr, w, w, h, data, MAX_SPRITESHEET_W, current_x, current_y);
+				}
 				r[j].x = current_x;
 				r[j].y = current_y;
 			} else {
-				decode_ega_spr(ptr, w, w, h, data, MAX_SPRITESHEET_W, current_x, current_y);
+				if (amiga) {
+					decode_amiga_planar8(ptr, w / 8, h, 4, data, MAX_SPRITESHEET_W, current_x, current_y);
+				} else {
+					decode_ega_spr(ptr, w, w, h, data, MAX_SPRITESHEET_W, current_x, current_y);
+				}
 				r[j].x = current_x;
 				r[j].y = current_y;
 				current_x += w;

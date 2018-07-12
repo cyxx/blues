@@ -29,7 +29,7 @@ static const uint16_t _colors_data[16 * MAX_LEVELS] = {
 	0x000,0x30b,0x747,0x446,0x006,0xfda,0x400,0xf87,0x37a,0x600,0xd63,0x000,0x000,0x800,0xdd0,0x98d
 };
 
-static const struct level_data_t {
+static const struct {
 	const char *ck1;
 	const char *ck2;
 	const char *sql;
@@ -48,6 +48,18 @@ static const struct level_data_t {
 	{ "concert.ck1", "concert.ck2", "concert.sql", "concert.bin", "", "enemi6.sqv", level_xpos_concert, level_ypos_concert, 3 },
 };
 
+static const struct {
+	const char *m;
+	const char *bin;
+} _levels_amiga[MAX_LEVELS] = {
+	{ "mag.m", "magasin.bin" },
+	{ "ent.m", "entrepo.bin" },
+	{ "pris.m", "prison.bin" },
+	{ "egou.m", "egout.bin" },
+	{ "ville.m", "ville.bin" },
+	{ 0, "concert.bin" },
+};
+
 static const char *_demo_filenames[] = {
 	"demomag.ck1", "demomag.ck2", "demomag.sql"
 };
@@ -63,9 +75,19 @@ void load_level_data(int num) {
 		load_ck(_levels[num].ck2, 0x8000);
 		load_sql(_levels[num].sql);
 	}
-	load_bin(_levels[num].bin);
+	if (g_options.amiga_data) {
+		load_bin(_levels_amiga[num].bin);
+	} else {
+		load_bin(_levels[num].bin);
+	}
 	load_avt(_levels[num].avt, g_res.avt_sqv, 0);
-	load_sqv(_levels[num].sqv, g_res.tmp, SPRITES_COUNT);
+	if (g_options.amiga_sprites) {
+		char name[16];
+		snprintf(name, sizeof(name), "ennemi%d", 1 + num);
+		load_spr(name, g_res.tmp, SPRITES_COUNT);
+	} else {
+		load_sqv(_levels[num].sqv, g_res.tmp, SPRITES_COUNT);
+	}
 	memcpy(g_vars.level_xpos, _levels[num].xpos, MAX_OBJECTS * sizeof(int16_t));
 	memcpy(g_vars.level_ypos, _levels[num].ypos, MAX_OBJECTS * sizeof(int16_t));
 	if (g_vars.music_num != _levels[num].music) {

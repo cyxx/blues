@@ -17,7 +17,7 @@ void update_input() {
 
 void do_title_screen() {
 	const uint32_t timestamp = g_sys.get_timestamp() + 20 * 1000;
-	load_img("pres.sqz");
+	load_img(g_options.amiga_lbms ? "blues.lbm" : "pres.sqz");
 	fade_in_palette();
 	do {
 		update_input();
@@ -28,7 +28,6 @@ void do_title_screen() {
 	play_sound(SOUND_0);
 	fade_out_palette();
 	g_sys.input.space = 0;
-	read_file("avtmag.sqv", g_res.avt_sqv);
 }
 
 static void check_cheat_code() {
@@ -53,7 +52,7 @@ void do_select_player() {
 	int frame2 = 1;
 	const int color_rgb = 2;
 	const int colors_count = 25;
-	load_img("choix.sqz");
+	load_img(g_options.amiga_lbms ? "choix.lbm" : "choix.sqz");
 	screen_load_graphics();
 	screen_clear_sprites();
 	do {
@@ -239,7 +238,7 @@ static void do_inter_screen_helper(int xpos, int ypos, int c) {
 static void do_inter_screen() {
 	static const uint8_t xpos[] = { 0xFA, 0x50, 0xF0, 0xC8, 0x50, 0x50 };
 	static const uint8_t ypos[] = { 0xAA, 0x37, 0x28, 0x5F, 0xA5, 0xAA };
-	load_img("inter.sqz");
+	load_img(g_options.amiga_lbms ? "inter.lbm" : "inter.sqz");
 	g_vars.screen_h = 199;
 	screen_clear_sprites();
 	if (g_vars.level > 1) {

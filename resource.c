@@ -44,14 +44,7 @@ void res_init() {
 		if (!g_res.snd) {
 			print_warning("Failed to allocate sound buffer, %d bytes", SOUND_SIZE);
 		} else {
-			int f = fio_open(filename, 1);
-			const int filesize = fio_size(f);
-			if (filesize != SOUND_SIZE) {
-				print_warning("Unexpected '%s' file size %d", filename, filesize);
-			} else if (fio_read(f, g_res.snd, SOUND_SIZE) != SOUND_SIZE) {
-				print_error("Failed to read %d bytes from file '%s'", filesize, filename);
-			}
-			fio_close(f);
+			read_file(filename, g_res.snd, SOUND_SIZE);
 		}
 	}
 	if (fio_exists("demomag.sql")) {
@@ -69,10 +62,12 @@ void res_fini() {
 	free(g_res.snd);
 }
 
-int read_file(const char *filename, uint8_t *dst) {
+int read_file(const char *filename, uint8_t *dst, int size) {
 	const int f = fio_open(filename, 1);
 	const int filesize = fio_size(f);
-	if (fio_read(f, dst, filesize) != filesize) {
+	if (size > 0 && size != filesize) {
+		print_error("Unexpected '%s' file size %d (%d)", filename, filesize, size);
+	} else if (fio_read(f, dst, filesize) != filesize) {
 		print_error("Failed to read %d bytes from file '%s'", filesize, filename);
 	}
 	fio_close(f);
@@ -210,8 +205,7 @@ static const uint8_t *trigger_lookup_table3(uint8_t num) {
 
 void load_bin(const char *filename) {
 	uint8_t bin[MAX_TRIGGERS * 10];
-	const int size = read_file(filename, bin);
-	assert(size == MAX_TRIGGERS * 10);
+	read_file(filename, bin, MAX_TRIGGERS * 10);
 	const uint8_t *p = bin;
 	for (int i = 0; i < MAX_TRIGGERS; ++i) {
 		struct trigger_t *t = &g_res.triggers[i];
@@ -247,7 +241,13 @@ void load_ck(const char *filename, uint16_t offset) {
 }
 
 void load_img(const char *filename) {
-	const int size = read_compressed_file(filename, g_res.tmp);
+	int size;
+	const char *ext = strrchr(filename, '.');
+	if (ext && strcmp(ext + 1, "lbm") == 0) {
+		size = read_file(filename, g_res.tmp, 0);
+	} else {
+		size = read_compressed_file(filename, g_res.tmp);
+	}
 	assert(size <= 32000);
 	load_iff(g_res.tmp, size, g_res.tmp + 32000, 320);
 	g_sys.set_screen_palette(g_res.palette, 16);
@@ -255,21 +255,44 @@ void load_img(const char *filename) {
 	memcpy(g_res.vga, g_res.tmp + 32000, 64000);
 }
 
-void load_sqv(const char *filename, uint8_t *dst, int offset) {
-	read_compressed_file(filename, dst);
-	const uint8_t *ptr = dst;
-	const int count = READ_LE_UINT16(ptr); ptr += 6;
-	print_debug(DBG_RESOURCE, "sqv count %d", count);
+static int load_spr_helper(int offset, const uint8_t *ptr, uint16_t (*read16)(const uint8_t *)) {
+	const int count = read16(ptr); ptr += 6;
+	print_debug(DBG_RESOURCE, "spr count %d", count);
 	assert(offset + count <= MAX_SPR_FRAMES);
 	for (int i = 0; i < count; ++i) {
 		g_res.spr_frames[offset + i] = ptr;
-		const int h = READ_LE_UINT16(ptr - 4);
-		const int w = READ_LE_UINT16(ptr - 2);
+		const int h = read16(ptr - 4);
+		const int w = read16(ptr - 2);
 		assert((w & 3) == 0);
 		const int size = (w >> 1) * h + 4;
 		print_debug(DBG_RESOURCE, "sprite %d, dim %d,%d size %d", i, w, h, size);
 		ptr += size;
 	}
+	return count;
+}
+
+void load_spr(const char *filename, uint8_t *dst, int offset) {
+	read_file(filename, dst, 0);
+	const int count = load_spr_helper(offset, dst, READ_BE_UINT16);
+	g_res.spr_count = offset + count;
+	// convert to little endian
+	uint8_t *ptr = dst;
+	for (int i = 0; i < count; ++i) {
+		const int h = READ_BE_UINT16(ptr + 2);
+		ptr[2] = h;
+		ptr[3] = 0;
+		const int w = READ_BE_UINT16(ptr + 4);
+		ptr[4] = w;
+		ptr[5] = 0;
+		assert((w & 3) == 0);
+		const int size = (w >> 1) * h + 4;
+		ptr += size;
+	}
+}
+
+void load_sqv(const char *filename, uint8_t *dst, int offset) {
+	read_compressed_file(filename, dst);
+	const int count = load_spr_helper(offset, dst, READ_LE_UINT16);
 	g_res.spr_count = offset + count;
 }
 

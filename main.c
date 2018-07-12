@@ -23,6 +23,9 @@ int main(int argc, char *argv[]) {
 	g_options.start_ypos16 = -1;
 	g_options.amiga_copper_bars =  true;
 	g_options.amiga_colors = true;
+	// g_options.amiga_sprites = true;
+	// g_options.amiga_lbms = true;
+	// g_options.amiga_data = true;
 	const char *data_path = DEFAULT_DATA_PATH;
 	if (argc == 2) {
 		struct stat st;
