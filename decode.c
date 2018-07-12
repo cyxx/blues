@@ -1,7 +1,7 @@
 
 #include "decode.h"
 
-void decode_ega_spr(const uint8_t *src, int src_pitch, int w, int h, uint8_t *dst, int dst_pitch, int dst_x, int dst_y, int xflip) {
+void decode_ega_spr(const uint8_t *src, int src_pitch, int w, int h, uint8_t *dst, int dst_pitch, int dst_x, int dst_y) {
 	assert((src_pitch & 7) == 0);
 	src_pitch /= 8;
 	assert((w & 7) == 0);
@@ -19,10 +19,8 @@ void decode_ega_spr(const uint8_t *src, int src_pitch, int w, int h, uint8_t *ds
 					}
 				}
 				if (color != 0) {
-					const int x_offset = dst_x + (xflip ? (w * 8 - x * 8 - i) : (x * 8 + i));
-					if (x_offset >= 0 && x_offset < 320 && y_offset >= 0 && y_offset < 200) {
-						dst[y_offset * dst_pitch + x_offset] = color;
-					}
+					const int x_offset = dst_x + (x * 8 + i);
+					dst[y_offset * dst_pitch + x_offset] = color;
 				}
 			}
 			++src;

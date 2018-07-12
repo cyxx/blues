@@ -17,7 +17,6 @@
 #define MAX_DOORS   30
 #define MAX_LEVELS   6
 #define MAX_OBJECTS 41
-#define MAX_SPRITES 40
 
 #define SOUND_0 0
 #define SOUND_2 2
@@ -46,17 +45,6 @@ struct options_t {
 };
 
 extern struct options_t g_options;
-
-struct sprite_t {
-	int16_t xpos;
-	int16_t ypos;
-	int16_t spr_w;
-	int16_t spr_h;
-	const uint8_t *frame;
-	struct sprite_t *next_sprite;
-	int16_t xflip;
-	int16_t unk16;
-};
 
 struct door_t {
 	uint16_t src_x16, src_y16;
@@ -96,7 +84,7 @@ struct object_t {
 	int16_t unk1C; // xvelocity / 8
 	int16_t unk1E; // yvelocity / 8
 	uint8_t direction_lr;
-	uint8_t direction_ud;
+	int8_t direction_ud;
 	int16_t xpos16; // tilemap_xpos
 	int16_t ypos16; // tilemap_ypos
 	// int16_t unk26;
@@ -194,9 +182,6 @@ struct vars_t {
 	uint16_t level_loop_counter;
 	int triggers_counter;
 	int update_objects_counter;
-	struct sprite_t sprites_table[MAX_SPRITES];
-	struct sprite_t *sprites[MAX_SPRITES];
-	int sprites_count;
 };
 
 extern struct vars_t g_vars;
@@ -243,7 +228,7 @@ extern void	do_level_update_panel_lifes(struct object_t *);
 extern void	do_level_enter_door(struct object_t *);
 extern void	do_level_player_hit(struct object_t *);
 extern void	do_level_drop_grabbed_object(struct object_t *);
-extern void	do_level_update_object38(struct object_t *obj);
+extern void	do_level_update_projectile(struct object_t *obj);
 extern void	do_level();
 
 /* opcodes.c */
@@ -259,7 +244,6 @@ extern void	fade_in_palette();
 extern void	fade_out_palette();
 extern void	screen_adjust_palette_color(int color, int b, int c);
 extern void	screen_vsync();
-extern void	screen_set_palette();
 extern void	screen_draw_frame(const uint8_t *frame, int a, int b, int c, int d);
 extern void	screen_flip();
 extern void	screen_unk4();
@@ -276,6 +260,7 @@ extern void	screen_add_game_sprite1(int x, int y, int frame);
 extern void	screen_add_game_sprite2(int x, int y, int frame);
 extern void	screen_add_game_sprite3(int x, int y, int frame, int blinking_counter);
 extern void	screen_add_game_sprite4(int x, int y, int frame, int blinking_counter);
+extern void	screen_load_graphics();
 
 /* sound.c */
 extern void	sound_init(int rate);

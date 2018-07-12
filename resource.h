@@ -25,6 +25,7 @@ struct trigger_t {
 #define MAX_SPR_FRAMES   200
 #define MAX_TRIGGERS     256
 #define SOUND_SIZE     29376
+#define SPRITES_COUNT    146
 
 #define RESOURCE_FLAGS_DEMO (1 << 0)
 
@@ -34,7 +35,9 @@ struct resource_data_t {
 	uint8_t *spr_sqv;
 	uint8_t *avt_sqv;
 	uint8_t *tmp;
+	int avt_count;
 	const uint8_t *avt[MAX_AVT];
+	int spr_count;
 	const uint8_t *spr_frames[MAX_SPR_FRAMES];
 	uint8_t palette[16 * 3];
 	struct trigger_t triggers[MAX_TRIGGERS];

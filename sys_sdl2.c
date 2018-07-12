@@ -8,6 +8,24 @@
 static const int SCALE = 2;
 static const int FADE_STEPS = 16;
 
+struct spritesheet_t {
+	int count;
+	SDL_Rect *r;
+	SDL_Texture *texture;
+};
+
+static struct spritesheet_t _spritesheets[4];
+
+struct sprite_t {
+	int sheet;
+	int num;
+	int x, y;
+	bool xflip;
+};
+
+static struct sprite_t _sprites[128];
+static int _sprites_count;
+
 static int _screen_w;
 static int _screen_h;
 static SDL_Window *_window;
@@ -62,7 +80,7 @@ static void sdl2_set_screen_size(int w, int h, const char *caption) {
 	SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "0"); /* nearest pixel sampling */
 	const int window_w = w * SCALE;
 	const int window_h = h * SCALE; // * 4 / 3;
-	_window = SDL_CreateWindow(caption, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, window_w, window_h, 0);
+	_window = SDL_CreateWindow(caption, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, window_w, window_h, SDL_WINDOW_RESIZABLE);
 	_renderer = SDL_CreateRenderer(_window, -1, 0);
 	print_debug(DBG_SYSTEM, "set_screen_size %d,%d", _screen_w, _screen_h);
 	_screen_buffer = (uint32_t *)calloc(_screen_w * _screen_h, sizeof(uint32_t));
@@ -97,7 +115,7 @@ static void sdl2_set_copper_bars(const uint16_t *data) {
 		_copper_color = (data[0] - 0x180) / 2;
 		const uint16_t *src = data + 1;
 		uint32_t *dst = _copper_palette;
-		for (int i = 0; i < 16; ++i) {
+		for (int i = 0; i < COPPER_BARS_H / 5; ++i) {
 			const int j = i + 1;
 			*dst++ = convert_amiga_color(src[j]);
 			*dst++ = convert_amiga_color(src[i]);
@@ -145,14 +163,17 @@ static void sdl2_fade_out_palette() {
 static void sdl2_update_screen(const uint8_t *p, int present) {
 	if (_copper_color != -1) {
 		for (int j = 0; j < _screen_h; ++j) {
-			for (int i = 0; i < _screen_w; ++i) {
-				if (*p == _copper_color && j / 2 < COPPER_BARS_H) {
-					_screen_buffer[j * _screen_w + i] = _copper_palette[j / 2];
-				} else {
-					_screen_buffer[j * _screen_w + i] = _screen_palette[*p];
+			if (j / 2 < COPPER_BARS_H) {
+				const uint32_t line_color = _copper_palette[j / 2];
+				for (int i = 0; i < _screen_w; ++i) {
+					_screen_buffer[j * _screen_w + i] = (p[i] == _copper_color) ? line_color : _screen_palette[p[i]];
 				}
-				++p;
+			} else {
+				for (int i = 0; i < _screen_w; ++i) {
+					_screen_buffer[j * _screen_w + i] = _screen_palette[p[i]];
+				}
 			}
+			p += _screen_w;
 		}
 	} else {
 		for (int i = 0; i < _screen_w * _screen_h; ++i) {
@@ -163,6 +184,23 @@ static void sdl2_update_screen(const uint8_t *p, int present) {
 	if (present) {
 		SDL_RenderClear(_renderer);
 		SDL_RenderCopy(_renderer, _texture, 0, 0);
+
+		// sprites
+		for (int i = 0; i < _sprites_count; ++i) {
+			struct sprite_t *spr = &_sprites[i];
+			struct spritesheet_t *sheet = &_spritesheets[spr->sheet];
+			SDL_Rect r;
+			r.x = spr->x * SCALE;
+			r.y = spr->y * SCALE;
+			r.w = sheet->r[spr->num].w * SCALE;
+			r.h = sheet->r[spr->num].h * SCALE;
+			if (!spr->xflip) {
+				SDL_RenderCopy(_renderer, sheet->texture, &sheet->r[spr->num], &r);
+			} else {
+				SDL_RenderCopyEx(_renderer, sheet->texture, &sheet->r[spr->num], &r, 0., 0, SDL_FLIP_HORIZONTAL);
+			}
+		}
+
 		SDL_RenderPresent(_renderer);
 	}
 }
@@ -283,3 +321,53 @@ struct sys_t g_sys = {
 	.lock_audio = sdl2_lock_audio,
 	.unlock_audio = sdl2_unlock_audio,
 };
+
+void render_load_sprites(int spr_type, int count, const struct sys_rect_t *r, const uint8_t *data, int w, int h) {
+	assert(spr_type < ARRAYSIZE(_spritesheets));
+	struct spritesheet_t *spr_sheet = &_spritesheets[spr_type];
+	spr_sheet->count = count;
+	spr_sheet->r = (SDL_Rect *)malloc(count * sizeof(SDL_Rect));
+	for (int i = 0; i < count; ++i) {
+		SDL_Rect *rect = &spr_sheet->r[i];
+		rect->x = r[i].x;
+		rect->y = r[i].y;
+		rect->w = r[i].w;
+		rect->h = r[i].h;
+	}
+	uint32_t *argb = (uint32_t *)malloc(w * h * sizeof(uint32_t));
+	if (!argb) {
+		print_warning("Failed to allocate RGB buffer for sprites type %d", spr_type);
+	} else {
+		spr_sheet->texture = SDL_CreateTexture(_renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STATIC, w, h);
+		SDL_SetTextureBlendMode(spr_sheet->texture, SDL_BLENDMODE_BLEND);
+		for (int i = 0; i < w * h; ++i) {
+			argb[i] = (data[i] == 0) ? 0 : (0xFF000000 | _screen_palette[data[i]]);
+		}
+		SDL_UpdateTexture(spr_sheet->texture, 0, argb, w * sizeof(uint32_t));
+		free(argb);
+	}
+}
+
+void render_unload_sprites(int spr_type) {
+	struct spritesheet_t *spr_sheet = &_spritesheets[spr_type];
+	free(spr_sheet->r);
+	if (spr_sheet->texture) {
+		SDL_DestroyTexture(spr_sheet->texture);
+	}
+	memset(spr_sheet, 0, sizeof(struct spritesheet_t));
+}
+
+void render_add_sprite(int spr_type, int frame, int x, int y, int xflip) {
+	assert(_sprites_count < ARRAYSIZE(_sprites));
+	struct sprite_t *spr = &_sprites[_sprites_count];
+	spr->sheet = spr_type;
+	spr->num = frame;
+	spr->x = x;
+	spr->y = y;
+	spr->xflip = xflip;
+	++_sprites_count;
+}
+
+void render_clear_sprites() {
+	_sprites_count = 0;
+}

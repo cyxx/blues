@@ -47,13 +47,14 @@ static void check_cheat_code() {
 
 void do_select_player() {
 	int quit = 0;
-	int var9 = 0;
+	int fade = 0;
 	int state = 0;
 	int frame1 = 1;
 	int frame2 = 1;
 	const int color_rgb = 2;
 	const int colors_count = 25;
 	load_img("choix.sqz");
+	screen_load_graphics();
 	screen_clear_sprites();
 	do {
 		screen_unk4();
@@ -174,9 +175,9 @@ void do_select_player() {
 			break;
 		}
 // state_default_:
-		if (var9 == 0) {
+		if (!fade) {
 			fade_in_palette();
-			var9 = 1;
+			fade = 1;
 			for (int i = 0; i < colors_count; ++i) {
 				screen_adjust_palette_color( 3, color_rgb, 1);
 				screen_adjust_palette_color(10, color_rgb, 1);
@@ -208,16 +209,12 @@ void do_select_player() {
 	} while (!quit && !g_sys.input.quit);
 }
 
-static void do_inter_screen_helper(int a, int b, int c) {
+static void do_inter_screen_helper(int xpos, int ypos, int c) {
 	if (c != 0) {
 		g_vars.screen_draw_offset ^= 0x2000;
 	}
-	int xpos = a + 20;
-	int ypos = b - 20;
 	for (int i = 0; i < 40; ++i) {
-		--xpos;
-		++ypos;
-		screen_add_sprite(xpos, ypos, 125);
+		screen_add_sprite(xpos + 20 - 1 - i, ypos - 20 + 1 + i, 125);
 		screen_clear_last_sprite();
 		screen_redraw_sprites();
 		if (c != 0) {
@@ -226,9 +223,7 @@ static void do_inter_screen_helper(int a, int b, int c) {
 		screen_clear_sprites();
 	}
 	for (int i = 0; i < 40; ++i) {
-		++xpos;
-		++ypos;
-		screen_add_sprite(xpos, ypos, 125);
+		screen_add_sprite(xpos - 20 + 1 + i, ypos - 20 + 1 + i, 125);
 		screen_clear_last_sprite();
 		screen_redraw_sprites();
 		if (c != 0) {
@@ -288,7 +283,7 @@ void game_main() {
 	screen_flip();
 	screen_init();
 	g_sys.set_screen_size(GAME_SCREEN_W, GAME_SCREEN_H, "Blues Brothers");
-	g_vars.start_level = g_options.start_level;
+	g_vars.start_level = 0;
 	load_sqv("sprite.sqv", g_res.spr_sqv, 0);
 	do_title_screen();
 	while (g_sys.input.quit == 0) {
@@ -297,7 +292,7 @@ void game_main() {
 			g_vars.game_over_flag = 0;
 			g_vars.play_level_flag = 1;
 			if (!g_vars.play_demo_flag) {
-				g_vars.level = 0;
+				g_vars.level = g_options.start_level;
 				do_select_player();
 			} else {
 				g_vars.level = g_vars.start_level;

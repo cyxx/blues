@@ -175,6 +175,7 @@ void load_avt(const char *filename, uint8_t *dst, int offset) {
 		g_res.avt[offset + i] = ptr;
 		ptr += 132;
 	}
+	g_res.avt_count = count;
 }
 
 static const uint8_t *trigger_lookup_table1(uint8_t num) {
@@ -259,6 +260,7 @@ void load_sqv(const char *filename, uint8_t *dst, int offset) {
 	const uint8_t *ptr = dst;
 	const int count = READ_LE_UINT16(ptr); ptr += 6;
 	print_debug(DBG_RESOURCE, "sqv count %d", count);
+	assert(offset + count <= MAX_SPR_FRAMES);
 	for (int i = 0; i < count; ++i) {
 		g_res.spr_frames[offset + i] = ptr;
 		const int h = READ_LE_UINT16(ptr - 4);
@@ -268,6 +270,7 @@ void load_sqv(const char *filename, uint8_t *dst, int offset) {
 		print_debug(DBG_RESOURCE, "sprite %d, dim %d,%d size %d", i, w, h, size);
 		ptr += size;
 	}
+	g_res.spr_count = offset + count;
 }
 
 void load_sql(const char *filename) {

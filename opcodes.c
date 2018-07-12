@@ -49,18 +49,18 @@ static void object_func_op2(struct object_t *obj) {
 		obj->moving_direction ^= 1;
 	}
 	obj->direction_lr = obj->moving_direction + 1;
-	obj->xmaxvelocity = 40;
+	obj->xmaxvelocity = 24;
 	if (obj->anim_num == 12 && obj->special_anim == 2) {
 		obj->special_anim = 3;
 		obj->anim_num = 1;
 	} else if (obj->anim_num == 12 && obj->special_anim == 3) {
 		obj->special_anim = 0;
 	}
-	if (obj->player_ydist <= 0 && obj->player_xdist > -(TILEMAP_SCREEN_W / 4) && obj->player_xdist < (TILEMAP_SCREEN_W / 4) && obj->direction_ud > 196) {
+	if (obj->player_ydist <= 20 && obj->player_xdist > -(TILEMAP_SCREEN_W / 4) && obj->player_xdist < (TILEMAP_SCREEN_W / 4) && obj->direction_ud > -60) {
 		if (obj->special_anim == 0 || obj->anim_num == 12) {
 			obj->anim_num = 1;
 			obj->unk42 = 0;
-			do_level_update_object38(obj);
+			do_level_update_projectile(obj);
 		}
 		obj->facing_left = (obj->player_xdist < 0) ? 1 : 0;
 	}
@@ -71,9 +71,9 @@ static void object_func_op2(struct object_t *obj) {
 
 static void object_func_op3(struct object_t *obj) {
 	if (obj->player_ydist <= 20 && obj->player_ydist > -(TILEMAP_SCREEN_W / 2) && obj->player_xdist < (TILEMAP_SCREEN_W / 2) && g_vars.objects[38].type == 100) {
-		if (obj->direction_ud > 226) {
+		if (obj->direction_ud > -30) {
 			if (obj->special_anim == 0 || obj->anim_num == 16) {
-				do_level_update_object38(obj);
+				do_level_update_projectile(obj);
 			}
 			obj->facing_left = (obj->player_xdist < 0) ? 1 : 0;
 		}
@@ -154,6 +154,37 @@ static void object_func_op5(struct object_t *obj) {
 	obj->xmaxvelocity = 32;
 }
 
+static void object_func_op7(struct object_t *obj) {
+	if (triggers_get_tile_type(obj->xpos16 + 2 - obj->facing_left * 4, obj->ypos16) == 12) {
+		obj->moving_direction ^= 1;
+	}
+	obj->direction_lr = obj->moving_direction + 1;
+	obj->xmaxvelocity = 32;
+	if (g_vars.objects[OBJECT_NUM_PLAYER1].special_anim != 18 && g_vars.objects[OBJECT_NUM_PLAYER2].special_anim != 18) {
+		if (obj->player_ydist <= 10 && obj->player_xdist > -(TILEMAP_SCREEN_W / 4) && obj->player_xdist < (TILEMAP_SCREEN_W / 4) && g_vars.objects[38].type == 100) {
+			if (obj->direction_ud > -30) {
+				if (obj->special_anim == 0 || obj->anim_num == 16) {
+					obj->anim_num = 1;
+					obj->unk42 = 0;
+					do_level_update_projectile(obj);
+				}
+				if (obj->player_xdist < 0) {
+					obj->facing_left = 1;
+				} else {
+					obj->facing_left = 0;
+				}
+			}
+		} else {
+			if (obj->anim_num == 16) {
+				obj->special_anim = 0;
+			}
+		}
+	}
+	if (obj->special_anim != 0) {
+		obj->direction_lr = 0;
+	}
+}
+
 // bird
 static void object_func_op8(struct object_t *obj) {
 	if (triggers_get_tile_type(obj->xpos16 + 2 - obj->facing_left * 4, obj->ypos16) != 1) {
@@ -163,10 +194,10 @@ static void object_func_op8(struct object_t *obj) {
 	obj->xmaxvelocity = 48;
 	obj->yacc = 0;
 	obj->yvelocity = 0;
-	if (obj->player_ydist <= 100 && obj->player_xdist > -90 && obj->player_xdist < 90 && obj->direction_ud > 196 && obj->special_anim == 0) {
+	if (obj->player_ydist <= 100 && obj->player_xdist > -90 && obj->player_xdist < 90 && obj->direction_ud > -60 && obj->special_anim == 0) {
 		obj->anim_num = 1;
 		obj->unk42 = 1;
-		do_level_update_object38(obj);
+		do_level_update_projectile(obj);
 	}
 }
 
@@ -177,11 +208,11 @@ static void object_func_op10(struct object_t *obj) {
 	obj->direction_lr = obj->moving_direction + 1;
 	obj->xmaxvelocity = 32;
 	if (obj->player_ydist <= 10 && obj->player_xdist > -(TILEMAP_SCREEN_W / 2) && obj->player_xdist < (TILEMAP_SCREEN_W / 2) && g_vars.objects[38].type == 100) {
-		if (obj->direction_ud > 226) {
+		if (obj->direction_ud > -30) {
 			if (obj->special_anim == 0 || obj->anim_num == 16) {
 				obj->anim_num = 1;
 				obj->unk42 = 0;
-				do_level_update_object38(obj);
+				do_level_update_projectile(obj);
 			}
 			obj->facing_left = (obj->player_xdist < 0) ? 1 : 0;
 		}
@@ -435,6 +466,9 @@ void level_call_object_func(struct object_t *obj) {
 			break;
 		case 5:
 			object_func_op5(obj);
+			break;
+		case 7:
+			object_func_op7(obj);
 			break;
 		case 8:
 			object_func_op8(obj);

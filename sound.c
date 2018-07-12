@@ -32,7 +32,7 @@ static const struct {
 	{ 0x36a6, 0x0574 }
 };
 
-// Amiga, unexotica
+// Amiga, ExoticA
 static const char *_modules[] = {
 	"ALMOST", "mod.almost",
 	"GUNN",   "mod.bluesgunnbest",
@@ -47,7 +47,7 @@ struct mixerchannel_t {
 	uint32_t size;
 };
 
-static int _rate = 22050;
+static const int _rate = SYS_AUDIO_FREQ;
 static struct mixerchannel_t _channel;
 static ModPlugFile *_mpf;
 
@@ -74,7 +74,6 @@ static void mix(void *param, uint8_t *buf, int len) {
 }
 
 void sound_init(int rate) {
-	_rate = rate;
 	ModPlug_Settings mp_settings;
 	memset(&mp_settings, 0, sizeof(mp_settings));
 	ModPlug_GetSettings(&mp_settings);
@@ -109,17 +108,60 @@ void play_music(int num) {
 		ModPlug_Unload(_mpf);
 		_mpf = 0;
 	}
-	const char *filename = _modules[num * 2 + 1];
-	if (fio_exists(filename)) {
+	const char *filename = _modules[num * 2];
+	if (fio_exists(filename)) { // Amiga
 		int slot = fio_open(filename, 1);
 		int size = fio_size(slot);
 		uint8_t *buf = (uint8_t *)malloc(size);
 		if (buf) {
 			fio_read(slot, buf, size);
-			_mpf = ModPlug_Load(buf, size);
+
+			// append samples to the end of the buffer
+			static const int SONG_INFO_LEN = 20;
+			static const int NUM_SAMPLES = 8;
+
+			int samples_size = 0;
+			int offset = SONG_INFO_LEN;
+			for (int i = 0; i < NUM_SAMPLES; ++i, offset += 30) {
+				const char *sample_name = (const char *)&buf[offset];
+				if (sample_name[0]) {
+					samples_size += READ_BE_UINT16(&buf[offset + 22]) * 2;
+				}
+			}
+
+			buf = (uint8_t *)realloc(buf, size + samples_size);
+			if (buf) {
+				offset = SONG_INFO_LEN;
+				for (int i = 0; i < NUM_SAMPLES; ++i, offset += 30) {
+					const char *sample_name = (const char *)&buf[offset];
+					const int sample_size = READ_BE_UINT16(&buf[offset + 22]) * 2;
+					if (sample_name[0]) {
+						int sample_slot = fio_open(sample_name, 0);
+						if (!(sample_slot < 0)) {
+							fio_read(sample_slot, buf + size, sample_size);
+							size += sample_size;
+						}
+						fio_close(sample_slot);
+					}
+				}
+				_mpf = ModPlug_Load(buf, size);
+			}
 			free(buf);
 		}
 		fio_close(slot);
+	} else { // ExoticA
+		filename = _modules[num * 2 + 1];
+		if (fio_exists(filename)) {
+			int slot = fio_open(filename, 1);
+			int size = fio_size(slot);
+			uint8_t *buf = (uint8_t *)malloc(size);
+			if (buf) {
+				fio_read(slot, buf, size);
+				_mpf = ModPlug_Load(buf, size);
+				free(buf);
+			}
+			fio_close(slot);
+		}
 	}
 	g_sys.unlock_audio();
 }

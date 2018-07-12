@@ -1,7 +1,6 @@
 
 /* level main loop */
 
-#include "decode.h"
 #include "game.h"
 #include "resource.h"
 #include "sys.h"
@@ -66,13 +65,14 @@ void load_level_data(int num) {
 	}
 	load_bin(_levels[num].bin);
 	load_avt(_levels[num].avt, g_res.avt_sqv, 0);
-	load_sqv(_levels[num].sqv, g_res.tmp, 146);
+	load_sqv(_levels[num].sqv, g_res.tmp, SPRITES_COUNT);
 	memcpy(g_vars.level_xpos, _levels[num].xpos, MAX_OBJECTS * sizeof(int16_t));
 	memcpy(g_vars.level_ypos, _levels[num].ypos, MAX_OBJECTS * sizeof(int16_t));
 	if (g_vars.music_num != _levels[num].music) {
 		play_music(_levels[num].music);
 		g_vars.music_num = _levels[num].music;
 	}
+	screen_load_graphics();
 }
 
 static void init_level() {
@@ -502,6 +502,64 @@ static void do_level_add_sprite1_case2(struct object_t *obj) {
 	obj->anim_frame = anim_data[obj->anim_num];
 }
 
+static void do_level_add_sprite1_case3(struct object_t *obj) {
+	struct object_t *obj35 = &g_vars.objects[35];
+	struct object_t *obj37 = &g_vars.objects[37];
+	if (obj->type != 0 && g_vars.two_players_flag) {
+		obj35 = &g_vars.objects[34];
+		obj37 = &g_vars.objects[36];
+	}
+	if (obj37->type != 100 && obj37->grab_type != 0) {
+		do_level_drop_grabbed_object(obj);
+	}
+	obj->unk3D = 0;
+	if (obj35->type != 100) {
+		obj35->type = 100;
+		obj35->visible_flag = 0;
+	}
+	const uint8_t *anim_data = 0;
+	obj->unk3D = 0;
+	int tile_num = triggers_get_tile_type(obj->xpos16, obj->ypos16);
+	obj->xmaxvelocity = 8;
+	obj->xacc = 0;
+	obj->unk2D = 10;
+	if (obj->direction_lr != 0) {
+		if (obj->direction_ud != 0) {
+			if (tile_num == 6) {
+				anim_data = obj->animframes_ptr[56 / 4];
+			} else {
+				anim_data = obj->animframes_ptr[0];
+			}
+		} else {
+			if (tile_num == 6) {
+				anim_data = obj->animframes_ptr[68 / 4];
+			} else {
+				anim_data = obj->animframes_ptr[4 / 4];
+			}
+		}
+	} else {
+		if (obj->direction_ud != 0) {
+			if (tile_num == 6) {
+				anim_data = obj->animframes_ptr[56 / 4];
+			} else {
+				anim_data = obj->animframes_ptr[0];
+			}
+		} else {
+			if (tile_num == 6) {
+				anim_data = obj->animframes_ptr[68 / 4];
+			} else {
+				anim_data = obj->animframes_ptr[4 / 4];
+			}
+		}
+	}
+	if (obj->anim_num < anim_data[0]) {
+		obj->anim_num += (g_vars.level_loop_counter & 1);
+	} else {
+		obj->anim_num = 1;
+	}
+	obj->anim_frame = anim_data[obj->anim_num];
+}
+
 // swimming
 static void do_level_add_sprite1_case4(struct object_t *obj) {
 	struct object_t *obj35 = &g_vars.objects[35];
@@ -607,6 +665,9 @@ static void do_level_add_sprite1(struct object_t *obj) {
 		break;
 	case 2:
 		do_level_add_sprite1_case2(obj);
+		break;
+	case 3:
+		do_level_add_sprite1_case3(obj);
 		break;
 	case 4:
 		do_level_add_sprite1_case4(obj);
@@ -1335,17 +1396,17 @@ static void do_level_update_object_bounds(struct object_t *obj) {
 	// obj->unk41 = 0;
 }
 
-void do_level_update_object38(struct object_t *obj) {
+void do_level_update_projectile(struct object_t *obj) {
 	struct object_t *obj38 = &g_vars.objects[38];
 	if (obj->unk42 == 0) {
-		if (obj->type == 100) {
+		if (obj38->type == 100) {
 			obj->special_anim = 2;
 			obj->unk42 = 1;
 		}
 	} else if (obj->unk42 == 1) {
 		if (obj38->grab_type == 10 || obj->anim_num >= 7) {
 			obj38->type = 2;
-			obj->visible_flag = 1;
+			obj38->visible_flag = 1;
 			static const uint8_t data[MAX_OBJECTS] = {
 				0, 0, 0, 0, 4, 5, 0, 0, 0, 0, 0, 0, 0, 6, 23, 0, 9, 9, 0, 10, 0,
 				11, 0, 12, 13, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 14, 0, 0, 0, 0
@@ -1374,6 +1435,11 @@ void do_level_update_object38(struct object_t *obj) {
 				obj38->ypos = obj->ypos - 3;
 				obj38->xpos = obj->xpos + 16 - (obj->facing_left << 5);
 				obj38->xvelocity = obj38->yvelocity = 32 - (obj->facing_left << 6);
+				break;
+			default:
+				obj38->ypos = obj->ypos - 18;
+				obj38->xpos = obj->xpos + 32 - (obj->facing_left << 6);
+				obj38->xvelocity = obj38->yvelocity = 64 - (obj->facing_left << 7);
 				break;
 			}
 			const int num = obj38->type * 116 / 4;
@@ -1842,7 +1908,17 @@ static void do_level_update_objects() {
 		obj->direction_lr = 0;
 		obj->direction_ud = 0;
 		if (obj->type < 2) {
-			if (g_vars.inp_keyboard[0xC1] != 0) { // F7
+			if (g_vars.inp_keyboard[0xC1] != 0) { // F7, change player
+				if (!g_vars.screen_unk1 && g_vars.two_players_flag) {
+					if (!g_vars.player2_scrolling_flag && g_vars.objects[OBJECT_NUM_PLAYER1].unk53 == 0) {
+						g_vars.player2_scrolling_flag = 1;
+						g_vars.screen_unk1 = 1;
+					} else if (g_vars.player2_scrolling_flag && g_vars.objects[OBJECT_NUM_PLAYER2].unk53 == 0) {
+						g_vars.player2_scrolling_flag = 1;
+						g_vars.screen_unk1 = 1;
+					}
+				}
+				g_vars.inp_keyboard[0xC1] = 0;
 			}
 			if (obj->blinking_counter != 0) {
 				--obj->blinking_counter;
@@ -1896,7 +1972,7 @@ static void do_level_update_objects() {
 		if (obj->visible_flag != 0) {
 			do_level_update_object_bounds(obj);
 			if (obj->unk42 != 0) {
-				do_level_update_object38(obj);
+				do_level_update_projectile(obj);
 			}
 			obj->unk2D = 10;
 			obj->unk1C = 0;
@@ -2046,9 +2122,9 @@ static void draw_foreground_tiles() {
 			}
 			const int avt_num = g_res.triggers[num].foreground_tile_num;
 			if (avt_num != 255) {
-				const int tile_y = j * 16 + 14;
+				const int tile_y = j * 16 + TILEMAP_OFFSET_Y;
 				const int tile_x = i * 16;
-				decode_ega_spr(g_res.avt[avt_num], 16, 16, 16, g_res.vga, GAME_SCREEN_W, tile_x, tile_y, 0);
+				render_add_sprite(RENDER_SPR_FG, avt_num, tile_x, tile_y, 0);
 			}
 		}
 		++y;
@@ -2098,7 +2174,7 @@ void do_level() {
 	do {
 		const uint32_t timestamp = g_sys.get_timestamp();
 		update_input();
-		if (g_vars.inp_keyboard[0xBF] != 0) { // F5
+		if (g_vars.inp_keyboard[0xBF] != 0) { // F5, quit game
 			play_sound(SOUND_0);
 			g_vars.inp_keyboard[0xBF] = 0;
 			g_vars.quit_level_flag = 1;

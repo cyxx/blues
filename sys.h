@@ -23,6 +23,11 @@ struct input_t {
 
 typedef void (*sys_audio_cb)(void *, uint8_t *data, int len);
 
+struct sys_rect_t {
+	int x, y;
+	int w, h;
+};
+
 struct sys_t {
 	struct input_t	input;
 	int	(*init)();
@@ -44,5 +49,17 @@ struct sys_t {
 };
 
 extern struct sys_t g_sys;
+
+#define RENDER_SPR_GAME  0 /* player sprites */
+#define RENDER_SPR_LEVEL 1 /* level sprites */
+#define RENDER_SPR_FONT  2 /* font (digits) */
+#define RENDER_SPR_FG    3 /* foreground tiles */
+
+extern void	render_load_sprites(int spr_type, int count, const struct sys_rect_t *r, const uint8_t *data, int w, int h);
+extern void	render_unload_sprites(int spr_type);
+extern void	render_add_sprite(int spr_type, int frame, int x, int y, int xflip);
+extern void	render_clear_sprites();
+extern void	render_draw_tilemap(int x, int y);
+extern void	render_draw_image();
 
 #endif /* SYS_H__ */

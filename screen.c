@@ -5,49 +5,36 @@
 #include "sys.h"
 #include "util.h"
 
+#define MAX_SPRITESHEET_W 1024
+#define MAX_SPRITESHEET_H  512
+
 void screen_init() {
-	for (int i = 0; i < MAX_SPRITES; ++i) {
-		g_vars.sprites[i] = &g_vars.sprites_table[i];
-	}
-	for (int i = 0; i < MAX_SPRITES - 1; ++i) {
-		g_vars.sprites[i]->next_sprite = g_vars.sprites[i] + 1;
-	}
-	g_vars.sprites[MAX_SPRITES - 1]->next_sprite = 0;
 }
 
 void screen_clear_sprites() {
-	g_vars.sprites_count = 0;
+	render_clear_sprites();
+}
+
+static void add_game_sprite(int x, int y, int frame, int xflip) {
+	const uint8_t *p = g_res.spr_frames[frame];
+	const int h = READ_LE_UINT16(p - 4);
+	const int w = READ_LE_UINT16(p - 2);
+	int spr_type = RENDER_SPR_GAME;
+	if (frame >= SPRITES_COUNT) {
+		spr_type = RENDER_SPR_LEVEL;
+		frame -= SPRITES_COUNT;
+	}
+	render_add_sprite(spr_type, frame, x - w / 2, y - h, xflip);
 }
 
 void screen_add_sprite(int x, int y, int frame) {
-	assert(g_vars.sprites_count < MAX_SPRITES);
-	struct sprite_t *spr = g_vars.sprites[g_vars.sprites_count];
-	spr->xpos = x;
-	spr->ypos = y;
-	spr->frame = g_res.spr_frames[frame];
-	spr->xflip = 0;
-	spr->unk16 = 0;
-	spr->next_sprite = spr + 1;
-	++g_vars.sprites_count;
+	add_game_sprite(x, y, frame, 0);
 }
 
 void screen_clear_last_sprite() {
-	assert(g_vars.sprites_count >= 0);
-	if (g_vars.sprites_count > 0) {
-		g_vars.sprites[g_vars.sprites_count - 1]->next_sprite = 0;
-	}
 }
 
 void screen_redraw_sprites() {
-	for (int i = 0; i < g_vars.sprites_count; ++i) {
-		struct sprite_t *spr = g_vars.sprites[i];
-		const uint8_t *p = spr->frame;
-		const int h = READ_LE_UINT16(p - 4);
-		const int w = READ_LE_UINT16(p - 2);
-		const int y = spr->ypos - h;
-		const int x = spr->xpos - w / 2;
-		decode_ega_spr(p, w, w, h, g_res.vga, GAME_SCREEN_W, x, y, spr->xflip);
-	}
 }
 
 void fade_in_palette() {
@@ -61,14 +48,10 @@ void fade_out_palette() {
 void screen_adjust_palette_color(int color, int b, int c) {
 	g_res.palette[color * 3 + b] += c;
 	screen_vsync();
-	screen_set_palette();
+	g_sys.set_screen_palette(g_res.palette, 16);
 }
 
 void screen_vsync() {
-}
-
-void screen_set_palette() {
-	g_sys.set_screen_palette(g_res.palette, 16);
 }
 
 void screen_draw_frame(const uint8_t *frame, int a, int b, int c, int d) {
@@ -78,7 +61,7 @@ void screen_draw_frame(const uint8_t *frame, int a, int b, int c, int d) {
 	assert(b <= w);
 	const int x = c;
 	const int y = d + a + 2;
-	decode_ega_spr(frame, w, b, h, g_res.vga, GAME_SCREEN_W, x, y, 0);
+	decode_ega_spr(frame, w, b, h, g_res.vga, GAME_SCREEN_W, x, y);
 }
 
 void screen_flip() {
@@ -96,9 +79,9 @@ void screen_unk5() {
 }
 
 void screen_unk6() {
-	// _screen_draw_offset -= 12;
+	// g_vars.screen_draw_offset -= 12;
 	// screen_do_transition2();
-	// _screen_draw_offset += 12;
+	// g_vars.screen_draw_offset += 12;
 	g_sys.update_screen(g_res.vga, 1);
 	memset(g_res.vga, 0, GAME_SCREEN_W * GAME_SCREEN_H);
 }
@@ -156,24 +139,90 @@ void screen_do_transition2() {
 void screen_draw_number(int num, int x, int y, int color) {
 	extern const uint8_t font_data[];
 	y += TILEMAP_OFFSET_Y;
-	decode_ega_spr(font_data + (num / 10) * 32, 8, 8, 8, g_res.vga, GAME_SCREEN_W, x - 8, y, 0);
-	decode_ega_spr(font_data + (num % 10) * 32, 8, 8, 8, g_res.vga, GAME_SCREEN_W, x,     y, 0);
+	decode_ega_spr(font_data + (num / 10) * 32, 8, 8, 8, g_res.vga, GAME_SCREEN_W, x - 8, y);
+	decode_ega_spr(font_data + (num % 10) * 32, 8, 8, 8, g_res.vga, GAME_SCREEN_W, x,     y);
 }
 
 void screen_add_game_sprite1(int x, int y, int frame) {
-	screen_add_sprite(x, y + TILEMAP_OFFSET_Y, frame);
-	g_vars.sprites[g_vars.sprites_count - 1]->xflip = 0;
+	add_game_sprite(x, y + TILEMAP_OFFSET_Y, frame, 0);
 }
 
 void screen_add_game_sprite2(int x, int y, int frame) {
-	screen_add_sprite(x, y + TILEMAP_OFFSET_Y, frame);
-	g_vars.sprites[g_vars.sprites_count - 1]->xflip = 1;
+	add_game_sprite(x, y + TILEMAP_OFFSET_Y, frame, 1);
 }
 
 void screen_add_game_sprite3(int x, int y, int frame, int blinking_counter) {
-	print_warning("screen_add_game_sprite3");
+//	print_warning("screen_add_game_sprite3");
 }
 
 void screen_add_game_sprite4(int x, int y, int frame, int blinking_counter) {
-	print_warning("screen_add_game_sprite4");
+//	print_warning("screen_add_game_sprite4");
+}
+
+static void decode_graphics(int spr_type, int start, int end) {
+	struct sys_rect_t r[MAX_SPR_FRAMES];
+	uint8_t *data = (uint8_t *)calloc(MAX_SPRITESHEET_W * MAX_SPRITESHEET_H, 1);
+	if (data) {
+		int current_x = 0;
+		int max_w = 0;
+		int current_y = 0;
+		int max_h = 0;
+		for (int i = start; i < end; ++i) {
+			const uint8_t *ptr = g_res.spr_frames[i];
+			const int h = READ_LE_UINT16(ptr - 4);
+			const int w = READ_LE_UINT16(ptr - 2);
+			const int j = i - start;
+			if (current_x + w > MAX_SPRITESHEET_W) {
+				current_y += max_h;
+				if (current_x > max_w) {
+					max_w = current_x;
+				}
+				current_x = 0;
+				max_h = h;
+				decode_ega_spr(ptr, w, w, h, data, MAX_SPRITESHEET_W, current_x, current_y);
+				r[j].x = current_x;
+				r[j].y = current_y;
+			} else {
+				decode_ega_spr(ptr, w, w, h, data, MAX_SPRITESHEET_W, current_x, current_y);
+				r[j].x = current_x;
+				r[j].y = current_y;
+				current_x += w;
+				if (h > max_h) {
+					max_h = h;
+				}
+			}
+			r[j].w = w;
+			r[j].h = h;
+		}
+		assert(max_w <= MAX_SPRITESHEET_W);
+		assert(current_y + max_h <= MAX_SPRITESHEET_H);
+		render_unload_sprites(spr_type);
+		render_load_sprites(spr_type, end - start, r, data, MAX_SPRITESHEET_W, current_y + max_h);
+		free(data);
+	}
+}
+
+void screen_load_graphics() {
+	if (g_res.spr_count <= SPRITES_COUNT) {
+		decode_graphics(RENDER_SPR_GAME, 0, SPRITES_COUNT);
+	} else {
+		decode_graphics(RENDER_SPR_LEVEL, SPRITES_COUNT, g_res.spr_count);
+		struct sys_rect_t r[MAX_SPR_FRAMES];
+		static const int FG_TILE_W = 16;
+		static const int FG_TILE_H = 16;
+		uint8_t *data = (uint8_t *)malloc(g_res.avt_count * FG_TILE_W * FG_TILE_H);
+		if (data) {
+			const int pitch = g_res.avt_count * FG_TILE_W;
+			for (int i = 0; i < g_res.avt_count; ++i) {
+				decode_ega_spr(g_res.avt[i], FG_TILE_W, FG_TILE_W, FG_TILE_H, data, pitch, i * FG_TILE_W, 0);
+				r[i].x = i * FG_TILE_W;
+				r[i].y = 0;
+				r[i].w = FG_TILE_W;
+				r[i].h = FG_TILE_H;
+			}
+			render_unload_sprites(RENDER_SPR_FG);
+			render_load_sprites(RENDER_SPR_FG, g_res.avt_count, r, data, g_res.avt_count * FG_TILE_W, FG_TILE_H);
+			free(data);
+		}
+	}
 }
