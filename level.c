@@ -15,11 +15,6 @@ static const uint16_t _copper_data[18 * MAX_LEVELS] = {
 	0x198,0x400,0x500,0x600,0x700,0x800,0x900,0xa00,0xb00,0xc00,0xd00,0xe00,0xf00,0xf11,0xf22,0xf33,0xf44,0xf55
 };
 
-static const uint16_t _colors2_data[] = {
-	0x1a0,0x000,0x1a2,0xfdd,0x1a4,0x678,0x1a6,0x046,0x1a8,0x000,0x1aa,0xa20,0x1ac,0xf87,0x1ae,0x955,
-	0x1b0,0xbcf,0x1b2,0xfca,0x1b4,0x30a,0x1b6,0xa9a,0x1b8,0x900,0x1ba,0x666,0x1bc,0x747,0x1be,0x020
-};
-
 static const uint16_t _colors_data[16 * MAX_LEVELS] = {
 	0x000,0xc77,0x989,0x669,0x147,0xfda,0xdb9,0xf87,0x4af,0x050,0x091,0x111,0xbcf,0xa20,0x630,0xfff,
 	0x000,0xa67,0xb89,0x067,0x046,0xeb8,0xca5,0xf87,0x4af,0x660,0x980,0x111,0x59c,0xa25,0x635,0xfff,
@@ -49,15 +44,18 @@ static const struct {
 };
 
 static const struct {
+	const char *blk;
+	const char *tbl;
 	const char *m;
 	const char *bin;
+	const char *ennemi;
 } _levels_amiga[MAX_LEVELS] = {
-	{ "mag.m", "magasin.bin" },
-	{ "ent.m", "entrepo.bin" },
-	{ "pris.m", "prison.bin" },
-	{ "egou.m", "egout.bin" },
-	{ "ville.m", "ville.bin" },
-	{ 0, "concert.bin" },
+	{ "mag.blk", "mag.tbl", "mag.m", "magasin.bin", "ennemi1" },
+	{ "ent.blk", "ent.tbl", "ent.m", "entrepo.bin", "ennemi2" },
+	{ "prison.blk", "prison.tbl", "pris.m", "prison.bin", "ennemi3" },
+	{ "egout.blk", "egout.tbl", "egou.m", "egout.bin", "ennemi4" },
+	{ "ville.blk", "ville.tbl", "ville.m", "ville.bin", "ennemi5" },
+	{ "concert.blk", "concert.tbl", 0, "concert.bin", "ennemi6" },
 };
 
 static const char *_demo_filenames[] = {
@@ -76,15 +74,15 @@ void load_level_data(int num) {
 		load_sql(_levels[num].sql);
 	}
 	if (g_options.amiga_data) {
+		load_blk(_levels_amiga[num].blk);
+		read_file(_levels_amiga[num].tbl, g_res.sql, 0);
 		load_bin(_levels_amiga[num].bin);
 	} else {
 		load_bin(_levels[num].bin);
 	}
 	load_avt(_levels[num].avt, g_res.avt_sqv, 0);
 	if (g_options.amiga_sprites) {
-		char name[16];
-		snprintf(name, sizeof(name), "ennemi%d", 1 + num);
-		load_spr(name, g_res.tmp, SPRITES_COUNT);
+		load_spr(_levels_amiga[num].ennemi, g_res.tmp, SPRITES_COUNT);
 	} else {
 		load_sqv(_levels[num].sqv, g_res.tmp, SPRITES_COUNT);
 	}
@@ -304,6 +302,7 @@ static void do_level_update_tiles_anim() {
 			} else {
 				const int current = data[0];
 				num = data[current + 1];
+				*ptr = num;
 				t->unk16 = num;
 			}
 			if (num >= 128) {
@@ -2173,13 +2172,7 @@ void do_level() {
 		g_sys.set_copper_bars(_copper_data + g_vars.level * 18);
 	}
 	if (g_options.amiga_colors) {
-		uint16_t palette[32];
-		memcpy(palette, _colors_data + g_vars.level * 16, 16 * sizeof(uint16_t));
-		for (int i = 0; i < 16; ++i) {
-			assert(_colors2_data[i * 2] == 0x1a0 + i * 2);
-			palette[16 + i] = _colors2_data[i * 2 + 1];
-		}
-		g_sys.set_palette_amiga(palette);
+		g_sys.set_palette_amiga(_colors_data + g_vars.level * 16, 0);
 	}
 	// _time_sync_ptr[1] = 1:
 	g_vars.inp_keyboard[0xB9] = 0; // SPACE

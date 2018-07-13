@@ -14,7 +14,7 @@ struct spritesheet_t {
 	SDL_Texture *texture;
 };
 
-static struct spritesheet_t _spritesheets[4];
+static struct spritesheet_t _spritesheets[3];
 
 struct sprite_t {
 	int sheet;
@@ -102,9 +102,9 @@ static uint32_t convert_amiga_color(uint16_t color) {
 	return SDL_MapRGB(_fmt, r, g, b);
 }
 
-static void sdl2_set_palette_amiga(const uint16_t *colors) {
-	for (int i = 0; i < 32; ++i) {
-		_screen_palette[i] = convert_amiga_color(colors[i]);
+static void sdl2_set_palette_amiga(const uint16_t *colors, int offset) {
+	for (int i = 0; i < 16; ++i) {
+		_screen_palette[offset + i] = convert_amiga_color(colors[i]);
 	}
 }
 
@@ -322,7 +322,7 @@ struct sys_t g_sys = {
 	.unlock_audio = sdl2_unlock_audio,
 };
 
-void render_load_sprites(int spr_type, int count, const struct sys_rect_t *r, const uint8_t *data, int w, int h) {
+void render_load_sprites(int spr_type, int count, const struct sys_rect_t *r, const uint8_t *data, int w, int h, int palette_offset) {
 	assert(spr_type < ARRAYSIZE(_spritesheets));
 	struct spritesheet_t *spr_sheet = &_spritesheets[spr_type];
 	spr_sheet->count = count;
@@ -341,7 +341,7 @@ void render_load_sprites(int spr_type, int count, const struct sys_rect_t *r, co
 		spr_sheet->texture = SDL_CreateTexture(_renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STATIC, w, h);
 		SDL_SetTextureBlendMode(spr_sheet->texture, SDL_BLENDMODE_BLEND);
 		for (int i = 0; i < w * h; ++i) {
-			argb[i] = (data[i] == 0) ? 0 : (0xFF000000 | _screen_palette[data[i]]);
+			argb[i] = (data[i] == 0) ? 0 : (0xFF000000 | _screen_palette[palette_offset + data[i]]);
 		}
 		SDL_UpdateTexture(spr_sheet->texture, 0, argb, w * sizeof(uint32_t));
 		free(argb);

@@ -6,5 +6,6 @@
 
 extern void	decode_ega_spr(const uint8_t *src, int src_pitch, int w, int h, uint8_t *dst, int dst_pitch, int dst_x, int dst_y);
 extern void	decode_amiga_planar8(const uint8_t *src, int w, int h, int depth, uint8_t *dst, int dst_pitch, int dst_x, int dst_y);
+extern void	decode_amiga_blk(const uint8_t *src, uint8_t *dst, int dst_pitch);
 
 #endif /* DECODE_H__ */

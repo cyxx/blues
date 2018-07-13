@@ -43,7 +43,6 @@ struct options_t {
 	bool amiga_copper_bars;
 	bool amiga_colors;
 	bool amiga_sprites;
-	bool amiga_lbms;
 	bool amiga_data;
 };
 

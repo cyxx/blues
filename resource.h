@@ -54,6 +54,7 @@ extern int	read_file(const char *filename, uint8_t *dst, int size);
 extern int	read_compressed_file(const char *filename, uint8_t *dst);
 extern void	load_avt(const char *filename, uint8_t *dst, int offset);
 extern void	load_bin(const char *filename);
+extern void	load_blk(const char *filename);
 extern void	load_ck(const char *filename, uint16_t offset);
 extern void	load_img(const char *filename);
 extern void	load_spr(const char *filename, uint8_t *dst, int offset);

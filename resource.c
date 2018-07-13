@@ -8,7 +8,7 @@
 struct resource_data_t g_res;
 
 void res_init() {
-	static const int SQL_SIZE = 1000 * 16;
+	static const int SQL_SIZE = 640 * 25;
 	g_res.sql = (uint8_t *)malloc(SQL_SIZE);
 	if (!g_res.sql) {
 		print_error("Failed to allocate sql buffer, %d bytes", SQL_SIZE);
@@ -223,6 +223,10 @@ void load_bin(const char *filename) {
 	}
 }
 
+void load_blk(const char *filename) {
+	read_file(filename, g_res.tiles, 256 * 16 * 8);
+}
+
 void load_ck(const char *filename, uint16_t offset) {
 	const int size = read_compressed_file(filename, g_res.tmp);
 	switch (offset) {
@@ -255,7 +259,7 @@ void load_img(const char *filename) {
 	memcpy(g_res.vga, g_res.tmp + 32000, 64000);
 }
 
-static int load_spr_helper(int offset, const uint8_t *ptr, uint16_t (*read16)(const uint8_t *)) {
+static int load_spr_helper(int offset, const uint8_t *ptr, uint16_t (*read16)(const uint8_t *), int depth) {
 	const int count = read16(ptr); ptr += 6;
 	print_debug(DBG_RESOURCE, "spr count %d", count);
 	assert(offset + count <= MAX_SPR_FRAMES);
@@ -264,16 +268,18 @@ static int load_spr_helper(int offset, const uint8_t *ptr, uint16_t (*read16)(co
 		const int h = read16(ptr - 4);
 		const int w = read16(ptr - 2);
 		assert((w & 3) == 0);
-		const int size = (w >> 1) * h + 4;
+		const int size = h * w * depth / 8;
 		print_debug(DBG_RESOURCE, "sprite %d, dim %d,%d size %d", i, w, h, size);
-		ptr += size;
+		ptr += size + 4;
 	}
 	return count;
 }
 
 void load_spr(const char *filename, uint8_t *dst, int offset) {
 	read_file(filename, dst, 0);
-	const int count = load_spr_helper(offset, dst, READ_BE_UINT16);
+	// player sprites use 8 colors
+	const int depth = (offset == 0) ? 3 : 4;
+	const int count = load_spr_helper(offset, dst, READ_BE_UINT16, depth);
 	g_res.spr_count = offset + count;
 	// convert to little endian
 	uint8_t *ptr = dst;
@@ -285,14 +291,14 @@ void load_spr(const char *filename, uint8_t *dst, int offset) {
 		ptr[4] = w;
 		ptr[5] = 0;
 		assert((w & 3) == 0);
-		const int size = (w >> 1) * h + 4;
-		ptr += size;
+		const int size = h * w * depth / 8;
+		ptr += size + 4;
 	}
 }
 
 void load_sqv(const char *filename, uint8_t *dst, int offset) {
 	read_compressed_file(filename, dst);
-	const int count = load_spr_helper(offset, dst, READ_LE_UINT16);
+	const int count = load_spr_helper(offset, dst, READ_LE_UINT16, 4);
 	g_res.spr_count = offset + count;
 }
 

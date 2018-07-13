@@ -160,7 +160,6 @@ void screen_add_game_sprite4(int x, int y, int frame, int blinking_counter) {
 }
 
 static void decode_graphics(int spr_type, int start, int end) {
-	const bool amiga = g_options.amiga_sprites && start != 0;
 	struct sys_rect_t r[MAX_SPR_FRAMES];
 	uint8_t *data = (uint8_t *)calloc(MAX_SPRITESHEET_W * MAX_SPRITESHEET_H, 1);
 	if (data) {
@@ -170,6 +169,10 @@ static void decode_graphics(int spr_type, int start, int end) {
 		int max_h = 0;
 		for (int i = start; i < end; ++i) {
 			const uint8_t *ptr = g_res.spr_frames[i];
+			if (!ptr) {
+				memset(&r[i], 0, sizeof(struct sys_rect_t));
+				continue;
+			}
 			const int h = READ_LE_UINT16(ptr - 4);
 			const int w = READ_LE_UINT16(ptr - 2);
 			const int j = i - start;
@@ -180,16 +183,16 @@ static void decode_graphics(int spr_type, int start, int end) {
 				}
 				current_x = 0;
 				max_h = h;
-				if (amiga) {
-					decode_amiga_planar8(ptr, w / 8, h, 4, data, MAX_SPRITESHEET_W, current_x, current_y);
+				if (g_options.amiga_sprites) {
+					decode_amiga_planar8(ptr, w / 8, h, (start == 0) ? 3 : 4, data, MAX_SPRITESHEET_W, current_x, current_y);
 				} else {
 					decode_ega_spr(ptr, w, w, h, data, MAX_SPRITESHEET_W, current_x, current_y);
 				}
 				r[j].x = current_x;
 				r[j].y = current_y;
 			} else {
-				if (amiga) {
-					decode_amiga_planar8(ptr, w / 8, h, 4, data, MAX_SPRITESHEET_W, current_x, current_y);
+				if (g_options.amiga_sprites) {
+					decode_amiga_planar8(ptr, w / 8, h, (start == 0) ? 3 : 4, data, MAX_SPRITESHEET_W, current_x, current_y);
 				} else {
 					decode_ega_spr(ptr, w, w, h, data, MAX_SPRITESHEET_W, current_x, current_y);
 				}
@@ -206,7 +209,8 @@ static void decode_graphics(int spr_type, int start, int end) {
 		assert(max_w <= MAX_SPRITESHEET_W);
 		assert(current_y + max_h <= MAX_SPRITESHEET_H);
 		render_unload_sprites(spr_type);
-		render_load_sprites(spr_type, end - start, r, data, MAX_SPRITESHEET_W, current_y + max_h);
+		const int palette_offset = (g_options.amiga_sprites && start == 0) ? 16 : 0;
+		render_load_sprites(spr_type, end - start, r, data, MAX_SPRITESHEET_W, current_y + max_h, palette_offset);
 		free(data);
 	}
 }
@@ -216,6 +220,7 @@ void screen_load_graphics() {
 		decode_graphics(RENDER_SPR_GAME, 0, SPRITES_COUNT);
 	} else {
 		decode_graphics(RENDER_SPR_LEVEL, SPRITES_COUNT, g_res.spr_count);
+		// foreground tiles
 		struct sys_rect_t r[MAX_SPR_FRAMES];
 		static const int FG_TILE_W = 16;
 		static const int FG_TILE_H = 16;
@@ -230,8 +235,24 @@ void screen_load_graphics() {
 				r[i].h = FG_TILE_H;
 			}
 			render_unload_sprites(RENDER_SPR_FG);
-			render_load_sprites(RENDER_SPR_FG, g_res.avt_count, r, data, g_res.avt_count * FG_TILE_W, FG_TILE_H);
+			render_load_sprites(RENDER_SPR_FG, g_res.avt_count, r, data, g_res.avt_count * FG_TILE_W, FG_TILE_H, 0);
 			free(data);
+		}
+		// background tiles (Amiga) - re-arrange to match DOS .ck1/.ck2 layout
+		if (g_options.amiga_data) {
+			static const int BG_TILES_COUNT = 256;
+			static const int W = 320 / 16;
+			memcpy(g_res.tmp, g_res.tiles, BG_TILES_COUNT * 16 * 8);
+			for (int i = 0; i < 128; ++i) {
+				const int y = (i / W);
+				const int x = (i % W);
+				decode_amiga_blk(g_res.tmp + i * 16 * 8, g_res.tiles + (y * 640 + x) * 16, 640);
+			}
+			for (int i = 128; i < 256; ++i) {
+				const int y = ((i - 128) / W);
+				const int x = ((i - 128) % W) + W;
+				decode_amiga_blk(g_res.tmp + i * 16 * 8, g_res.tiles + (y * 640 + x) * 16, 640);
+			}
 		}
 	}
 }

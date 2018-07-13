@@ -34,7 +34,7 @@ struct sys_t {
 	void	(*fini)();
 	void	(*set_screen_size)(int w, int h, const char *caption);
 	void	(*set_screen_palette)(const uint8_t *colors, int);
-	void	(*set_palette_amiga)(const uint16_t *colors);
+	void	(*set_palette_amiga)(const uint16_t *colors, int offset);
 	void	(*set_copper_bars)(const uint16_t *data);
 	void	(*fade_in_palette)();
 	void	(*fade_out_palette)();
@@ -52,14 +52,11 @@ extern struct sys_t g_sys;
 
 #define RENDER_SPR_GAME  0 /* player sprites */
 #define RENDER_SPR_LEVEL 1 /* level sprites */
-#define RENDER_SPR_FONT  2 /* font (digits) */
-#define RENDER_SPR_FG    3 /* foreground tiles */
+#define RENDER_SPR_FG    2 /* foreground tiles */
 
-extern void	render_load_sprites(int spr_type, int count, const struct sys_rect_t *r, const uint8_t *data, int w, int h);
+extern void	render_load_sprites(int spr_type, int count, const struct sys_rect_t *r, const uint8_t *data, int w, int h, int palette_offset);
 extern void	render_unload_sprites(int spr_type);
 extern void	render_add_sprite(int spr_type, int frame, int x, int y, int xflip);
 extern void	render_clear_sprites();
-extern void	render_draw_tilemap(int x, int y);
-extern void	render_draw_image();
 
 #endif /* SYS_H__ */

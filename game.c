@@ -3,6 +3,12 @@
 #include "resource.h"
 #include "sys.h"
 
+// palette colors 16..31
+static const uint16_t _colors2_data[] = {
+	0x1a0,0x000,0x1a2,0xfdd,0x1a4,0x678,0x1a6,0x046,0x1a8,0x000,0x1aa,0xa20,0x1ac,0xf87,0x1ae,0x955,
+	0x1b0,0xbcf,0x1b2,0xfca,0x1b4,0x30a,0x1b6,0xa9a,0x1b8,0x900,0x1ba,0x666,0x1bc,0x747,0x1be,0x020
+};
+
 struct vars_t g_vars;
 
 void update_input() {
@@ -17,7 +23,7 @@ void update_input() {
 
 void do_title_screen() {
 	const uint32_t timestamp = g_sys.get_timestamp() + 20 * 1000;
-	load_img(g_options.amiga_lbms ? "blues.lbm" : "pres.sqz");
+	load_img(g_options.amiga_data ? "blues.lbm" : "pres.sqz");
 	fade_in_palette();
 	do {
 		update_input();
@@ -52,7 +58,7 @@ void do_select_player() {
 	int frame2 = 1;
 	const int color_rgb = 2;
 	const int colors_count = 25;
-	load_img(g_options.amiga_lbms ? "choix.lbm" : "choix.sqz");
+	load_img(g_options.amiga_data ? "choix.lbm" : "choix.sqz");
 	screen_load_graphics();
 	screen_clear_sprites();
 	do {
@@ -238,7 +244,7 @@ static void do_inter_screen_helper(int xpos, int ypos, int c) {
 static void do_inter_screen() {
 	static const uint8_t xpos[] = { 0xFA, 0x50, 0xF0, 0xC8, 0x50, 0x50 };
 	static const uint8_t ypos[] = { 0xAA, 0x37, 0x28, 0x5F, 0xA5, 0xAA };
-	load_img(g_options.amiga_lbms ? "inter.lbm" : "inter.sqz");
+	load_img(g_options.amiga_data ? "inter.lbm" : "inter.sqz");
 	g_vars.screen_h = 199;
 	screen_clear_sprites();
 	if (g_vars.level > 1) {
@@ -284,6 +290,18 @@ void game_main() {
 	g_sys.set_screen_size(GAME_SCREEN_W, GAME_SCREEN_H, "Blues Brothers");
 	g_vars.start_level = 0;
 	load_sqv("sprite.sqv", g_res.spr_sqv, 0);
+	if (g_options.amiga_sprites) {
+		load_spr("sprite", g_res.spr_sqv, 0);
+		// load_spr("objet", g_res.spr_sqv, 101);
+	}
+	if (g_options.amiga_colors) {
+		uint16_t palette[16];
+		for (int i = 0; i < 16; ++i) {
+			assert(_colors2_data[i * 2] == 0x1a0 + i * 2);
+			palette[i] = _colors2_data[i * 2 + 1];
+		}
+		g_sys.set_palette_amiga(palette, 16);
+	}
 	do_title_screen();
 	while (g_sys.input.quit == 0) {
 		if (!g_vars.level_completed_flag) {

@@ -49,3 +49,23 @@ void decode_amiga_planar8(const uint8_t *src, int w, int h, int depth, uint8_t *
 		dst += dst_pitch;
 	}
 }
+
+void decode_amiga_blk(const uint8_t *src, uint8_t *dst, int dst_pitch) {
+	uint16_t data[4];
+	for (int y = 0; y < 16; ++y) {
+		for (int p = 0; p < 4; ++p) {
+			data[p] = READ_BE_UINT16(src); src += 2;
+		}
+		for (int b = 0; b < 16; ++b) {
+			const int mask = 1 << (15 - b);
+			uint8_t color = 0;
+			for (int p = 0; p < 4; ++p) {
+				if (data[p] & mask) {
+					color |= 1 << p;
+				}
+			}
+			dst[b] = color;
+		}
+		dst += dst_pitch;
+	}
+}
