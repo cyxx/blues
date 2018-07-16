@@ -300,9 +300,13 @@ static void object_func_op13(struct object_t *obj) {
 	obj->special_anim = 1;
 }
 
+static void object_func_op14_helper(int x1, int y1, int x2, int y2, int color) {
+	print_warning("object_func_op14_helper: unimplemented");
+}
+
 static void object_func_op14(struct object_t *obj) {
 	obj->special_anim = 2;
-	// sub_1AD3B(obj->xpos, level_ypos_egou[obj->unk5D] - _screen_tilemap_yorigin, obj->xpos, obj->ypos - 5, 3);
+	object_func_op14_helper(obj->xpos, level_ypos_egou[obj->unk5D] - g_vars.screen_tilemap_yorigin, obj->xpos, obj->ypos - 5, 3);
 	if (obj->elevator_direction == 1) {
 		if (obj->moving_direction < 25) {
 			++obj->moving_direction;

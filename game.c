@@ -282,12 +282,12 @@ static void do_inter_screen() {
 }
 
 void game_main() {
+	play_music(0);
 	g_vars.screen_w = GAME_SCREEN_W;
 	g_vars.screen_h = GAME_SCREEN_H;
 	g_vars.screen_draw_offset = 0;
 	screen_flip();
 	screen_init();
-	g_sys.set_screen_size(GAME_SCREEN_W, GAME_SCREEN_H, "Blues Brothers");
 	g_vars.start_level = 0;
 	load_sqv("sprite.sqv", g_res.spr_sqv, 0);
 	if (g_options.amiga_sprites) {
@@ -303,7 +303,7 @@ void game_main() {
 		g_sys.set_palette_amiga(palette, 16);
 	}
 	do_title_screen();
-	while (g_sys.input.quit == 0) {
+	while (!g_sys.input.quit) {
 		if (!g_vars.level_completed_flag) {
 //			_level_cheat_code = 0;
 			g_vars.game_over_flag = 0;
@@ -316,7 +316,7 @@ void game_main() {
 			}
 			screen_unk5();
 		}
-		while (g_sys.input.quit == 0 && g_vars.play_level_flag) {
+		while (!g_sys.input.quit && g_vars.play_level_flag) {
 			if (!g_vars.game_over_flag) {
 				do_inter_screen();
 			}

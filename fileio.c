@@ -55,8 +55,9 @@ int fio_open(const char *filename, int error_flag) {
 		if (!file_slot->fp) {
 			if (error_flag) {
 				print_error("Unable to open file '%s'", filename);
+			} else {
+				print_warning("Unable to open file '%s'", filename);
 			}
-			print_warning("Unable to open file '%s'", filename);
 			slot = -1;
 		} else {
 			fseek(file_slot->fp, 0, SEEK_END);

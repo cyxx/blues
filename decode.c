@@ -6,9 +6,9 @@ void decode_ega_spr(const uint8_t *src, int src_pitch, int w, int h, uint8_t *ds
 	src_pitch /= 8;
 	assert((w & 7) == 0);
 	w /= 8;
+	dst += dst_y * dst_pitch + dst_x;
 	const int bitplane_size = w * h;
 	for (int y = 0; y < h; ++y) {
-		const int y_offset = dst_y + y;
 		for (int x = 0; x < w; ++x) {
 			for (int i = 0; i < 8; ++i) {
 				int color = 0;
@@ -18,14 +18,12 @@ void decode_ega_spr(const uint8_t *src, int src_pitch, int w, int h, uint8_t *ds
 						color |= 1 << (3 - bit);
 					}
 				}
-				if (color != 0) {
-					const int x_offset = dst_x + (x * 8 + i);
-					dst[y_offset * dst_pitch + x_offset] = color;
-				}
+				dst[x * 8 + i] = color;
 			}
 			++src;
 		}
 		src += src_pitch - w;
+		dst += dst_pitch;
 	}
 }
 

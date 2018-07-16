@@ -58,16 +58,12 @@ static const struct {
 	{ "concert.blk", "concert.tbl", 0, "concert.bin", "ennemi6" },
 };
 
-static const char *_demo_filenames[] = {
-	"demomag.ck1", "demomag.ck2", "demomag.sql"
-};
-
 void load_level_data(int num) {
 	print_debug(DBG_GAME, "load_level_data num %d", num);
 	if (num == 0 && (g_res.flags & RESOURCE_FLAGS_DEMO)) {
-		load_ck(_demo_filenames[0], 0x6000);
-		load_ck(_demo_filenames[1], 0x8000);
-		load_sql(_demo_filenames[2]);
+		load_ck("demomag.ck1", 0x6000);
+		load_ck("demomag.ck2", 0x8000);
+		load_sql("demomag.sql");
 	} else {
 		load_ck(_levels[num].ck1, 0x6000);
 		load_ck(_levels[num].ck2, 0x8000);
@@ -96,9 +92,18 @@ void load_level_data(int num) {
 }
 
 static void init_level() {
+	static const uint16_t restart_xpos[] = { 720, 720, 912, 912, 336, 352, 288, 304, 960, 976,  64,  80 };
+	static const uint16_t restart_ypos[] = { 496, 496, 752, 752, 816, 816, 304, 304, 592, 592, 352, 352 };
+	if (g_vars.play_demo_flag) {
+		g_vars.objects[OBJECT_NUM_PLAYER1].unk60 = 0;
+	}
 	int xpos = g_options.start_xpos16;
 	if (xpos < 0) {
-		xpos = (g_vars.level_xpos[OBJECT_NUM_PLAYER1] >> 4) - 10;
+		xpos = g_vars.level_xpos[OBJECT_NUM_PLAYER1];
+		if (!g_vars.two_players_flag && (g_vars.objects[OBJECT_NUM_PLAYER1].unk60 || g_vars.objects[OBJECT_NUM_PLAYER2].unk60)) {
+			xpos = restart_xpos[g_vars.level * 2];
+		}
+		xpos = (xpos >> 4) - 10;
 	} else {
 		g_vars.level_xpos[OBJECT_NUM_PLAYER1] = (xpos << 4) + 10;
 	}
@@ -109,7 +114,11 @@ static void init_level() {
 
 	int ypos = g_options.start_ypos16;
 	if (ypos < 0) {
-		ypos = (g_vars.level_ypos[OBJECT_NUM_PLAYER1] >> 4) - 6;
+		ypos = g_vars.level_ypos[OBJECT_NUM_PLAYER1];
+		if (!g_vars.two_players_flag && (g_vars.objects[OBJECT_NUM_PLAYER1].unk60 || g_vars.objects[OBJECT_NUM_PLAYER2].unk60)) {
+			ypos = restart_ypos[g_vars.level * 2];
+		}
+		ypos = (ypos >> 4) - 6;
 	} else {
 		g_vars.level_ypos[OBJECT_NUM_PLAYER1] = (ypos << 4) + 6;
 	}
@@ -158,7 +167,8 @@ static void init_level() {
 				obj->xpos = g_vars.level_xpos[i];
 				obj->ypos = g_vars.level_ypos[i];
 			} else {
-				print_warning("init_level: obj #%d unk60 %d", i, obj->unk60);
+				obj->xpos = restart_xpos[g_vars.level * 2 + obj->type];
+				obj->ypos = restart_ypos[g_vars.level * 2 + obj->type];
 			}
 			print_debug(DBG_GAME, "init_level obj #%d pos %d,%d", i, obj->xpos, obj->ypos);
 		} else {
@@ -2153,9 +2163,9 @@ static void draw_foreground_tiles() {
 }
 
 void do_level() {
-	const int w = TILEMAP_SCREEN_W / 16;
-	for (int i = 0; i < 256; ++i) {
-		g_vars.screen_tile_lut[i] = (i / w) * 640 + (i % w);
+	static const int W = 320 / 16;
+	for (int tile_num = 0; tile_num < 256; ++tile_num) {
+		g_vars.screen_tile_lut[tile_num] = (tile_num / W) * 640 + (tile_num % W);
 	}
 	g_vars.screen_tilemap_w = level_dim[g_vars.level * 2];
 	g_vars.screen_tilemap_h = level_dim[g_vars.level * 2 + 1];
@@ -2174,7 +2184,6 @@ void do_level() {
 	if (g_options.amiga_colors) {
 		g_sys.set_palette_amiga(_colors_data + g_vars.level * 16, 0);
 	}
-	// _time_sync_ptr[1] = 1:
 	g_vars.inp_keyboard[0xB9] = 0; // SPACE
 	g_vars.screen_draw_offset = TILEMAP_OFFSET_Y * 40;
 	g_vars.update_objects_counter = 0;
@@ -2228,7 +2237,7 @@ void do_level() {
 		screen_clear_sprites();
 		// _draw_last_sprite_flag = 1;
 
-	} while (g_sys.input.quit == 0 && !g_vars.quit_level_flag);
+	} while (!g_sys.input.quit && !g_vars.quit_level_flag);
 	g_vars.screen_draw_offset -= TILEMAP_OFFSET_Y * 40;
 	screen_unk5();
 	if (g_options.amiga_copper_bars) {

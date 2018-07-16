@@ -5,7 +5,6 @@
 
 #define COPPER_BARS_H 80
 
-static const int SCALE = 2;
 static const int FADE_STEPS = 16;
 
 struct spritesheet_t {
@@ -37,9 +36,10 @@ static uint32_t *_screen_buffer;
 static struct input_t *_input = &g_sys.input;
 static int _copper_color;
 static uint32_t _copper_palette[COPPER_BARS_H];
+static SDL_GameController *_controller;
 
 static int sdl2_init() {
-	SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO);
+	SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_JOYSTICK | SDL_INIT_GAMECONTROLLER);
 	SDL_ShowCursor(SDL_DISABLE);
 	_screen_w = _screen_h = 0;
 	_window = 0;
@@ -49,10 +49,32 @@ static int sdl2_init() {
 	memset(_screen_palette, 0, sizeof(_screen_palette));
 	_screen_buffer = 0;
 	_copper_color = -1;
+	SDL_GameControllerAddMappingsFromFile("gamecontrollerdb.txt");
+	_controller = 0;
+	const int count = SDL_NumJoysticks();
+	if (count > 0) {
+		for (int i = 0; i < count; ++i) {
+			if (SDL_IsGameController(i)) {
+				_controller = SDL_GameControllerOpen(i);
+				if (_controller) {
+					fprintf(stdout, "Using controller '%s'\n", SDL_GameControllerName(_controller));
+					break;
+				}
+			}
+		}
+	}
 	return 0;
 }
 
 static void sdl2_fini() {
+	if (_fmt) {
+		SDL_FreeFormat(_fmt);
+		_fmt = 0;
+	}
+	if (_texture) {
+		SDL_DestroyTexture(_texture);
+		_texture = 0;
+	}
 	if (_renderer) {
 		SDL_DestroyRenderer(_renderer);
 		_renderer = 0;
@@ -61,27 +83,31 @@ static void sdl2_fini() {
 		SDL_DestroyWindow(_window);
 		_window = 0;
 	}
-	if (_texture) {
-		SDL_DestroyTexture(_texture);
-		_texture = 0;
-	}
-	if (_fmt) {
-		SDL_FreeFormat(_fmt);
-		_fmt = 0;
-	}
 	free(_screen_buffer);
+	if (_controller) {
+		SDL_GameControllerClose(_controller);
+		_controller = 0;
+	}
 	SDL_Quit();
 }
 
-static void sdl2_set_screen_size(int w, int h, const char *caption) {
+static void sdl2_set_screen_size(int w, int h, const char *caption, int scale, const char *filter, bool fullscreen) {
 	assert(_screen_w == 0 && _screen_h == 0); // abort if called more than once
 	_screen_w = w;
 	_screen_h = h;
-	SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "0"); /* nearest pixel sampling */
-	const int window_w = w * SCALE;
-	const int window_h = h * SCALE; // * 4 / 3;
-	_window = SDL_CreateWindow(caption, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, window_w, window_h, SDL_WINDOW_RESIZABLE);
+	if (!filter || strcmp(filter, "nearest") == 0) {
+		SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "0");
+	} else if (strcmp(filter, "linear") == 0) {
+		SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "1");
+	} else {
+		print_warning("Unhandled filter '%s'", filter);
+	}
+	const int window_w = w * scale;
+	const int window_h = h * scale;
+	const int flags = fullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : SDL_WINDOW_RESIZABLE;
+	_window = SDL_CreateWindow(caption, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, window_w, window_h, flags);
 	_renderer = SDL_CreateRenderer(_window, -1, 0);
+	SDL_RenderSetLogicalSize(_renderer, w, h);
 	print_debug(DBG_SYSTEM, "set_screen_size %d,%d", _screen_w, _screen_h);
 	_screen_buffer = (uint32_t *)calloc(_screen_w * _screen_h, sizeof(uint32_t));
 	if (!_screen_buffer) {
@@ -190,10 +216,10 @@ static void sdl2_update_screen(const uint8_t *p, int present) {
 			struct sprite_t *spr = &_sprites[i];
 			struct spritesheet_t *sheet = &_spritesheets[spr->sheet];
 			SDL_Rect r;
-			r.x = spr->x * SCALE;
-			r.y = spr->y * SCALE;
-			r.w = sheet->r[spr->num].w * SCALE;
-			r.h = sheet->r[spr->num].h * SCALE;
+			r.x = spr->x;
+			r.y = spr->y;
+			r.w = sheet->r[spr->num].w;
+			r.h = sheet->r[spr->num].h;
 			if (!spr->xflip) {
 				SDL_RenderCopy(_renderer, sheet->texture, &sheet->r[spr->num], &r);
 			} else {
@@ -205,7 +231,7 @@ static void sdl2_update_screen(const uint8_t *p, int present) {
 	}
 }
 
-static void handle_keyevent(int keysym, int keydown) {
+static void handle_keyevent(int keysym, bool keydown) {
 	switch (keysym) {
 	case SDLK_LEFT:
 		if (keydown) {
@@ -239,6 +265,85 @@ static void handle_keyevent(int keysym, int keydown) {
 	case SDLK_SPACE:
 		_input->space = keydown;
 		break;
+	case SDLK_ESCAPE:
+		_input->escape = keydown;
+		break;
+	}
+}
+
+static void handle_controlleraxis(int axis, int value) {
+	static const int THRESHOLD = 3200;
+	switch (axis) {
+	case SDL_CONTROLLER_AXIS_LEFTX:
+	case SDL_CONTROLLER_AXIS_RIGHTX:
+		if (value < -THRESHOLD) {
+			_input->direction |= INPUT_DIRECTION_LEFT;
+		} else {
+			_input->direction &= ~INPUT_DIRECTION_LEFT;
+		}
+		if (value > THRESHOLD) {
+			_input->direction |= INPUT_DIRECTION_RIGHT;
+		} else {
+			_input->direction &= ~INPUT_DIRECTION_RIGHT;
+		}
+		break;
+	case SDL_CONTROLLER_AXIS_LEFTY:
+	case SDL_CONTROLLER_AXIS_RIGHTY:
+		if (value < -THRESHOLD) {
+			_input->direction |= INPUT_DIRECTION_UP;
+		} else {
+			_input->direction &= ~INPUT_DIRECTION_UP;
+		}
+		if (value > THRESHOLD) {
+			_input->direction |= INPUT_DIRECTION_DOWN;
+		} else {
+			_input->direction &= ~INPUT_DIRECTION_DOWN;
+		}
+		break;
+	}
+}
+
+static void handle_controllerbutton(int button, bool pressed) {
+	switch (button) {
+	case SDL_CONTROLLER_BUTTON_A:
+	case SDL_CONTROLLER_BUTTON_B:
+	case SDL_CONTROLLER_BUTTON_X:
+	case SDL_CONTROLLER_BUTTON_Y:
+		_input->space = pressed;
+		break;
+	case SDL_CONTROLLER_BUTTON_BACK:
+		_input->escape = pressed;
+		break;
+	case SDL_CONTROLLER_BUTTON_START:
+		break;
+	case SDL_CONTROLLER_BUTTON_DPAD_UP:
+		if (pressed) {
+			_input->direction |= INPUT_DIRECTION_UP;
+		} else {
+			_input->direction &= ~INPUT_DIRECTION_UP;
+		}
+		break;
+	case SDL_CONTROLLER_BUTTON_DPAD_DOWN:
+		if (pressed) {
+			_input->direction |= INPUT_DIRECTION_DOWN;
+		} else {
+			_input->direction &= ~INPUT_DIRECTION_DOWN;
+		}
+		break;
+	case SDL_CONTROLLER_BUTTON_DPAD_LEFT:
+		if (pressed) {
+			_input->direction |= INPUT_DIRECTION_LEFT;
+		} else {
+			_input->direction &= ~INPUT_DIRECTION_LEFT;
+		}
+		break;
+	case SDL_CONTROLLER_BUTTON_DPAD_RIGHT:
+		if (pressed) {
+			_input->direction |= INPUT_DIRECTION_RIGHT;
+		} else {
+			_input->direction &= ~INPUT_DIRECTION_RIGHT;
+		}
+		break;
 	}
 }
 
@@ -252,6 +357,36 @@ static int handle_event(const SDL_Event *ev) {
 		break;
 	case SDL_KEYDOWN:
 		handle_keyevent(ev->key.keysym.sym, 1);
+		break;
+	case SDL_CONTROLLERDEVICEADDED:
+		if (!_controller) {
+			_controller = SDL_GameControllerOpen(ev->cdevice.which);
+			if (_controller) {
+				fprintf(stdout, "Using controller '%s'\n", SDL_GameControllerName(_controller));
+			}
+		}
+		break;
+	case SDL_CONTROLLERDEVICEREMOVED:
+		if (_controller == SDL_GameControllerFromInstanceID(ev->cdevice.which)) {
+			fprintf(stdout, "Removed controller '%s'\n", SDL_GameControllerName(_controller));
+			SDL_GameControllerClose(_controller);
+			_controller = 0;
+		}
+		break;
+	case SDL_CONTROLLERBUTTONUP:
+		if (_controller) {
+			handle_controllerbutton(ev->cbutton.button, 0);
+		}
+		break;
+	case SDL_CONTROLLERBUTTONDOWN:
+		if (_controller) {
+			handle_controllerbutton(ev->cbutton.button, 1);
+		}
+		break;
+	case SDL_CONTROLLERAXISMOTION:
+		if (_controller) {
+			handle_controlleraxis(ev->caxis.axis, ev->caxis.value);
+		}
 		break;
 	default:
 		return -1;

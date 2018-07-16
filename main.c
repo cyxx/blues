@@ -12,6 +12,10 @@ struct options_t g_options;
 
 static const char *DEFAULT_DATA_PATH = ".";
 
+static const int DEFAULT_SCALE_FACTOR = 2;
+
+static const char *DEFAULT_SCALE_FILTER = 0; // nearest pixel sampling
+
 static const char *USAGE =
 	"Usage: %s [OPTIONS]...\n"
 	"  --datapath=PATH   Path to data files (default '.')\n"
@@ -26,6 +30,9 @@ int main(int argc, char *argv[]) {
 	// g_options.amiga_sprites = true;
 	// g_options.amiga_data = true;
 	const char *data_path = DEFAULT_DATA_PATH;
+	int scale_factor = DEFAULT_SCALE_FACTOR;
+	const char *scale_filter = DEFAULT_SCALE_FILTER;
+	bool fullscreen = false;
 	if (argc == 2) {
 		struct stat st;
 		if (stat(argv[1], &st) == 0 && S_ISDIR(st.st_mode)) {
@@ -39,6 +46,9 @@ int main(int argc, char *argv[]) {
 			{ "debug",    required_argument, 0, 3 },
 			{ "cheats",   required_argument, 0, 4 },
 			{ "startpos", required_argument, 0, 5 },
+			{ "fullscreen", no_argument,     0, 6 },
+			{ "scale",    required_argument, 0, 7 },
+			{ "filter",   required_argument, 0, 8 },
 			{ 0, 0, 0, 0 },
 		};
 		int index;
@@ -62,6 +72,15 @@ int main(int argc, char *argv[]) {
 		case 5:
 			sscanf(optarg, "%dx%d", &g_options.start_xpos16, &g_options.start_ypos16);
 			break;
+		case 6:
+			fullscreen = true;
+			break;
+		case 7:
+			scale_factor = atoi(optarg);
+			break;
+		case 8:
+			scale_filter = strdup(optarg);
+			break;
 		default:
 			fprintf(stdout, USAGE, argv[0]);
 			return -1;
@@ -70,6 +89,7 @@ int main(int argc, char *argv[]) {
 	fio_init(data_path);
 	res_init();
 	g_sys.init();
+	g_sys.set_screen_size(GAME_SCREEN_W, GAME_SCREEN_H, "Blues Brothers", scale_factor, scale_filter, fullscreen);
 	sound_init(SYS_AUDIO_FREQ);
 	game_main();
 	sound_fini();

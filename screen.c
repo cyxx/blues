@@ -5,8 +5,8 @@
 #include "sys.h"
 #include "util.h"
 
-#define MAX_SPRITESHEET_W 1024
-#define MAX_SPRITESHEET_H  512
+#define MAX_SPRITESHEET_W 512
+#define MAX_SPRITESHEET_H 512
 
 void screen_init() {
 }
@@ -183,28 +183,24 @@ static void decode_graphics(int spr_type, int start, int end) {
 				}
 				current_x = 0;
 				max_h = h;
-				if (g_options.amiga_sprites) {
-					decode_amiga_planar8(ptr, w / 8, h, (start == 0) ? 3 : 4, data, MAX_SPRITESHEET_W, current_x, current_y);
-				} else {
-					decode_ega_spr(ptr, w, w, h, data, MAX_SPRITESHEET_W, current_x, current_y);
-				}
-				r[j].x = current_x;
-				r[j].y = current_y;
 			} else {
-				if (g_options.amiga_sprites) {
-					decode_amiga_planar8(ptr, w / 8, h, (start == 0) ? 3 : 4, data, MAX_SPRITESHEET_W, current_x, current_y);
-				} else {
-					decode_ega_spr(ptr, w, w, h, data, MAX_SPRITESHEET_W, current_x, current_y);
-				}
-				r[j].x = current_x;
-				r[j].y = current_y;
-				current_x += w;
 				if (h > max_h) {
 					max_h = h;
 				}
 			}
+			if (g_options.amiga_sprites) {
+				decode_amiga_planar8(ptr, w / 8, h, (start == 0) ? 3 : 4, data, MAX_SPRITESHEET_W, current_x, current_y);
+			} else {
+				decode_ega_spr(ptr, w, w, h, data, MAX_SPRITESHEET_W, current_x, current_y);
+			}
+			r[j].x = current_x;
+			r[j].y = current_y;
 			r[j].w = w;
 			r[j].h = h;
+			current_x += w;
+			if (h > max_h) {
+				max_h = h;
+			}
 		}
 		assert(max_w <= MAX_SPRITESHEET_W);
 		assert(current_y + max_h <= MAX_SPRITESHEET_H);
