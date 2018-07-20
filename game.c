@@ -3,8 +3,14 @@
 #include "resource.h"
 #include "sys.h"
 
+// palette colors 0..15
+static const uint16_t _colors_180_data[] = {
+	0x180,0x000,0x182,0xfff,0x184,0xf86,0x186,0x000,0x188,0xf70,0x18a,0xc50,0x18c,0xa20,0x18e,0x620,
+	0x190,0xeb8,0x192,0xb64,0x194,0x0ef,0x196,0x0bc,0x198,0x078,0x19a,0x056,0x19c,0x045,0x19e,0x034
+};
+
 // palette colors 16..31
-static const uint16_t _colors2_data[] = {
+static const uint16_t _colors_1a0_data[] = {
 	0x1a0,0x000,0x1a2,0xfdd,0x1a4,0x678,0x1a6,0x046,0x1a8,0x000,0x1aa,0xa20,0x1ac,0xf87,0x1ae,0x955,
 	0x1b0,0xbcf,0x1b2,0xfca,0x1b4,0x30a,0x1b6,0xa9a,0x1b8,0x900,0x1ba,0x666,0x1bc,0x747,0x1be,0x020
 };
@@ -252,11 +258,11 @@ static void do_inter_screen() {
 			do_inter_screen_helper(xpos[i], ypos[i], 0);
 		}
 	}
-	if (g_vars.level == 5) {
+	if (g_vars.level == MAX_LEVELS - 1) {
 		do_inter_screen_helper(xpos[g_vars.level], ypos[g_vars.level], 0);
 	}
 	fade_in_palette();
-	if (g_vars.level > 0 && g_vars.level < 5) {
+	if (g_vars.level > 0 && g_vars.level < MAX_LEVELS - 1) {
 		do_inter_screen_helper(xpos[g_vars.level - 1], ypos[g_vars.level - 1], 1);
 	}
 	g_vars.screen_draw_offset = 0x2000;
@@ -289,16 +295,55 @@ void game_main() {
 	screen_flip();
 	screen_init();
 	g_vars.start_level = 0;
-	load_sqv("sprite.sqv", g_res.spr_sqv, 0);
-	if (g_options.amiga_sprites) {
+	if (g_options.amiga_data) {
 		load_spr("sprite", g_res.spr_sqv, 0);
-		// load_spr("objet", g_res.spr_sqv, 101);
+		load_spr("objet", g_res.spr_sqv + SPRITE_SIZE, 101);
+	} else {
+		load_sqv("sprite.sqv", g_res.spr_sqv, 0);
+	}
+	if (g_options.amiga_status_bar) {
+		uint16_t palette[16];
+		for (int i = 0; i < 16; ++i) {
+			assert(_colors_180_data[i * 2] == 0x180 + i * 2);
+			palette[i] = _colors_180_data[i * 2 + 1];
+		}
+		g_sys.set_palette_amiga(palette, 32);
+		g_res.spr_count = 120;
+		extern const uint8_t icon6e92[]; // top or bottom status bar
+		g_res.spr_frames[123] = icon6e92;
+		g_res.spr_frames[124] = icon6e92;
+		extern const uint8_t icon72de[]; // jake
+		g_res.spr_frames[115] = icon72de;
+		extern const uint8_t icon73a6[]; // elwood
+		g_res.spr_frames[117] = icon73a6;
+		extern const uint8_t icon6ef6[]; // heart
+		g_res.spr_frames[120] = icon6ef6;
+		extern const uint8_t icon740a[]; // instrument level 1
+		g_res.spr_frames[135] = icon740a;
+		extern const uint8_t icon746e[]; // instrument level 2
+		g_res.spr_frames[136] = icon746e;
+		extern const uint8_t icon74d2[]; // instrument level 3
+		g_res.spr_frames[137] = icon74d2;
+		extern const uint8_t icon7536[]; // instrument level 4
+		g_res.spr_frames[138] = icon7536;
+		extern const uint8_t icon759a[]; // instrument level 5
+		g_res.spr_frames[139] = icon759a;
+		extern const uint8_t icon75fe[]; // instrument level 1 (found)
+		g_res.spr_frames[140] = icon75fe;
+		extern const uint8_t icon7662[]; // instrument level 2 (found)
+		g_res.spr_frames[141] = icon7662;
+		extern const uint8_t icon76c6[]; // instrument level 3 (found)
+		g_res.spr_frames[142] = icon76c6;
+		extern const uint8_t icon772a[]; // instrument level 4 (found)
+		g_res.spr_frames[143] = icon772a;
+		extern const uint8_t icon778e[]; // instrument level 5 (found)
+		g_res.spr_frames[144] = icon778e;
 	}
 	if (g_options.amiga_colors) {
 		uint16_t palette[16];
 		for (int i = 0; i < 16; ++i) {
-			assert(_colors2_data[i * 2] == 0x1a0 + i * 2);
-			palette[i] = _colors2_data[i * 2 + 1];
+			assert(_colors_1a0_data[i * 2] == 0x1a0 + i * 2);
+			palette[i] = _colors_1a0_data[i * 2 + 1];
 		}
 		g_sys.set_palette_amiga(palette, 16);
 	}

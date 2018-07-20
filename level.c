@@ -60,26 +60,25 @@ static const struct {
 
 void load_level_data(int num) {
 	print_debug(DBG_GAME, "load_level_data num %d", num);
-	if (num == 0 && (g_res.flags & RESOURCE_FLAGS_DEMO)) {
-		load_ck("demomag.ck1", 0x6000);
-		load_ck("demomag.ck2", 0x8000);
-		load_sql("demomag.sql");
-	} else {
-		load_ck(_levels[num].ck1, 0x6000);
-		load_ck(_levels[num].ck2, 0x8000);
-		load_sql(_levels[num].sql);
-	}
 	if (g_options.amiga_data) {
 		load_blk(_levels_amiga[num].blk);
 		read_file(_levels_amiga[num].tbl, g_res.sql, 0);
 		load_bin(_levels_amiga[num].bin);
-	} else {
-		load_bin(_levels[num].bin);
-	}
-	load_avt(_levels[num].avt, g_res.avt_sqv, 0);
-	if (g_options.amiga_sprites) {
+		load_m(_levels_amiga[num].m);
+		// .avt
 		load_spr(_levels_amiga[num].ennemi, g_res.tmp, SPRITES_COUNT);
 	} else {
+		if (num == 0 && (g_res.flags & RESOURCE_FLAGS_DEMO)) { // DOS demo
+			load_ck("demomag.ck1", 0x6000);
+			load_ck("demomag.ck2", 0x8000);
+			load_sql("demomag.sql");
+		} else {
+			load_ck(_levels[num].ck1, 0x6000);
+			load_ck(_levels[num].ck2, 0x8000);
+			load_sql(_levels[num].sql);
+		}
+		load_bin(_levels[num].bin);
+		load_avt(_levels[num].avt, g_res.avt_sqv, 0);
 		load_sqv(_levels[num].sqv, g_res.tmp, SPRITES_COUNT);
 	}
 	memcpy(g_vars.level_xpos, _levels[num].xpos, MAX_OBJECTS * sizeof(int16_t));
@@ -2221,7 +2220,9 @@ void do_level() {
 		if (1) { // if (_draw_last_sprite_flag != 0) {
 			screen_clear_last_sprite();
 			screen_redraw_sprites();
-			draw_foreground_tiles();
+			if (!g_options.amiga_data) {
+				draw_foreground_tiles();
+			}
 		}
 		++g_vars.level_loop_counter;
 		if (1) { // (!_screen_panel_drawn_flag) {

@@ -31,7 +31,7 @@ static SDL_Window *_window;
 static SDL_Renderer *_renderer;
 static SDL_Texture *_texture;
 static SDL_PixelFormat *_fmt;
-static uint32_t _screen_palette[32];
+static uint32_t _screen_palette[48];
 static uint32_t *_screen_buffer;
 static struct input_t *_input = &g_sys.input;
 static int _copper_color;

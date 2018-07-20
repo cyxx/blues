@@ -42,8 +42,8 @@ struct options_t {
 	int start_ypos16;
 	bool amiga_copper_bars;
 	bool amiga_colors;
-	bool amiga_sprites;
 	bool amiga_data;
+	bool amiga_status_bar;
 };
 
 extern struct options_t g_options;

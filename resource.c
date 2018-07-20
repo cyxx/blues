@@ -259,6 +259,13 @@ void load_img(const char *filename) {
 	memcpy(g_res.vga, g_res.tmp + 32000, 64000);
 }
 
+void load_m(const char *filename) {
+	const int filesize = read_file(filename, g_res.tmp, 0);
+	const int count = READ_BE_UINT16(g_res.tmp);
+	assert(filesize == 2 + count * 32);
+	// 1-bit 16x16 mask
+}
+
 static int load_spr_helper(int offset, const uint8_t *ptr, uint16_t (*read16)(const uint8_t *), int depth) {
 	const int count = read16(ptr); ptr += 6;
 	print_debug(DBG_RESOURCE, "spr count %d", count);

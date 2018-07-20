@@ -24,6 +24,7 @@ struct trigger_t {
 #define MAX_AVT           50
 #define MAX_SPR_FRAMES   200
 #define MAX_TRIGGERS     256
+#define SPRITE_SIZE    35566
 #define SOUND_SIZE     29376
 #define SPRITES_COUNT    146
 
@@ -57,6 +58,7 @@ extern void	load_bin(const char *filename);
 extern void	load_blk(const char *filename);
 extern void	load_ck(const char *filename, uint16_t offset);
 extern void	load_img(const char *filename);
+extern void	load_m(const char *filename);
 extern void	load_spr(const char *filename, uint8_t *dst, int offset);
 extern void	load_sqv(const char *filename, uint8_t *dst, int offset);
 extern void	load_sql(const char *filename);

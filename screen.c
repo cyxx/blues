@@ -55,13 +55,23 @@ void screen_vsync() {
 }
 
 void screen_draw_frame(const uint8_t *frame, int a, int b, int c, int d) {
-	const int h = READ_LE_UINT16(frame - 4);
-	assert(a <= h);
-	const int w = READ_LE_UINT16(frame - 2);
-	assert(b <= w);
 	const int x = c;
 	const int y = d + a + 2;
-	decode_ega_spr(frame, w, b, h, g_res.vga, GAME_SCREEN_W, x, y);
+	if (g_options.amiga_status_bar) {
+		if (frame == g_res.spr_frames[123] || frame == g_res.spr_frames[124]) { // top or bottom status bar
+			for (int x = 0; x < GAME_SCREEN_W; x += 16) {
+				decode_amiga_gfx(g_res.vga + y * GAME_SCREEN_W + x, GAME_SCREEN_W, 16, 12, 4, frame, 16, 0x20, 0xFFFF);
+			}
+		} else {
+			decode_amiga_gfx(g_res.vga + y * GAME_SCREEN_W + x, GAME_SCREEN_W, 16, 12, 4, frame, 16, 0x20, 0xFFFF);
+		}
+	} else {
+		const int h = READ_LE_UINT16(frame - 4);
+		assert(a <= h);
+		const int w = READ_LE_UINT16(frame - 2);
+		assert(b <= w);
+		decode_spr(frame, w, b, h, 4, g_res.vga, GAME_SCREEN_W, x, y, false);
+	}
 }
 
 void screen_flip() {
@@ -136,11 +146,31 @@ void screen_do_transition2() {
 	print_warning("screen_do_transition2");
 }
 
+static void draw_number_amiga(int digit, int x, int y) {
+	extern const uint8_t icon7086[]; // 01
+	extern const uint8_t icon70ea[]; // 23
+	extern const uint8_t icon714e[]; // 45
+	extern const uint8_t icon71b2[]; // 67
+	extern const uint8_t icon7216[]; // 89
+	static const uint8_t *icons[] = { icon7086, icon70ea, icon714e, icon71b2, icon7216 };
+	uint16_t mask = 0xFF00;
+	if (digit & 1) {
+		x -= 8;
+		mask >>= 8;
+	}
+	decode_amiga_gfx(g_res.vga + y * GAME_SCREEN_W + x, GAME_SCREEN_W, 16, 12, 4, icons[digit >> 1], 16, 0x20, mask);
+}
+
 void screen_draw_number(int num, int x, int y, int color) {
-	extern const uint8_t font_data[];
 	y += TILEMAP_OFFSET_Y;
-	decode_ega_spr(font_data + (num / 10) * 32, 8, 8, 8, g_res.vga, GAME_SCREEN_W, x - 8, y);
-	decode_ega_spr(font_data + (num % 10) * 32, 8, 8, 8, g_res.vga, GAME_SCREEN_W, x,     y);
+	if (g_options.amiga_status_bar) {
+		draw_number_amiga(num / 10, x - 8, y - 2);
+		draw_number_amiga(num % 10, x,     y - 2);
+	} else {
+		extern const uint8_t font_data[];
+		decode_spr(font_data + (num / 10) * 32, 8, 8, 8, 4, g_res.vga, GAME_SCREEN_W, x - 8, y, false);
+		decode_spr(font_data + (num % 10) * 32, 8, 8, 8, 4, g_res.vga, GAME_SCREEN_W, x,     y, false);
+	}
 }
 
 void screen_add_game_sprite1(int x, int y, int frame) {
@@ -163,6 +193,7 @@ static void decode_graphics(int spr_type, int start, int end) {
 	struct sys_rect_t r[MAX_SPR_FRAMES];
 	uint8_t *data = (uint8_t *)calloc(MAX_SPRITESHEET_W * MAX_SPRITESHEET_H, 1);
 	if (data) {
+		const int depth = g_options.amiga_data && (start == 0) ? 3 : 4;
 		int current_x = 0;
 		int max_w = 0;
 		int current_y = 0;
@@ -188,11 +219,7 @@ static void decode_graphics(int spr_type, int start, int end) {
 					max_h = h;
 				}
 			}
-			if (g_options.amiga_sprites) {
-				decode_amiga_planar8(ptr, w / 8, h, (start == 0) ? 3 : 4, data, MAX_SPRITESHEET_W, current_x, current_y);
-			} else {
-				decode_ega_spr(ptr, w, w, h, data, MAX_SPRITESHEET_W, current_x, current_y);
-			}
+			decode_spr(ptr, w, w, h, depth, data, MAX_SPRITESHEET_W, current_x, current_y, g_options.amiga_data);
 			r[j].x = current_x;
 			r[j].y = current_y;
 			r[j].w = w;
@@ -205,7 +232,7 @@ static void decode_graphics(int spr_type, int start, int end) {
 		assert(max_w <= MAX_SPRITESHEET_W);
 		assert(current_y + max_h <= MAX_SPRITESHEET_H);
 		render_unload_sprites(spr_type);
-		const int palette_offset = (g_options.amiga_sprites && start == 0) ? 16 : 0;
+		const int palette_offset = (g_options.amiga_data && start == 0) ? 16 : 0;
 		render_load_sprites(spr_type, end - start, r, data, MAX_SPRITESHEET_W, current_y + max_h, palette_offset);
 		free(data);
 	}
@@ -213,7 +240,7 @@ static void decode_graphics(int spr_type, int start, int end) {
 
 void screen_load_graphics() {
 	if (g_res.spr_count <= SPRITES_COUNT) {
-		decode_graphics(RENDER_SPR_GAME, 0, SPRITES_COUNT);
+		decode_graphics(RENDER_SPR_GAME, 0, g_res.spr_count);
 	} else {
 		decode_graphics(RENDER_SPR_LEVEL, SPRITES_COUNT, g_res.spr_count);
 		// foreground tiles
@@ -224,7 +251,7 @@ void screen_load_graphics() {
 		if (data) {
 			const int pitch = g_res.avt_count * FG_TILE_W;
 			for (int i = 0; i < g_res.avt_count; ++i) {
-				decode_ega_spr(g_res.avt[i], FG_TILE_W, FG_TILE_W, FG_TILE_H, data, pitch, i * FG_TILE_W, 0);
+				decode_spr(g_res.avt[i], FG_TILE_W, FG_TILE_W, FG_TILE_H, 4, data, pitch, i * FG_TILE_W, 0, false);
 				r[i].x = i * FG_TILE_W;
 				r[i].y = 0;
 				r[i].w = FG_TILE_W;
