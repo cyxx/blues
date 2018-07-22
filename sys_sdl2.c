@@ -24,6 +24,7 @@ struct sprite_t {
 
 static struct sprite_t _sprites[128];
 static int _sprites_count;
+static SDL_Rect _sprites_cliprect;
 
 static int _screen_w;
 static int _screen_h;
@@ -116,6 +117,10 @@ static void sdl2_set_screen_size(int w, int h, const char *caption, int scale, c
 	static const uint32_t pfmt = SDL_PIXELFORMAT_RGB888;
 	_texture = SDL_CreateTexture(_renderer, pfmt, SDL_TEXTUREACCESS_STREAMING, _screen_w, _screen_h);
 	_fmt = SDL_AllocFormat(pfmt);
+	_sprites_cliprect.x = 0;
+	_sprites_cliprect.y = 0;
+	_sprites_cliprect.w = w;
+	_sprites_cliprect.h = h;
 }
 
 static uint32_t convert_amiga_color(uint16_t color) {
@@ -212,9 +217,13 @@ static void sdl2_update_screen(const uint8_t *p, int present) {
 		SDL_RenderCopy(_renderer, _texture, 0, 0);
 
 		// sprites
+		SDL_RenderSetClipRect(_renderer, &_sprites_cliprect);
 		for (int i = 0; i < _sprites_count; ++i) {
-			struct sprite_t *spr = &_sprites[i];
+			const struct sprite_t *spr = &_sprites[i];
 			struct spritesheet_t *sheet = &_spritesheets[spr->sheet];
+			if (spr->num >= sheet->count) {
+				continue;
+			}
 			SDL_Rect r;
 			r.x = spr->x;
 			r.y = spr->y;
@@ -226,6 +235,7 @@ static void sdl2_update_screen(const uint8_t *p, int present) {
 				SDL_RenderCopyEx(_renderer, sheet->texture, &sheet->r[spr->num], &r, 0., 0, SDL_FLIP_HORIZONTAL);
 			}
 		}
+		SDL_RenderSetClipRect(_renderer, 0);
 
 		SDL_RenderPresent(_renderer);
 	}
@@ -505,4 +515,11 @@ void render_add_sprite(int spr_type, int frame, int x, int y, int xflip) {
 
 void render_clear_sprites() {
 	_sprites_count = 0;
+}
+
+void render_set_sprites_clipping_rect(int x, int y, int w, int h) {
+	_sprites_cliprect.x = x;
+	_sprites_cliprect.y = y;
+	_sprites_cliprect.w = w;
+	_sprites_cliprect.h = h;
 }

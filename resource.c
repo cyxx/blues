@@ -7,7 +7,7 @@
 
 struct resource_data_t g_res;
 
-void res_init() {
+void res_init(int vga_size) {
 	static const int SQL_SIZE = 640 * 25;
 	g_res.sql = (uint8_t *)malloc(SQL_SIZE);
 	if (!g_res.sql) {
@@ -23,15 +23,14 @@ void res_init() {
 	if (!g_res.avt_sqv) {
 		print_error("Failed to allocate avt buffer, %d bytes", AVT_SQV_SIZE);
 	}
-	static const int TMP_SIZE = 32000 + 64000;
-	g_res.tmp = (uint8_t *)malloc(TMP_SIZE);
+	const int tmp_size = 32000 + vga_size;
+	g_res.tmp = (uint8_t *)malloc(tmp_size);
 	if (!g_res.tmp) {
-		print_error("Failed to allocate tmp buffer, %d bytes", TMP_SIZE);
+		print_error("Failed to allocate tmp buffer, %d bytes", tmp_size);
 	}
-	static const int VGA_SIZE = 320 * 200;
-	g_res.vga = (uint8_t *)malloc(VGA_SIZE);
+	g_res.vga = (uint8_t *)malloc(vga_size);
 	if (!g_res.vga) {
-		print_error("Failed to allocate vga buffer, %d bytes", VGA_SIZE);
+		print_error("Failed to allocate vga buffer, %d bytes", vga_size);
 	}
 	static const int TILES_SIZE = 640 * 200;
 	g_res.tiles = (uint8_t *)malloc(TILES_SIZE);
@@ -54,12 +53,19 @@ void res_init() {
 
 void res_fini() {
 	free(g_res.sql);
+	g_res.sql = 0;
 	free(g_res.spr_sqv);
+	g_res.spr_sqv = 0;
 	free(g_res.avt_sqv);
+	g_res.avt_sqv = 0;
 	free(g_res.tmp);
+	g_res.tmp = 0;
 	free(g_res.vga);
+	g_res.vga = 0;
 	free(g_res.tiles);
+	g_res.tiles = 0;
 	free(g_res.snd);
+	g_res.snd = 0;
 }
 
 int read_file(const char *filename, uint8_t *dst, int size) {
@@ -244,7 +250,7 @@ void load_ck(const char *filename, uint16_t offset) {
 	g_sys.set_screen_palette(g_res.palette, 16);
 }
 
-void load_img(const char *filename) {
+void load_img(const char *filename, int screen_w) {
 	int size;
 	const char *ext = strrchr(filename, '.');
 	if (ext && strcmp(ext + 1, "lbm") == 0) {
@@ -253,7 +259,7 @@ void load_img(const char *filename) {
 		size = read_compressed_file(filename, g_res.tmp);
 	}
 	assert(size <= 32000);
-	load_iff(g_res.tmp, size, g_res.tmp + 32000, 320);
+	load_iff(g_res.tmp, size, g_res.tmp + 32000, screen_w);
 	g_sys.set_screen_palette(g_res.palette, 16);
 	g_sys.update_screen(g_res.tmp + 32000, 0);
 	memcpy(g_res.vga, g_res.tmp + 32000, 64000);

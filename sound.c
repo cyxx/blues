@@ -73,14 +73,14 @@ static void mix(void *param, uint8_t *buf, int len) {
 	}
 }
 
-void sound_init(int rate) {
+void sound_init() {
 	ModPlug_Settings mp_settings;
 	memset(&mp_settings, 0, sizeof(mp_settings));
 	ModPlug_GetSettings(&mp_settings);
 	mp_settings.mFlags = MODPLUG_ENABLE_OVERSAMPLING | MODPLUG_ENABLE_NOISE_REDUCTION;
 	mp_settings.mChannels = 1;
 	mp_settings.mBits = 16;
-	mp_settings.mFrequency = rate;
+	mp_settings.mFrequency = _rate;
 	mp_settings.mResamplingMode = MODPLUG_RESAMPLE_FIR;
 	mp_settings.mLoopCount = -1;
 	ModPlug_SetSettings(&mp_settings);

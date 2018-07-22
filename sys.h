@@ -55,5 +55,6 @@ extern void	render_load_sprites(int spr_type, int count, const struct sys_rect_t
 extern void	render_unload_sprites(int spr_type);
 extern void	render_add_sprite(int spr_type, int frame, int x, int y, int xflip);
 extern void	render_clear_sprites();
+extern void	render_set_sprites_clipping_rect(int x, int y, int w, int h);
 
 #endif /* SYS_H__ */

@@ -28,7 +28,7 @@ int main(int argc, char *argv[]) {
 	g_options.amiga_copper_bars =  true;
 	g_options.amiga_colors = true;
 	// g_options.amiga_data = true;
-	g_options.amiga_status_bar = true;
+	// g_options.amiga_status_bar = true;
 	const char *data_path = DEFAULT_DATA_PATH;
 	int scale_factor = DEFAULT_SCALE_FACTOR;
 	const char *scale_filter = DEFAULT_SCALE_FILTER;
@@ -87,10 +87,10 @@ int main(int argc, char *argv[]) {
 		}
 	}
 	fio_init(data_path);
-	res_init();
+	res_init(GAME_SCREEN_W * GAME_SCREEN_H);
 	g_sys.init();
 	g_sys.set_screen_size(GAME_SCREEN_W, GAME_SCREEN_H, "Blues Brothers", scale_factor, scale_filter, fullscreen);
-	sound_init(SYS_AUDIO_FREQ);
+	sound_init();
 	game_main();
 	sound_fini();
 	g_sys.fini();

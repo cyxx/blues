@@ -9,6 +9,7 @@
 #define MAX_SPRITESHEET_H 512
 
 void screen_init() {
+	memset(g_res.vga, 0, GAME_SCREEN_W * GAME_SCREEN_H);
 }
 
 void screen_clear_sprites() {
@@ -54,9 +55,14 @@ void screen_adjust_palette_color(int color, int b, int c) {
 void screen_vsync() {
 }
 
-void screen_draw_frame(const uint8_t *frame, int a, int b, int c, int d) {
-	const int x = c;
-	const int y = d + a + 2;
+void screen_draw_frame(const uint8_t *frame, int fh, int fw, int x, int y) {
+	if (GAME_SCREEN_W > 320) {
+		x += (GAME_SCREEN_W - 320) / 2;
+	}
+	if (GAME_SCREEN_H > 200 && y == 161) { // align to the bottom
+		y += GAME_SCREEN_H - 200;
+	}
+	y += fh + 2;
 	if (g_options.amiga_status_bar) {
 		if (frame == g_res.spr_frames[123] || frame == g_res.spr_frames[124]) { // top or bottom status bar
 			for (int x = 0; x < GAME_SCREEN_W; x += 16) {
@@ -67,10 +73,10 @@ void screen_draw_frame(const uint8_t *frame, int a, int b, int c, int d) {
 		}
 	} else {
 		const int h = READ_LE_UINT16(frame - 4);
-		assert(a <= h);
+		assert(fh <= h);
 		const int w = READ_LE_UINT16(frame - 2);
-		assert(b <= w);
-		decode_spr(frame, w, b, h, 4, g_res.vga, GAME_SCREEN_W, x, y, false);
+		assert(fw <= w);
+		decode_spr(frame, w, fw, h, 4, g_res.vga, GAME_SCREEN_W, x, y, false);
 	}
 }
 
@@ -96,12 +102,6 @@ void screen_unk6() {
 	memset(g_res.vga, 0, GAME_SCREEN_W * GAME_SCREEN_H);
 }
 
-void screen_copy_tilemap2(int a, int b, int c, int d) {
-}
-
-void screen_copy_tilemap(int a) {
-}
-
 static void screen_unk13(int a) {
 }
 
@@ -125,13 +125,17 @@ void screen_do_transition1(int a) {
 	}
 }
 
+void screen_do_transition2() {
+	print_warning("screen_do_transition2");
+}
+
 void screen_clear(int a) {
 	memset(g_res.vga, 0, GAME_SCREEN_W * GAME_SCREEN_H);
 }
 
 void screen_draw_tile(int tile, int dst, int type) {
-	int y = (dst / 640) * 16 + TILEMAP_OFFSET_Y;
-	int x = (dst % 640) / 2 * 16;
+	const int y = (dst / 640) * 16 + TILEMAP_OFFSET_Y;
+	const int x = (dst % 640) / 2 * 16;
 	const uint8_t *src = g_res.tiles + tile * 16;
 	if (type == 4) {
 		src += 320;
@@ -140,10 +144,6 @@ void screen_draw_tile(int tile, int dst, int type) {
 		memcpy(g_res.vga + (y + i) * GAME_SCREEN_W + x, src, 16);
 		src += 640;
 	}
-}
-
-void screen_do_transition2() {
-	print_warning("screen_do_transition2");
 }
 
 static void draw_number_amiga(int digit, int x, int y) {

@@ -8,8 +8,8 @@
 #define GAME_SCREEN_H 200
 
 #define TILEMAP_OFFSET_Y  14
-#define TILEMAP_SCREEN_W 320
-#define TILEMAP_SCREEN_H 160
+#define TILEMAP_SCREEN_W  GAME_SCREEN_W
+#define TILEMAP_SCREEN_H (GAME_SCREEN_H - 40)
 
 #define PLAYER_JAKE   0
 #define PLAYER_ELWOOD 1
@@ -152,8 +152,8 @@ struct vars_t {
 	int screen_tilemap_xoffset, screen_tilemap_yoffset;
 	int screen_tilemap_size_w, screen_tilemap_size_h;
 	int screen_scrolling_dirmask, screen_unk1;
-	uint16_t screen_draw_offset;
-	uint16_t screen_tile_lut[256];
+	int screen_draw_h, screen_draw_offset;
+	int screen_tile_lut[256];
 	int level_completed_flag;
 	int play_level_flag;
 	int game_over_flag;
@@ -238,7 +238,7 @@ extern void	level_call_object_func(struct object_t *);
 
 /* screen.c */
 extern void	screen_init();
-extern void	screen_clear_sprites(); // _sprites_count = 0
+extern void	screen_clear_sprites();
 extern void	screen_add_sprite(int x, int y, int frame);
 extern void	screen_clear_last_sprite();
 extern void	screen_redraw_sprites();
@@ -246,17 +246,15 @@ extern void	fade_in_palette();
 extern void	fade_out_palette();
 extern void	screen_adjust_palette_color(int color, int b, int c);
 extern void	screen_vsync();
-extern void	screen_draw_frame(const uint8_t *frame, int a, int b, int c, int d);
+extern void	screen_draw_frame(const uint8_t *frame, int fh, int fw, int x, int y);
 extern void	screen_flip();
 extern void	screen_unk4();
 extern void	screen_unk5();
 extern void	screen_unk6();
-extern void	screen_copy_tilemap2(int a, int b, int c, int d);
-extern void	screen_copy_tilemap(int a);
 extern void	screen_do_transition1(int a);
+extern void	screen_do_transition2();
 extern void	screen_clear(int a);
 extern void	screen_draw_tile(int tile, int dst, int type);
-extern void	screen_do_transition2();
 extern void	screen_draw_number(int num, int x, int y, int color);
 extern void	screen_add_game_sprite1(int x, int y, int frame);
 extern void	screen_add_game_sprite2(int x, int y, int frame);
@@ -265,7 +263,7 @@ extern void	screen_add_game_sprite4(int x, int y, int frame, int blinking_counte
 extern void	screen_load_graphics();
 
 /* sound.c */
-extern void	sound_init(int rate);
+extern void	sound_init();
 extern void	sound_fini();
 extern void	play_sound(int num);
 extern void	play_music(int num);

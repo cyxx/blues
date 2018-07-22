@@ -23,13 +23,13 @@ void update_input() {
 	g_vars.inp_key_right = ((g_sys.input.direction & INPUT_DIRECTION_RIGHT) != 0) || g_vars.inp_keyboard[0x4D] || g_vars.inp_keyboard[0x79];
 	g_vars.inp_key_up = ((g_sys.input.direction & INPUT_DIRECTION_UP) != 0) || g_vars.inp_keyboard[0x48] || g_vars.inp_keyboard[0x7C];
 	g_vars.inp_key_down = ((g_sys.input.direction & INPUT_DIRECTION_DOWN) != 0) || g_vars.inp_keyboard[0x50] || g_vars.inp_keyboard[0x7B];
-	g_vars.inp_key_space = (g_sys.input.space != 0) || g_vars.inp_keyboard[0x39] || g_vars.inp_keyboard[0x77];
+	g_vars.inp_key_space = g_sys.input.space || g_vars.inp_keyboard[0x39] || g_vars.inp_keyboard[0x77];
 	g_vars.inp_key_tab = g_vars.inp_keyboard[0xF] || g_vars.inp_keyboard[0x78];
 }
 
 void do_title_screen() {
 	const uint32_t timestamp = g_sys.get_timestamp() + 20 * 1000;
-	load_img(g_options.amiga_data ? "blues.lbm" : "pres.sqz");
+	load_img(g_options.amiga_data ? "blues.lbm" : "pres.sqz", GAME_SCREEN_W);
 	fade_in_palette();
 	do {
 		update_input();
@@ -64,7 +64,7 @@ void do_select_player() {
 	int frame2 = 1;
 	const int color_rgb = 2;
 	const int colors_count = 25;
-	load_img(g_options.amiga_data ? "choix.lbm" : "choix.sqz");
+	load_img(g_options.amiga_data ? "choix.lbm" : "choix.sqz", GAME_SCREEN_W);
 	screen_load_graphics();
 	screen_clear_sprites();
 	do {
@@ -250,8 +250,8 @@ static void do_inter_screen_helper(int xpos, int ypos, int c) {
 static void do_inter_screen() {
 	static const uint8_t xpos[] = { 0xFA, 0x50, 0xF0, 0xC8, 0x50, 0x50 };
 	static const uint8_t ypos[] = { 0xAA, 0x37, 0x28, 0x5F, 0xA5, 0xAA };
-	load_img(g_options.amiga_data ? "inter.lbm" : "inter.sqz");
-	g_vars.screen_h = 199;
+	load_img(g_options.amiga_data ? "inter.lbm" : "inter.sqz", GAME_SCREEN_W);
+	g_vars.screen_draw_h = GAME_SCREEN_H - 1;
 	screen_clear_sprites();
 	if (g_vars.level > 1) {
 		for (int i = 0; i < g_vars.level - 1; ++i) {
@@ -292,8 +292,8 @@ void game_main() {
 	g_vars.screen_w = GAME_SCREEN_W;
 	g_vars.screen_h = GAME_SCREEN_H;
 	g_vars.screen_draw_offset = 0;
-	screen_flip();
 	screen_init();
+	screen_flip();
 	g_vars.start_level = 0;
 	if (g_options.amiga_data) {
 		load_spr("sprite", g_res.spr_sqv, 0);

@@ -49,7 +49,7 @@ struct resource_data_t {
 
 extern struct resource_data_t g_res;
 
-extern void	res_init();
+extern void	res_init(int vga_size);
 extern void	res_fini();
 extern int	read_file(const char *filename, uint8_t *dst, int size);
 extern int	read_compressed_file(const char *filename, uint8_t *dst);
@@ -57,7 +57,7 @@ extern void	load_avt(const char *filename, uint8_t *dst, int offset);
 extern void	load_bin(const char *filename);
 extern void	load_blk(const char *filename);
 extern void	load_ck(const char *filename, uint16_t offset);
-extern void	load_img(const char *filename);
+extern void	load_img(const char *filename, int screen_w);
 extern void	load_m(const char *filename);
 extern void	load_spr(const char *filename, uint8_t *dst, int offset);
 extern void	load_sqv(const char *filename, uint8_t *dst, int offset);
