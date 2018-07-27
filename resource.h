@@ -43,6 +43,7 @@ struct resource_data_t {
 	uint8_t palette[16 * 3];
 	struct trigger_t triggers[MAX_TRIGGERS];
 	uint8_t *vga;
+	int vga_size;
 	uint8_t *tiles;
 	uint8_t *snd;
 };

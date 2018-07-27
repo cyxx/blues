@@ -232,10 +232,9 @@ static void init_level() {
 			obj->data51 = 3;
 			obj->vinyls_count = 0;
 		}
-		if (g_vars.cheat_flag) {
+		if (g_options.cheats & CHEATS_UNLIMITED_LIFES) {
 			obj->lifes_count = 3;
 			obj->data51 = 3;
-			obj->vinyls_count = 0;
 		}
 		obj->unk63 = 0;
 		obj->flag_end_level = 0;
@@ -646,7 +645,7 @@ static void do_level_add_sprite1_case4(struct object_t *obj) {
 		obj35->xpos16 = obj->xpos16;
 		obj35->ypos16 = obj->ypos16;
 		obj35->anim_num = 1;
-		obj37->animframes_ptr = animframes_059d + (obj37->type * 116 / 4);
+		obj35->animframes_ptr = animframes_059d + (obj35->type * 116 / 4);
 	} else {
 		obj35->unk2E = 0;
 		const int num = triggers_get_tile_type(obj35->xpos16, obj35->ypos16);
@@ -709,6 +708,8 @@ static void do_level_add_sprite1(struct object_t *obj) {
 
 static void do_level_add_sprite2(struct object_t *obj) {
 	print_debug(DBG_GAME, "add_sprite2 obj->type %d", obj->type);
+	assert(obj->type == 2);
+	assert(obj->animframes_ptr);
 	const uint8_t *anim_data = obj->animframes_ptr[obj->grab_type];
 	if (obj->anim_num < anim_data[0]) {
 		++obj->anim_num;
@@ -812,7 +813,7 @@ void do_level_update_tile(int x, int y, int num) {
 	if ((g_vars.screen_tilemap_yorigin >> 4) > y) {
 		return;
 	}
-	if ((g_vars.screen_tilemap_xorigin >> 4) + (TILEMAP_SCREEN_H / 16) <= y) {
+	if ((g_vars.screen_tilemap_yorigin >> 4) + (TILEMAP_SCREEN_H / 16) <= y) {
 		return;
 	}
 	if (num >= 128) {
@@ -1381,15 +1382,15 @@ static void do_level_update_object_bounds(struct object_t *obj) {
 	int _si = g_vars.objects[OBJECT_NUM_PLAYER1].screen_xpos - obj->screen_xpos;
 	int _di = g_vars.objects[OBJECT_NUM_PLAYER1].screen_ypos - obj->screen_ypos;
 	if (g_vars.objects[OBJECT_NUM_PLAYER1].special_anim == 16) {
-		_si = 320;
-		_di = 200;
+		_si = GAME_SCREEN_W;
+		_di = GAME_SCREEN_H;
 	}
 	if (g_vars.two_players_flag) {
 		int tmp_dx = g_vars.objects[OBJECT_NUM_PLAYER2].screen_xpos - obj->screen_xpos;
 		int tmp_dy = g_vars.objects[OBJECT_NUM_PLAYER2].screen_ypos - obj->screen_ypos;
 		if (g_vars.objects[OBJECT_NUM_PLAYER2].special_anim == 16) {
-			tmp_dx = 320;
-			tmp_dy = 200;
+			tmp_dx = GAME_SCREEN_W;
+			tmp_dy = GAME_SCREEN_H;
 		}
 		if (ABS(_si) >= ABS(tmp_dx) && ABS(_di) >= ABS(tmp_dy)) {
 			obj->player_xdist = tmp_dx;
@@ -1625,7 +1626,7 @@ static void do_level_handle_object_bonus_collision(struct object_t *obj, struct 
 void do_level_player_hit(struct object_t *obj) {
 	if (obj->blinking_counter == 0) {
 		g_vars.screen_draw_h = 172;
-		if (obj->data51 > 0) {
+		if (obj->data51 > 0 && (g_options.cheats & CHEATS_UNLIMITED_ENERGY) == 0) {
 			--obj->data51;
 			do_level_update_panel_lifes(obj);
 		}
@@ -2167,7 +2168,7 @@ void do_level() {
 	g_vars.player2_scrolling_flag = 0;
 	g_vars.screen_draw_h = TILEMAP_SCREEN_H;
 	g_vars.found_music_instrument_flag = 0;
-	render_set_sprites_clipping_rect(0, TILEMAP_OFFSET_Y, TILEMAP_SCREEN_W, TILEMAP_SCREEN_H - TILEMAP_OFFSET_Y);
+	render_set_sprites_clipping_rect(0, TILEMAP_OFFSET_Y, TILEMAP_SCREEN_W, TILEMAP_SCREEN_H);
 	do {
 		const uint32_t timestamp = g_sys.get_timestamp();
 		update_input();

@@ -4,8 +4,8 @@
 
 #include "intern.h"
 
-#define GAME_SCREEN_W 320
-#define GAME_SCREEN_H 200
+#define GAME_SCREEN_W g_options.screen_w
+#define GAME_SCREEN_H g_options.screen_h
 
 #define TILEMAP_OFFSET_Y  14
 #define TILEMAP_SCREEN_W  GAME_SCREEN_W
@@ -33,13 +33,17 @@
 #define SOUND_15 15
 #define SOUND_16 16
 
-#define CHEATS_NO_HIT (1 << 0)
+#define CHEATS_NO_HIT           (1 << 0)
+#define CHEATS_UNLIMITED_LIFES  (1 << 1)
+#define CHEATS_UNLIMITED_ENERGY (1 << 2)
 
 struct options_t {
 	uint32_t cheats;
 	int start_level;
 	int start_xpos16;
 	int start_ypos16;
+	int screen_w;
+	int screen_h;
 	bool amiga_copper_bars;
 	bool amiga_colors;
 	bool amiga_data;
@@ -145,7 +149,6 @@ struct vars_t {
 	int start_level;
 	int16_t level_xpos[MAX_OBJECTS];
 	int16_t level_ypos[MAX_OBJECTS];
-	int screen_w, screen_h;
 	int screen_tilemap_w, screen_tilemap_h;
 	int screen_tilemap_w16, screen_tilemap_h16;
 	int screen_tilemap_xorigin, screen_tilemap_yorigin;
@@ -154,18 +157,18 @@ struct vars_t {
 	int screen_scrolling_dirmask, screen_unk1;
 	int screen_draw_h, screen_draw_offset;
 	int screen_tile_lut[256];
-	int level_completed_flag;
-	int play_level_flag;
-	int game_over_flag;
-	int found_music_instrument_flag;
-	int player2_dead_flag;
-	int player1_dead_flag;
-	int player2_scrolling_flag;
-	int play_demo_flag;
-	int quit_level_flag;
+	bool level_completed_flag;
+	bool play_level_flag;
+	bool game_over_flag;
+	bool found_music_instrument_flag;
+	bool player2_dead_flag;
+	bool player1_dead_flag;
+	bool player2_scrolling_flag;
+	bool play_demo_flag;
+	bool quit_level_flag;
+	bool two_players_flag;
 	int music_num;
 	uint8_t inp_keyboard[256];
-	uint8_t inp_code;
 	int inp_key_space;
 	int inp_key_tab;
 	int inp_key_up;
@@ -176,10 +179,7 @@ struct vars_t {
 	int inp_key_down_prev;
 	int inp_key_action;
 	struct door_t doors[MAX_DOORS];
-	int cheat_code_len;
-	int cheat_flag;
 	struct object_t objects[MAX_OBJECTS];
-	int two_players_flag;
 	int vinyls_count;
 	uint16_t level_loop_counter;
 	int triggers_counter;

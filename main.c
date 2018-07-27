@@ -20,11 +20,19 @@ static const char *USAGE =
 	"Usage: %s [OPTIONS]...\n"
 	"  --datapath=PATH   Path to data files (default '.')\n"
 	"  --level=NUM       Start at level NUM\n"
+	"  --debug=MASK      Debug mask\n"
+	"  --startpos=XxY    Start at position (X,Y)\n"
+	"  --fullscreen      Enable fullscreen\n"
+	"  --scale           Graphics scaling factor (default 2)\n"
+	"  --filter          Graphics scaling filter\n"
+	"  --screensize=WxH  Graphics screen size (default 320x200)\n"
 ;
 
 int main(int argc, char *argv[]) {
 	g_options.start_xpos16 = -1;
 	g_options.start_ypos16 = -1;
+	g_options.screen_w = 320;
+	g_options.screen_h = 200;
 	g_options.amiga_copper_bars =  true;
 	g_options.amiga_colors = true;
 	// g_options.amiga_data = true;
@@ -49,6 +57,7 @@ int main(int argc, char *argv[]) {
 			{ "fullscreen", no_argument,     0, 6 },
 			{ "scale",    required_argument, 0, 7 },
 			{ "filter",   required_argument, 0, 8 },
+			{ "screensize", required_argument, 0, 9 },
 			{ 0, 0, 0, 0 },
 		};
 		int index;
@@ -81,6 +90,12 @@ int main(int argc, char *argv[]) {
 		case 8:
 			scale_filter = strdup(optarg);
 			break;
+		case 9:
+			sscanf(optarg, "%dx%d", &g_options.screen_w, &g_options.screen_h);
+			// align to tile 16x16
+			g_options.screen_w =  (g_options.screen_w + 15) & ~15;
+			g_options.screen_h = ((g_options.screen_h + 15) & ~15) + 40;
+			break;
 		default:
 			fprintf(stdout, USAGE, argv[0]);
 			return -1;
@@ -98,6 +113,9 @@ int main(int argc, char *argv[]) {
 	fio_fini();
 	if (data_path != DEFAULT_DATA_PATH) {
 		free((char *)data_path);
+	}
+	if (scale_filter != DEFAULT_SCALE_FILTER) {
+		free((char *)scale_filter);
 	}
 	return 0;
 }

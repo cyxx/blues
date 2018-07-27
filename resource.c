@@ -32,6 +32,7 @@ void res_init(int vga_size) {
 	if (!g_res.vga) {
 		print_error("Failed to allocate vga buffer, %d bytes", vga_size);
 	}
+	g_res.vga_size = vga_size;
 	static const int TILES_SIZE = 640 * 200;
 	g_res.tiles = (uint8_t *)malloc(TILES_SIZE);
 	if (!g_res.tiles) {
@@ -262,7 +263,7 @@ void load_img(const char *filename, int screen_w) {
 	load_iff(g_res.tmp, size, g_res.tmp + 32000, screen_w);
 	g_sys.set_screen_palette(g_res.palette, 16);
 	g_sys.update_screen(g_res.tmp + 32000, 0);
-	memcpy(g_res.vga, g_res.tmp + 32000, 64000);
+	memcpy(g_res.vga, g_res.tmp + 32000, g_res.vga_size);
 }
 
 void load_m(const char *filename) {

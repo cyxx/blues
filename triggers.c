@@ -757,6 +757,7 @@ void triggers_update_tiles1(struct object_t *obj) {
 		return;
 	}
 	p = t->op_table3;
+	obj->trigger3 = p;
 	if (p[1] == 11) {
 		if (obj->unk60 == 0) {
 			obj->unk60 = p[9];

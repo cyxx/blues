@@ -42,20 +42,6 @@ void do_title_screen() {
 	g_sys.input.space = 0;
 }
 
-static void check_cheat_code() {
-	static const uint8_t codes[] = { 0x14, 0x17, 0x27, 0x18, 0x14, 0x23, 0x12, 0x12 };
-	if ((g_vars.inp_code & 0x80) == 0 && g_vars.inp_code != 0) {
-		if (g_vars.inp_code == codes[g_vars.cheat_code_len]) {
-			++g_vars.cheat_code_len;
-			if (g_vars.cheat_code_len == ARRAYSIZE(codes)) {
-				g_vars.cheat_flag = 1;
-			}
-		} else {
-			g_vars.cheat_code_len = 0;
-		}
-	}
-}
-
 void do_select_player() {
 	int quit = 0;
 	int fade = 0;
@@ -197,17 +183,6 @@ void do_select_player() {
 		}
 		screen_clear_last_sprite();
 		screen_redraw_sprites();
-		if (g_vars.cheat_flag) {
-			for (int i = 5; i >= 0; --i) {
-				if (g_vars.inp_keyboard[2 + i]) {
-					g_vars.level = i;
-					break;
-				}
-			}
-//			screen_draw_number_type1(_level + 1, 256, 148, 2);
-		} else {
-			check_cheat_code();
-		}
 		screen_flip();
 		screen_vsync();
 		const int diff = (timestamp + (1000 / 30)) - g_sys.get_timestamp();
@@ -276,7 +251,6 @@ static void do_inter_screen() {
 	}
 	g_vars.screen_draw_offset = 0x2000;
 	screen_flip();
-	g_vars.screen_h = TILEMAP_SCREEN_H;
 	const uint32_t timestamp = g_sys.get_timestamp() + 4 * 1000;
 	do {
 		update_input();
@@ -289,8 +263,6 @@ static void do_inter_screen() {
 
 void game_main() {
 	play_music(0);
-	g_vars.screen_w = GAME_SCREEN_W;
-	g_vars.screen_h = GAME_SCREEN_H;
 	g_vars.screen_draw_offset = 0;
 	screen_init();
 	screen_flip();
@@ -350,7 +322,6 @@ void game_main() {
 	do_title_screen();
 	while (!g_sys.input.quit) {
 		if (!g_vars.level_completed_flag) {
-//			_level_cheat_code = 0;
 			g_vars.game_over_flag = 0;
 			g_vars.play_level_flag = 1;
 			if (!g_vars.play_demo_flag) {

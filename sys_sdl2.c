@@ -4,6 +4,7 @@
 #include "util.h"
 
 #define COPPER_BARS_H 80
+#define MAX_SPRITES 256
 
 static const int FADE_STEPS = 16;
 
@@ -22,7 +23,7 @@ struct sprite_t {
 	bool xflip;
 };
 
-static struct sprite_t _sprites[128];
+static struct sprite_t _sprites[MAX_SPRITES];
 static int _sprites_count;
 static SDL_Rect _sprites_cliprect;
 
