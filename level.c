@@ -34,14 +34,16 @@ static const struct {
 	const int16_t *xpos;
 	const int16_t *ypos;
 	uint8_t music;
-	uint8_t cga_dither;
+	uint8_t cga_dither_ck;
+	uint8_t cga_dither_sqv;
+	uint8_t cga_dither_avt;
 } _levels[MAX_LEVELS] = {
-	{ "mag.ck1", "mag.ck2", "mag.sql", "magasin.bin", "avtmag.sqv", "enemi1.sqv", level_xpos_magasin, level_ypos_magasin, 1, 3 },
-	{ "ent.ck1", "ent.ck2", "ent.sql", "entrepot.bin", "avtent.sqv", "enemi2.sqv", level_xpos_ent, level_ypos_ent, 2, 3 },
-	{ "prison.ck1", "prison.ck2", "prison.sql", "prison.bin", "avtpris.sqv", "enemi3.sqv", level_xpos_prison, level_ypos_prison, 3, 5 },
-	{ "egou.ck1", "egou.ck2", "egou.sql", "egou.bin", "avtegou.sqv", "enemi4.sqv", level_xpos_egou, level_ypos_egou, 1, 3 },
-	{ "ville.ck1", "ville.ck2", "ville.sql", "ville.bin", "avtville.sqv", "enemi5.sqv", level_xpos_ville, level_ypos_ville, 2, 7 },
-	{ "concert.ck1", "concert.ck2", "concert.sql", "concert.bin", "", "enemi6.sqv", level_xpos_concert, level_ypos_concert, 3, 8 },
+	{ "mag.ck1", "mag.ck2", "mag.sql", "magasin.bin", "avtmag.sqv", "enemi1.sqv", level_xpos_magasin, level_ypos_magasin, 1, 3, 4, 3 },
+	{ "ent.ck1", "ent.ck2", "ent.sql", "entrepot.bin", "avtent.sqv", "enemi2.sqv", level_xpos_ent, level_ypos_ent, 2, 3, 4, 3 },
+	{ "prison.ck1", "prison.ck2", "prison.sql", "prison.bin", "avtpris.sqv", "enemi3.sqv", level_xpos_prison, level_ypos_prison, 3, 5, 6, 5 },
+	{ "egou.ck1", "egou.ck2", "egou.sql", "egou.bin", "avtegou.sqv", "enemi4.sqv", level_xpos_egou, level_ypos_egou, 1, 3, 4, 3 },
+	{ "ville.ck1", "ville.ck2", "ville.sql", "ville.bin", "avtville.sqv", "enemi5.sqv", level_xpos_ville, level_ypos_ville, 2, 7, 4, 7 },
+	{ "concert.ck1", "concert.ck2", "concert.sql", "concert.bin", "", "enemi6.sqv", level_xpos_concert, level_ypos_concert, 3, 8, 4, 0 },
 };
 
 static const struct {
@@ -69,7 +71,7 @@ void load_level_data(int num) {
 		// .avt
 		load_spr(_levels_amiga[num].ennemi, g_res.tmp, SPRITES_COUNT);
 	} else {
-		const int dither_pattern = g_options.cga_colors ? _levels[num].cga_dither : -1;
+		const int dither_pattern = g_options.cga_colors ? _levels[num].cga_dither_ck : -1;
 		if (num == 0 && g_res.dos_demo) {
 			load_ck("demomag.ck1", 0x6000, dither_pattern);
 			load_ck("demomag.ck2", 0x8000, dither_pattern);
@@ -80,8 +82,8 @@ void load_level_data(int num) {
 			load_sql(_levels[num].sql);
 		}
 		load_bin(_levels[num].bin);
-		load_avt(_levels[num].avt, g_res.avt_sqv, 0);
-		load_sqv(_levels[num].sqv, g_res.tmp, SPRITES_COUNT);
+		load_avt(_levels[num].avt, g_res.avt_sqv, 0, g_options.cga_colors ? _levels[num].cga_dither_avt : -1);
+		load_sqv(_levels[num].sqv, g_res.tmp, SPRITES_COUNT, g_options.cga_colors ? _levels[num].cga_dither_ck : -1);
 	}
 	memcpy(g_vars.level_xpos, _levels[num].xpos, MAX_OBJECTS * sizeof(int16_t));
 	memcpy(g_vars.level_ypos, _levels[num].ypos, MAX_OBJECTS * sizeof(int16_t));
@@ -89,7 +91,11 @@ void load_level_data(int num) {
 		play_music(_levels[num].music);
 		g_vars.music_num = _levels[num].music;
 	}
-	screen_load_graphics();
+	if (g_options.cga_colors) {
+	} else if (g_options.amiga_colors) {
+		g_sys.set_palette_amiga(_colors_data + g_vars.level * 16, 0);
+	}
+	screen_load_graphics(g_options.cga_colors ? g_res.cga_lut_sqv : 0, g_options.cga_colors ? g_res.cga_lut_avt : 0);
 }
 
 static void init_level() {
@@ -2095,10 +2101,6 @@ void do_level() {
 	do_level_redraw_tilemap(g_vars.screen_tilemap_xorigin, g_vars.screen_tilemap_yorigin);
 	if (g_options.amiga_copper_bars) {
 		g_sys.set_copper_bars(_copper_data + g_vars.level * 18);
-	}
-	if (g_options.cga_colors) {
-	} else if (g_options.amiga_colors) {
-		g_sys.set_palette_amiga(_colors_data + g_vars.level * 16, 0);
 	}
 	g_vars.inp_keyboard[0xB9] = 0; // SPACE
 	// g_vars.screen_draw_offset = TILEMAP_OFFSET_Y * 40;

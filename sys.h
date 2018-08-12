@@ -57,7 +57,7 @@ extern struct sys_t g_sys;
 #define RENDER_SPR_LEVEL 1 /* level sprites */
 #define RENDER_SPR_FG    2 /* foreground tiles */
 
-extern void	render_load_sprites(int spr_type, int count, const struct sys_rect_t *r, const uint8_t *data, int w, int h, int palette_offset);
+extern void	render_load_sprites(int spr_type, int count, const struct sys_rect_t *r, const uint8_t *data, int w, int h, int palette_offset, uint8_t color_key);
 extern void	render_unload_sprites(int spr_type);
 extern void	render_add_sprite(int spr_type, int frame, int x, int y, int xflip);
 extern void	render_clear_sprites();

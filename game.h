@@ -258,7 +258,7 @@ extern void	screen_add_game_sprite1(int x, int y, int frame);
 extern void	screen_add_game_sprite2(int x, int y, int frame);
 extern void	screen_add_game_sprite3(int x, int y, int frame, int blinking_counter);
 extern void	screen_add_game_sprite4(int x, int y, int frame, int blinking_counter);
-extern void	screen_load_graphics();
+extern void	screen_load_graphics(const uint8_t *dither_lut_sqv, const uint8_t *dither_lut_avt);
 
 /* sound.c */
 extern void	sound_init();

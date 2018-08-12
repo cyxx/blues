@@ -30,5 +30,14 @@ By default, the executable loads the data files from the current directory.
 This can be changed by using command line switch.
 
 ```
-./blues --datapath DATA_dos/
+Usage: blues [OPTIONS]...
+  --datapath=PATH   Path to data files (default '.')
+  --level=NUM       Start at level NUM
+  --cheats=MASK     Cheats bitmask
+  --startpos=XxY    Start at position (X,Y)
+  --fullscreen      Enable fullscreen
+  --scale           Graphics scaling factor (default 2)
+  --filter          Graphics scaling filter
+  --screensize=WxH  Graphics screen size (default 320x200)
+  --cga             Enable CGA colors
 ```

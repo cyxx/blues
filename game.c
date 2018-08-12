@@ -55,7 +55,7 @@ void do_select_player() {
 	const int color_rgb = 2;
 	const int colors_count = 25;
 	load_img(g_res.amiga_data ? "choix.lbm" : "choix.sqz", GAME_SCREEN_W, g_options.cga_colors ? 1 : -1);
-	screen_load_graphics();
+	screen_load_graphics(g_options.cga_colors ? g_res.cga_lut_sqv : 0, 0);
 	screen_clear_sprites();
 	do {
 		screen_copy_img();
@@ -175,7 +175,6 @@ void do_select_player() {
 			}
 			break;
 		}
-// state_default_:
 		if (!fade) {
 			fade_in_palette();
 			fade = 1;
@@ -260,7 +259,7 @@ void game_main() {
 		load_spr("sprite", g_res.spr_sqv, 0);
 		load_spr("objet", g_res.spr_sqv + SPRITE_SIZE, 101);
 	} else {
-		load_sqv("sprite.sqv", g_res.spr_sqv, 0);
+		load_sqv("sprite.sqv", g_res.spr_sqv, 0, g_options.cga_colors ? 2 : -1);
 	}
 	if (g_options.amiga_status_bar || g_res.amiga_data) {
 		uint16_t palette[16];

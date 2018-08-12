@@ -23,11 +23,6 @@ void res_init(int vga_size) {
 	if (!g_res.avt_sqv) {
 		print_error("Failed to allocate avt buffer, %d bytes", AVT_SQV_SIZE);
 	}
-	static const int CGA_SIZE = 160 * 200;
-	g_res.cga = (uint8_t *)malloc(CGA_SIZE);
-	if (!g_res.cga) {
-		print_error("Failed to allocate cga buffer, %d bytes", CGA_SIZE);
-	}
 	const int tmp_size = 32000 + vga_size;
 	g_res.tmp = (uint8_t *)malloc(tmp_size);
 	if (!g_res.tmp) {
@@ -69,8 +64,6 @@ void res_fini() {
 	g_res.avt_sqv = 0;
 	free(g_res.tmp);
 	g_res.tmp = 0;
-	free(g_res.cga);
-	g_res.cga = 0;
 	free(g_res.vga);
 	g_res.vga = 0;
 	free(g_res.tiles);
@@ -98,54 +91,20 @@ int read_compressed_file(const char *filename, uint8_t *dst) {
 extern const uint8_t dither_cga_table[];
 
 static void dither_cga(int num, uint8_t *dst) {
-	const uint8_t *_bx = dither_cga_table + num * 32;
-	for (int i = 0; i < 256; ++i) { // even lines
-		const uint8_t a = _bx[(i & 15) * 2];     // 0x20 | 0x10
-		const uint8_t b = _bx[(i >> 4) * 2 + 1]; // 0x80 | 0x40
-		const uint8_t tmp = ((b & 3) << 2) | (a & 3);
-		dst[0x100 + i] = tmp << 4;
-		dst[        i] = tmp;
-	}
-	for (int i = 0; i < 256; ++i) { // odd lines
-		const uint8_t a = _bx[(i & 15) * 2 + 1]; // 0x20 | 0x10
-		const uint8_t b = _bx[(i >> 4) * 2];     // 0x80 | 0x40
-		const uint8_t tmp = ((b & 3) << 2) | (a & 3);
-		dst[0x300 + i] = tmp << 4;
-		dst[0x200 + i] = tmp;
-	}
-	for (int i = 0; i < 256; ++i) {
-		uint8_t mask = i;
-		static const uint8_t lut[] = { 1, 0, 3, 2 };
-		for (int j = 0; j < 4; ++j) {
-			dst[0x400 + lut[j]] = ((mask & 1) << 7) | ((mask & 2) << 2); // 0x80 | 0x08
-			mask >>= 2;
-		}
-		dst += 4;
+	const uint8_t *p = dither_cga_table + num * 32;
+	for (int i = 0; i < 16; ++i, p += 2) {
+		dst[i]        = p[0] & 3; // even scanline
+		dst[0x10 + i] = p[1] & 3; // odd scanline
 	}
 }
 
-static void copy_cga(const uint8_t *src, uint8_t *di, uint8_t *dither_temp) {
+static void copy_cga(uint8_t *dst, int dst_pitch, uint8_t *dither_lut) {
 	for (int y = 0; y < 200; ++y) {
-		for (int x = 0; x < 40; ++x) {
-			int a = 0;
-			int d = 0;
-			for (int i = 0; i < 4; ++i) {
-				const int b = src[i * 40] * 4;
-				a |= READ_LE_UINT16(dither_temp + 0x400 + b) >> (3 - i);
-				d |= READ_LE_UINT16(dither_temp + 0x402 + b) >> (3 - i);
-			}
-			const uint8_t *p = dither_temp + (y & 1) * 0x200;
-			uint8_t _cl = p[a & 255] | p[0x100 + (a >> 8)];
-			uint8_t _ch = p[d & 255] | p[0x100 + (d >> 8)];
-			for (int i = 0; i < 4; ++i) {
-				*di++ = _ch & 3; _ch >>= 2;
-			}
-			for (int i = 0; i < 4; ++i) {
-				*di++ = _cl & 3; _cl >>= 2;
-			}
-			++src;
+		const uint8_t *p = dither_lut + (y & 1) * 0x10;
+		for (int x = 0; x < 320; ++x) {
+			dst[x] = p[dst[x]] & 3;
 		}
-		src += 120;
+		dst += dst_pitch;
 	}
 }
 
@@ -218,9 +177,6 @@ static void load_iff(const uint8_t *data, uint32_t size, uint8_t *dst, int dst_p
 							memcpy(scanline + scanline_offset, buf + i, code);
 							i += code;
 						}
-						if (!(cga_dither_pattern < 0)) {
-							memcpy(g_res.cga + offset, scanline + scanline_offset, code);
-						}
 						offset += code;
 						if ((offset % 160) == 0) {
 							decode_bitplane_scanline(scanline, 4, 160, dst + y * dst_pitch);
@@ -235,14 +191,13 @@ static void load_iff(const uint8_t *data, uint32_t size, uint8_t *dst, int dst_p
 		}
 	}
 	if (!(cga_dither_pattern < 0)) {
-		uint8_t dither_temp[2048];
-		memset(dither_temp, 0, sizeof(dither_temp));
-		dither_cga(cga_dither_pattern, dither_temp);
-		copy_cga(g_res.cga, dst, dither_temp);
+		uint8_t cga_lut[16 * 2];
+		dither_cga(cga_dither_pattern, cga_lut);
+		copy_cga(dst, dst_pitch, cga_lut);
 	}
 }
 
-void load_avt(const char *filename, uint8_t *dst, int offset) {
+void load_avt(const char *filename, uint8_t *dst, int offset, int dither_pattern) {
 	read_compressed_file(filename, dst);
 	const uint8_t *ptr = dst;
 	const int count = READ_LE_UINT16(ptr); ptr += 6;
@@ -252,6 +207,9 @@ void load_avt(const char *filename, uint8_t *dst, int offset) {
 		ptr += 132;
 	}
 	g_res.avt_count = count;
+	if (!(dither_pattern < 0)) {
+		dither_cga(dither_pattern, g_res.cga_lut_avt);
+	}
 }
 
 static const uint8_t *trigger_lookup_table1(uint8_t num) {
@@ -388,10 +346,13 @@ void load_spr(const char *filename, uint8_t *dst, int offset) {
 	}
 }
 
-void load_sqv(const char *filename, uint8_t *dst, int offset) {
+void load_sqv(const char *filename, uint8_t *dst, int offset, int dither_pattern) {
 	read_compressed_file(filename, dst);
 	const int count = load_spr_helper(offset, dst, READ_LE_UINT16, 4);
 	g_res.spr_count = offset + count;
+	if (!(dither_pattern < 0)) {
+		dither_cga(dither_pattern, g_res.cga_lut_sqv);
+	}
 }
 
 void load_sql(const char *filename) {

@@ -851,7 +851,6 @@ void triggers_update_tiles1(struct object_t *obj) {
 		obj35->ypos16 = obj->ypos16;
 		obj35->anim_num = 1;
 		obj35->animframes_ptr = animframes_059d + obj35->type * 116 / 4;
-// seg003:12A3
 		if (_di == 0) {
 			do_level_update_tile(obj->xpos16, obj->ypos16, p[2]);
 		} else {

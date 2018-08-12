@@ -20,12 +20,13 @@ static const char *USAGE =
 	"Usage: %s [OPTIONS]...\n"
 	"  --datapath=PATH   Path to data files (default '.')\n"
 	"  --level=NUM       Start at level NUM\n"
-	"  --debug=MASK      Debug mask\n"
+	"  --cheats=MASK     Cheats mask\n"
 	"  --startpos=XxY    Start at position (X,Y)\n"
 	"  --fullscreen      Enable fullscreen\n"
 	"  --scale           Graphics scaling factor (default 2)\n"
 	"  --filter          Graphics scaling filter\n"
 	"  --screensize=WxH  Graphics screen size (default 320x200)\n"
+	"  --cga             Enable CGA colors\n"
 ;
 
 int main(int argc, char *argv[]) {
@@ -37,7 +38,7 @@ int main(int argc, char *argv[]) {
 	g_options.amiga_colors = true;
 	// g_options.amiga_status_bar = true;
 	g_options.dos_scrolling = false;
-	// g_options.cga_colors = true;
+	g_options.cga_colors = false;
 	const char *data_path = DEFAULT_DATA_PATH;
 	int scale_factor = DEFAULT_SCALE_FACTOR;
 	const char *scale_filter = DEFAULT_SCALE_FILTER;
@@ -50,15 +51,16 @@ int main(int argc, char *argv[]) {
 	}
 	while (1) {
 		static struct option options[] = {
-			{ "datapath", required_argument, 0, 1 },
-			{ "level",    required_argument, 0, 2 },
-			{ "debug",    required_argument, 0, 3 },
-			{ "cheats",   required_argument, 0, 4 },
-			{ "startpos", required_argument, 0, 5 },
-			{ "fullscreen", no_argument,     0, 6 },
-			{ "scale",    required_argument, 0, 7 },
-			{ "filter",   required_argument, 0, 8 },
+			{ "datapath",   required_argument, 0, 1 },
+			{ "level",      required_argument, 0, 2 },
+			{ "debug",      required_argument, 0, 3 },
+			{ "cheats",     required_argument, 0, 4 },
+			{ "startpos",   required_argument, 0, 5 },
+			{ "fullscreen", no_argument,       0, 6 },
+			{ "scale",      required_argument, 0, 7 },
+			{ "filter",     required_argument, 0, 8 },
 			{ "screensize", required_argument, 0, 9 },
+			{ "cga",        no_argument,       0, 10 },
 			{ 0, 0, 0, 0 },
 		};
 		int index;
@@ -97,6 +99,9 @@ int main(int argc, char *argv[]) {
 				g_options.screen_w =  (g_options.screen_w + 15) & ~15;
 				g_options.screen_h = ((g_options.screen_h + 15) & ~15) + 40;
 			}
+			break;
+		case 10:
+			g_options.cga_colors = true;
 			break;
 		default:
 			fprintf(stdout, USAGE, argv[0]);
