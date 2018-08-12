@@ -35,8 +35,8 @@ int main(int argc, char *argv[]) {
 	g_options.screen_h = 200;
 	g_options.amiga_copper_bars =  true;
 	g_options.amiga_colors = true;
-	// g_options.amiga_data = true;
 	// g_options.amiga_status_bar = true;
+	g_options.dos_scrolling = false;
 	const char *data_path = DEFAULT_DATA_PATH;
 	int scale_factor = DEFAULT_SCALE_FACTOR;
 	const char *scale_filter = DEFAULT_SCALE_FILTER;
@@ -91,10 +91,11 @@ int main(int argc, char *argv[]) {
 			scale_filter = strdup(optarg);
 			break;
 		case 9:
-			sscanf(optarg, "%dx%d", &g_options.screen_w, &g_options.screen_h);
-			// align to tile 16x16
-			g_options.screen_w =  (g_options.screen_w + 15) & ~15;
-			g_options.screen_h = ((g_options.screen_h + 15) & ~15) + 40;
+			if (sscanf(optarg, "%dx%d", &g_options.screen_w, &g_options.screen_h) == 2) {
+				// align to tile 16x16
+				g_options.screen_w =  (g_options.screen_w + 15) & ~15;
+				g_options.screen_h = ((g_options.screen_h + 15) & ~15) + 40;
+			}
 			break;
 		default:
 			fprintf(stdout, USAGE, argv[0]);

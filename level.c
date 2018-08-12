@@ -60,7 +60,7 @@ static const struct {
 
 void load_level_data(int num) {
 	print_debug(DBG_GAME, "load_level_data num %d", num);
-	if (g_options.amiga_data) {
+	if (g_res.amiga_data) {
 		load_blk(_levels_amiga[num].blk);
 		read_file(_levels_amiga[num].tbl, g_res.sql, 0);
 		load_bin(_levels_amiga[num].bin);
@@ -68,7 +68,7 @@ void load_level_data(int num) {
 		// .avt
 		load_spr(_levels_amiga[num].ennemi, g_res.tmp, SPRITES_COUNT);
 	} else {
-		if (num == 0 && (g_res.flags & RESOURCE_FLAGS_DEMO)) { // DOS demo
+		if (num == 0 && g_res.dos_demo) {
 			load_ck("demomag.ck1", 0x6000);
 			load_ck("demomag.ck2", 0x8000);
 			load_sql("demomag.sql");
@@ -261,24 +261,21 @@ static void init_level() {
 }
 
 static void do_level_redraw_tilemap(int xpos, int ypos) {
-	const int w = TILEMAP_SCREEN_W / 16;
-	const int h = TILEMAP_SCREEN_H / 16;
-	int y = ypos >> 4;
-	int x = xpos >> 4;
-	for (int j = 0; j < h * 640; j += 640) {
-		const uint8_t *ptr = lookup_sql(x, y);
-		for (int i = 0; i < w * 2; i += 2) {
+	const int w = (TILEMAP_SCREEN_W / 16) + ((!g_options.dos_scrolling && (xpos & 15) != 0) ? 1 : 0);
+	const int h = (TILEMAP_SCREEN_H / 16) + ((!g_options.dos_scrolling && (ypos & 15) != 0) ? 1 : 0);
+	const int y = ypos >> 4;
+	const int x = xpos >> 4;
+	for (int j = 0; j < h; ++j) {
+		const uint8_t *ptr = lookup_sql(x, y + j);
+		for (int i = 0; i < w; ++i) {
 			const uint8_t num = *ptr++;
 			if (num >= 128) {
-				screen_draw_tile(g_vars.screen_tile_lut[num - 128], j + i, 4);
+				screen_draw_tile(g_vars.screen_tile_lut[num - 128], 4, i, j);
 			} else {
-				screen_draw_tile(g_vars.screen_tile_lut[num], j + i, 3);
+				screen_draw_tile(g_vars.screen_tile_lut[num], 3, i, j);
 			}
 		}
-		++y;
 	}
-	g_vars.screen_tilemap_xoffset = 0;
-	g_vars.screen_tilemap_yoffset = 0;
 	g_vars.screen_tilemap_size_w = w;
 	g_vars.screen_tilemap_size_h = h;
 }
@@ -292,11 +289,13 @@ static void do_level_update_tiles_anim() {
 			++p[0];
 		}
 	}
-	int y = g_vars.screen_tilemap_yorigin >> 4;
-	int x = g_vars.screen_tilemap_xorigin >> 4;
-	for (int j = 0; j < (TILEMAP_SCREEN_H / 16) * 640; j += 640) {
-		uint8_t *ptr = lookup_sql(x, y);
-		for (int i = 0; i < (TILEMAP_SCREEN_W / 16) * 2; i += 2, ++ptr) {
+	const int w = (TILEMAP_SCREEN_W / 16) + ((!g_options.dos_scrolling && (g_vars.screen_tilemap_xorigin & 15) != 0) ? 1 : 0);
+	const int h = (TILEMAP_SCREEN_H / 16) + ((!g_options.dos_scrolling && (g_vars.screen_tilemap_yorigin & 15) != 0) ? 1 : 0);
+	const int y = g_vars.screen_tilemap_yorigin >> 4;
+	const int x = g_vars.screen_tilemap_xorigin >> 4;
+	for (int j = 0; j < h; ++j) {
+		uint8_t *ptr = lookup_sql(x, y + j);
+		for (int i = 0; i < w; ++i, ++ptr) {
 			uint8_t num = *ptr;
 			struct trigger_t *t = &g_res.triggers[num];
 			const uint8_t *data = t->op_table2;
@@ -314,12 +313,11 @@ static void do_level_update_tiles_anim() {
 				t->unk16 = num;
 			}
 			if (num >= 128) {
-				screen_draw_tile(g_vars.screen_tile_lut[num - 128], j + i, 4);
+				screen_draw_tile(g_vars.screen_tile_lut[num - 128], 4, i, j);
 			} else {
-				screen_draw_tile(g_vars.screen_tile_lut[num], j + i, 3);
+				screen_draw_tile(g_vars.screen_tile_lut[num], 3, i, j);
 			}
 		}
-		++y;
 	}
 }
 
@@ -327,26 +325,57 @@ static void do_level_update_scrolling2() {
 	if (g_vars.screen_scrolling_dirmask & 2) {
 		if (g_vars.screen_tilemap_w * 16 - TILEMAP_SCREEN_W > g_vars.screen_tilemap_xorigin) {
 			g_vars.screen_tilemap_xorigin += 16;
-			// do_level_update_scrolling_left();
 		}
 	}
 	if (g_vars.screen_scrolling_dirmask & 1) {
 		if (g_vars.screen_tilemap_xorigin > 0) {
 			g_vars.screen_tilemap_xorigin -= 16;
-			// do_level_update_scrolling_right();
 		}
 	}
 	if (g_vars.screen_scrolling_dirmask & 8) {
 		if (g_vars.screen_tilemap_yorigin > 0) {
 			g_vars.screen_tilemap_yorigin -= 16;
-			// do_level_update_scrolling_top();
 		}
 	}
 	if (g_vars.screen_scrolling_dirmask & 4) {
 		if (g_vars.screen_tilemap_h - TILEMAP_SCREEN_H > g_vars.screen_tilemap_yorigin) {
 			g_vars.screen_tilemap_yorigin += 16;
-			// do_level_update_scrolling_bottom();
 		}
+	}
+	if (!g_options.dos_scrolling) {
+		const int x1 = TILEMAP_SCROLL_W * 2;
+		const int x2 = TILEMAP_SCREEN_W - TILEMAP_SCROLL_W * 2;
+		const struct object_t *obj = &g_vars.objects[OBJECT_NUM_PLAYER1];
+		if (obj->screen_xpos > x2) {
+			const int dx = obj->screen_xpos - x2;
+			g_vars.screen_tilemap_xorigin += dx;
+			if (g_vars.screen_tilemap_xorigin + TILEMAP_SCREEN_W > g_vars.screen_tilemap_w * 16) {
+				g_vars.screen_tilemap_xorigin = g_vars.screen_tilemap_w * 16 - TILEMAP_SCREEN_W;
+			}
+		} else if (obj->screen_xpos < x1) {
+			const int dx = obj->screen_xpos - x1;
+			g_vars.screen_tilemap_xorigin += dx;
+			if (g_vars.screen_tilemap_xorigin < 0) {
+				g_vars.screen_tilemap_xorigin = 0;
+			}
+		}
+		const int y1 = 64;
+		const int y2 = 144;
+		if (obj->screen_ypos > y2) {
+			const int dy = obj->screen_ypos - y2;
+			g_vars.screen_tilemap_yorigin += dy;
+			if (g_vars.screen_tilemap_yorigin + TILEMAP_SCREEN_H > g_vars.screen_tilemap_h) {
+				g_vars.screen_tilemap_yorigin = g_vars.screen_tilemap_h - TILEMAP_SCREEN_H;
+			}
+		} else if (obj->screen_ypos < y1) {
+			const int dy = obj->screen_ypos - y1;
+			g_vars.screen_tilemap_yorigin += dy;
+			if (g_vars.screen_tilemap_yorigin < 0) {
+				g_vars.screen_tilemap_yorigin = 0;
+			}
+		}
+		g_vars.screen_tilemap_xoffset = -(g_vars.screen_tilemap_xorigin & 15);
+		g_vars.screen_tilemap_yoffset = -(g_vars.screen_tilemap_yorigin & 15);
 	}
 	do_level_redraw_tilemap(g_vars.screen_tilemap_xorigin, g_vars.screen_tilemap_yorigin);
 	if ((g_vars.level_loop_counter & 3) == 0) {
@@ -376,7 +405,7 @@ static void do_level_add_sprite1_case0(struct object_t *obj) {
 	} else if (triggers_get_tile_type(obj->xpos16, obj->ypos16) == 4) {
 		anim_data = obj->animframes_ptr[28 / 4];
 	} else {
-		if (ABS(obj->yvelocity) > 10 && obj->yvelocity > 0) {
+		if (abs(obj->yvelocity) > 10 && obj->yvelocity > 0) {
 			anim_data = obj->animframes_ptr[112 / 4];
 		} else {
 			anim_data = obj->animframes_ptr[8 / 4];
@@ -447,7 +476,7 @@ static void do_level_add_sprite1_case1(struct object_t *obj) {
 			anim_data = obj->animframes_ptr[0];
 		}
 		if (obj->unk2D < 8) {
-			if (ABS(obj->xvelocity) > 8) {
+			if (abs(obj->xvelocity) > 8) {
 				anim_data = obj->animframes_ptr[24 / 4];
 			}
 		}
@@ -794,32 +823,35 @@ void do_level_update_tile(int x, int y, int num) {
 	uint8_t *ptr = lookup_sql(x, y);
 	*ptr = num;
 
+	const int tile_xpos = g_vars.screen_tilemap_xorigin >> 4;
+	const int tile_ypos = g_vars.screen_tilemap_yorigin >> 4;
+
 	const int w = (TILEMAP_SCREEN_W / 16) * 2;
-	int _si = x * 2 + g_vars.screen_tilemap_yoffset - (g_vars.screen_tilemap_xorigin >> 3);
+	int _si = (x + tile_xpos) * 2 + g_vars.screen_tilemap_xoffset;
 	if (_si > w - 2) {
 		_si -= w;
 	}
 	const int h = (TILEMAP_SCREEN_H / 16) * 640;
-	int _di = (y - (g_vars.screen_tilemap_yorigin >> 4)) * 640 + g_vars.screen_tilemap_xoffset;
+	int _di = (y - tile_ypos) * 640 + g_vars.screen_tilemap_yoffset;
 	if (_di > h - 640) {
 		_di -= h;
 	}
-	if ((g_vars.screen_tilemap_xorigin >> 4) > x) {
+	if (tile_xpos > x) {
 		return;
 	}
-	if ((g_vars.screen_tilemap_xorigin >> 4) + (TILEMAP_SCREEN_W / 16) <= x) {
+	if (tile_xpos + (TILEMAP_SCREEN_W / 16) <= x) {
 		return;
 	}
-	if ((g_vars.screen_tilemap_yorigin >> 4) > y) {
+	if (tile_ypos > y) {
 		return;
 	}
-	if ((g_vars.screen_tilemap_yorigin >> 4) + (TILEMAP_SCREEN_H / 16) <= y) {
+	if (tile_ypos + (TILEMAP_SCREEN_H / 16) <= y) {
 		return;
 	}
 	if (num >= 128) {
-		screen_draw_tile(g_vars.screen_tile_lut[num - 128], _di + _si, 4);
+		screen_draw_tile(g_vars.screen_tile_lut[num - 128], 4, _si / 2, _di / 640);
 	} else {
-		screen_draw_tile(g_vars.screen_tile_lut[num], _di + _si, 3);
+		screen_draw_tile(g_vars.screen_tile_lut[num], 3, _si / 2, _di / 640);
 	}
 }
 
@@ -983,28 +1015,16 @@ void do_level_update_panel_lifes(struct object_t *obj) {
 		static const uint16_t data[] = { 216, 232, 248, 264, 280, 296 };
 		for (int i = 0; i < obj->data51; ++i) {
 			screen_draw_frame(g_res.spr_frames[120 + i], 12, 16, data[i], 161);
-			g_vars.screen_draw_offset ^= 0x2000;
-			screen_draw_frame(g_res.spr_frames[120 + i], 12, 16, data[i], 161);
-			g_vars.screen_draw_offset ^= 0x2000;
 		}
 		for (int i = obj->data51; i < 5; ++i) {
 			screen_draw_frame(g_res.spr_frames[119 + i], 12, 16, data[i], 161);
-			g_vars.screen_draw_offset ^= 0x2000;
-			screen_draw_frame(g_res.spr_frames[119 + i], 12, 16, data[i], 161);
-			g_vars.screen_draw_offset ^= 0x2000;
 		}
 	} else {
 		static const uint8_t data[] = { 18, 21, 20, 19, 19, 19 };
 		if (obj->type == PLAYER_JAKE) {
 			screen_draw_frame(g_res.spr_frames[101 + data[obj->data51]], 12, 16, 80, 161);
-			g_vars.screen_draw_offset ^= 0x2000;
-			screen_draw_frame(g_res.spr_frames[101 + data[obj->data51]], 12, 16, 80, 161);
-			g_vars.screen_draw_offset ^= 0x2000;
 		} else {
 			screen_draw_frame(g_res.spr_frames[101 + data[obj->data51]], 12, 16, 248, 161);
-			g_vars.screen_draw_offset ^= 0x2000;
-			screen_draw_frame(g_res.spr_frames[101 + data[obj->data51]], 12, 16, 248, 161);
-			g_vars.screen_draw_offset ^= 0x2000;
 		}
 	}
 	if (obj->data51 == 0) { // health
@@ -1017,33 +1037,21 @@ void do_level_update_panel_lifes(struct object_t *obj) {
 				obj->data51 = 3;
 				do_level_update_panel_lifes(obj);
 				if (obj->type == PLAYER_JAKE) {
-					g_vars.screen_draw_offset ^= 0x2000;
-					screen_draw_number(obj->lifes_count - 1, 48, 163, 2);
-					g_vars.screen_draw_offset ^= 0x2000;
 					screen_draw_number(obj->lifes_count - 1, 48, 163, 2);
 				} else {
-					g_vars.screen_draw_offset ^= 0x2000;
-					screen_draw_number(obj->lifes_count - 1, 216, 163, 2);
-					g_vars.screen_draw_offset ^= 0x2000;
 					screen_draw_number(obj->lifes_count - 1, 216, 163, 2);
 				}
 			} else if (obj->type == PLAYER_JAKE) {
 				g_vars.player2_scrolling_flag = 1;
-				g_vars.screen_unk1 = 1;
+				g_vars.switch_player_scrolling_flag = 1;
 				obj39->special_anim = 16;
 				g_vars.player2_dead_flag = 1;
-				g_vars.screen_draw_offset ^= 0x2000;
-				screen_draw_frame(g_res.spr_frames[116], 12, 16, 8, 161);
-				g_vars.screen_draw_offset ^= 0x2000;
 				screen_draw_frame(g_res.spr_frames[116], 12, 16, 8, 161);
 			} else { // PLAYER_ELWOOD
 				g_vars.player2_scrolling_flag = 0;
-				g_vars.screen_unk1 = 1;
+				g_vars.switch_player_scrolling_flag = 1;
 				obj40->special_anim = 16;
 				g_vars.player1_dead_flag = 1;
-				g_vars.screen_draw_offset ^= 0x2000;
-				screen_draw_frame(g_res.spr_frames[118], 12, 16, 176, 161);
-				g_vars.screen_draw_offset ^= 0x2000;
 				screen_draw_frame(g_res.spr_frames[118], 12, 16, 176, 161);
 			}
 			if (g_vars.player2_dead_flag && g_vars.player1_dead_flag) {
@@ -1068,17 +1076,11 @@ static void do_level_update_panel_vinyls(struct object_t *obj) {
 	}
 	if (!g_vars.two_players_flag) {
 		if (obj->vinyls_count != g_vars.vinyls_count) {
-			g_vars.screen_draw_offset ^= 0x2000;
-			screen_draw_number(obj->vinyls_count, 192, 163, 2);
-			g_vars.screen_draw_offset ^= 0x2000;
 			screen_draw_number(obj->vinyls_count, 192, 163, 2);
 		}
 		g_vars.vinyls_count = obj->vinyls_count;
 	} else {
 		if (obj->vinyls_count != g_vars.vinyls_count) {
-			g_vars.screen_draw_offset ^= 0x2000;
-			screen_draw_number(obj->vinyls_count, 112, 163, 2);
-			g_vars.screen_draw_offset ^= 0x2000;
 			screen_draw_number(obj->vinyls_count, 112, 163, 2);
 		}
 		g_vars.vinyls_count = obj->vinyls_count;
@@ -1100,9 +1102,6 @@ static void do_level_update_panel_2nd_player() {
 		do_level_update_panel_lifes(obj);
 	}
 	if (obj->vinyls_count != g_vars.vinyls_count) {
-		g_vars.screen_draw_offset ^= 0x2000;
-		screen_draw_number(obj->vinyls_count, 280, 163, 2);
-		g_vars.screen_draw_offset ^= 0x2000;
 		screen_draw_number(obj->vinyls_count, 280, 163, 2);
 		g_vars.vinyls_count = obj->vinyls_count;
 	}
@@ -1196,7 +1195,6 @@ void do_level_enter_door(struct object_t *obj) {
 				do_level_update_panel_2nd_player();
 			}
 			screen_flip();
-			g_vars.screen_draw_offset ^= 0x2000;
 			do_level_redraw_tilemap(g_vars.screen_tilemap_xorigin, g_vars.screen_tilemap_yorigin);
 			do_level_update_scrolling2();
 			draw_level_panel();
@@ -1206,7 +1204,6 @@ void do_level_enter_door(struct object_t *obj) {
 			}
 			screen_do_transition1(1);
 			screen_flip();
-			g_vars.screen_draw_offset ^= 0x2000;
 			obj->unk3D = 0;
 			obj->sprite_type = 0;
 			obj->yacc = 2;
@@ -1334,7 +1331,7 @@ static void do_level_update_scrolling(struct object_t *obj) {
 		g_vars.screen_scrolling_dirmask = 0;
 		return;
 	}
-	if (g_vars.screen_unk1) {
+	if (g_vars.switch_player_scrolling_flag) {
 		if (obj->screen_xpos > (TILEMAP_SCREEN_W - 144)) {
 			g_vars.screen_scrolling_dirmask |= 2;
 		}
@@ -1343,26 +1340,26 @@ static void do_level_update_scrolling(struct object_t *obj) {
 		}
 		if ((g_vars.screen_scrolling_dirmask & 2) != 0 && obj->screen_xpos < TILEMAP_SCREEN_W / 2) {
 			g_vars.screen_scrolling_dirmask &= ~2;
-			g_vars.screen_unk1 = 0;
+			g_vars.switch_player_scrolling_flag = 0;
 			g_vars.inp_keyboard[0xC1] = 0;
 		}
 		if ((g_vars.screen_scrolling_dirmask & 1) != 0 && obj->screen_xpos > TILEMAP_SCREEN_W / 2) {
 			g_vars.screen_scrolling_dirmask &= ~1;
-			g_vars.screen_unk1 = 0;
+			g_vars.switch_player_scrolling_flag = 0;
 			g_vars.inp_keyboard[0xC1] = 0;
 		}
 	} else {
 		int _si = (obj->xvelocity >> 3) + obj->unk1C;
-		if (obj->screen_xpos > (TILEMAP_SCREEN_W - 64) && (g_vars.screen_tilemap_w * 16 - TILEMAP_SCREEN_W) > g_vars.screen_tilemap_xorigin) {
+		if (obj->screen_xpos > (TILEMAP_SCREEN_W - TILEMAP_SCROLL_W) && (g_vars.screen_tilemap_w * 16 - TILEMAP_SCREEN_W) > g_vars.screen_tilemap_xorigin) {
 			g_vars.screen_scrolling_dirmask |= 2;
 		}
-		if (obj->screen_xpos < 64 && g_vars.screen_tilemap_xorigin > 0) {
+		if (obj->screen_xpos < TILEMAP_SCROLL_W && g_vars.screen_tilemap_xorigin > 0) {
 			g_vars.screen_scrolling_dirmask |= 1;
 		}
-		if ((g_vars.screen_scrolling_dirmask & 2) != 0 && (obj->screen_xpos < 48 || _si <= 0)) {
+		if ((g_vars.screen_scrolling_dirmask & 2) != 0 && (obj->screen_xpos < (TILEMAP_SCROLL_W - 16) || _si <= 0)) {
 			g_vars.screen_scrolling_dirmask &= ~2;
 		}
-		if ((g_vars.screen_scrolling_dirmask & 1) != 0 && (obj->screen_xpos > (TILEMAP_SCREEN_W - 48) || _si >= 0)) {
+		if ((g_vars.screen_scrolling_dirmask & 1) != 0 && (obj->screen_xpos > (TILEMAP_SCREEN_W - (TILEMAP_SCROLL_W - 16)) || _si >= 0)) {
 			g_vars.screen_scrolling_dirmask &= ~1;
 		}
 	}
@@ -1392,7 +1389,7 @@ static void do_level_update_object_bounds(struct object_t *obj) {
 			tmp_dx = GAME_SCREEN_W;
 			tmp_dy = GAME_SCREEN_H;
 		}
-		if (ABS(_si) >= ABS(tmp_dx) && ABS(_di) >= ABS(tmp_dy)) {
+		if (abs(_si) >= abs(tmp_dx) && abs(_di) >= abs(tmp_dy)) {
 			obj->player_xdist = tmp_dx;
 			obj->player_ydist = tmp_dy;
 			// obj->unk41 = 1;
@@ -1917,13 +1914,13 @@ static void do_level_update_objects() {
 		obj->direction_ud = 0;
 		if (obj->type < 2) {
 			if (g_vars.inp_keyboard[0xC1] != 0) { // F7, change player
-				if (!g_vars.screen_unk1 && g_vars.two_players_flag) {
+				if (!g_vars.switch_player_scrolling_flag && g_vars.two_players_flag) {
 					if (!g_vars.player2_scrolling_flag && g_vars.objects[OBJECT_NUM_PLAYER1].unk53 == 0) {
 						g_vars.player2_scrolling_flag = 1;
-						g_vars.screen_unk1 = 1;
+						g_vars.switch_player_scrolling_flag = 1;
 					} else if (g_vars.player2_scrolling_flag && g_vars.objects[OBJECT_NUM_PLAYER2].unk53 == 0) {
 						g_vars.player2_scrolling_flag = 1;
-						g_vars.screen_unk1 = 1;
+						g_vars.switch_player_scrolling_flag = 1;
 					}
 				}
 				g_vars.inp_keyboard[0xC1] = 0;
@@ -2026,15 +2023,9 @@ static void do_level_update_objects() {
 	if (g_vars.triggers_counter != 0) {
 		if (g_vars.triggers_counter < 10) {
 			screen_draw_frame(g_res.spr_frames[140 + g_vars.level], 12, 16, g_vars.level * 32 + 80, -12);
-			g_vars.screen_draw_offset = 0x2000;
-			screen_draw_frame(g_res.spr_frames[140 + g_vars.level], 12, 16, g_vars.level * 32 + 80, -12);
-			g_vars.screen_draw_offset ^= 0x2000;
 			++g_vars.triggers_counter;
 		} else {
 			screen_draw_frame(g_res.spr_frames[145], 12, 16, g_vars.level * 32 + 80, -12);
-			g_vars.screen_draw_offset = 0x2000;
-			screen_draw_frame(g_res.spr_frames[145], 12, 16, g_vars.level * 32 + 80, -12);
-			g_vars.screen_draw_offset ^= 0x2000;
 			++g_vars.triggers_counter;
 			if (g_vars.triggers_counter > 20) {
 				g_vars.triggers_counter = 1;
@@ -2070,18 +2061,15 @@ static void do_level_update_objects() {
 			g_vars.objects[OBJECT_NUM_PLAYER2].data5F = 0;
 			g_vars.objects[OBJECT_NUM_PLAYER1].flag_end_level = 0;
 			g_vars.objects[OBJECT_NUM_PLAYER2].flag_end_level = 0;
-			g_vars.screen_draw_offset -= TILEMAP_OFFSET_Y * 40;
+			// g_vars.screen_draw_offset -= TILEMAP_OFFSET_Y * 40;
 			screen_unk5();
-			g_vars.screen_draw_offset += TILEMAP_OFFSET_Y * 40;
+			// g_vars.screen_draw_offset += TILEMAP_OFFSET_Y * 40;
 			g_vars.quit_level_flag = 1;
 		}
 	} else if (g_vars.game_over_flag) {
 		g_vars.screen_scrolling_dirmask = 0;
 		if ((!g_vars.two_players_flag && g_vars.objects[OBJECT_NUM_PLAYER1].lifes_count == 1) || (g_vars.player2_dead_flag && g_vars.player1_dead_flag)) {
 			screen_draw_frame(g_res.spr_frames[127], 34, 160, 80, 63);
-			g_vars.screen_draw_offset ^= 0x2000;
-			screen_draw_frame(g_res.spr_frames[127], 34, 160, 80, 63);
-			g_vars.screen_draw_offset ^= 0x2000;
 			g_vars.objects[OBJECT_NUM_PLAYER1].unk60 = 0;
 			g_vars.objects[OBJECT_NUM_PLAYER2].unk60 = 0;
 			g_vars.objects[OBJECT_NUM_PLAYER1].data5F = 0;
@@ -2106,9 +2094,9 @@ static void do_level_update_objects() {
 			if (!g_vars.two_players_flag && g_vars.objects[OBJECT_NUM_PLAYER1].lifes_count == 1) {
 				g_vars.play_level_flag = 0;
 			}
-			g_vars.screen_draw_offset -= TILEMAP_OFFSET_Y * 40;
+			// g_vars.screen_draw_offset -= TILEMAP_OFFSET_Y * 40;
 			screen_unk5();
-			g_vars.screen_draw_offset += TILEMAP_OFFSET_Y * 40;
+			// g_vars.screen_draw_offset += TILEMAP_OFFSET_Y * 40;
 			g_vars.quit_level_flag = 1;
 		}
 	}
@@ -2128,8 +2116,8 @@ static void draw_foreground_tiles() {
 			}
 			const int avt_num = g_res.triggers[num].foreground_tile_num;
 			if (avt_num != 255) {
-				const int tile_y = j * 16 + TILEMAP_OFFSET_Y;
-				const int tile_x = i * 16;
+				const int tile_y = g_vars.screen_tilemap_yoffset + j * 16 + TILEMAP_OFFSET_Y;
+				const int tile_x = g_vars.screen_tilemap_xoffset + i * 16;
 				render_add_sprite(RENDER_SPR_FG, avt_num, tile_x, tile_y, 0);
 			}
 		}
@@ -2144,12 +2132,10 @@ void do_level() {
 	}
 	g_vars.screen_tilemap_w = level_dim[g_vars.level * 2];
 	g_vars.screen_tilemap_h = level_dim[g_vars.level * 2 + 1];
-	g_vars.screen_tilemap_w16 = g_vars.screen_tilemap_w;
-	g_vars.screen_tilemap_h16 = g_vars.screen_tilemap_h >> 4;
 	for (int i = 0; i < MAX_TRIGGERS; ++i) {
 		g_res.triggers[i].unk16 = i;
 	}
-	g_vars.screen_unk1 = 0;
+	g_vars.switch_player_scrolling_flag = 0;
 	init_level();
 	screen_clear(0);
 	do_level_redraw_tilemap(g_vars.screen_tilemap_xorigin, g_vars.screen_tilemap_yorigin);
@@ -2160,7 +2146,7 @@ void do_level() {
 		g_sys.set_palette_amiga(_colors_data + g_vars.level * 16, 0);
 	}
 	g_vars.inp_keyboard[0xB9] = 0; // SPACE
-	g_vars.screen_draw_offset = TILEMAP_OFFSET_Y * 40;
+	// g_vars.screen_draw_offset = TILEMAP_OFFSET_Y * 40;
 	g_vars.update_objects_counter = 0;
 	g_vars.game_over_flag = 0;
 	g_vars.level_completed_flag = 0;
@@ -2169,6 +2155,7 @@ void do_level() {
 	g_vars.screen_draw_h = TILEMAP_SCREEN_H;
 	g_vars.found_music_instrument_flag = 0;
 	render_set_sprites_clipping_rect(0, TILEMAP_OFFSET_Y, TILEMAP_SCREEN_W, TILEMAP_SCREEN_H);
+	bool screen_transition_flag = true;
 	do {
 		const uint32_t timestamp = g_sys.get_timestamp();
 		update_input();
@@ -2192,24 +2179,32 @@ void do_level() {
 		// demo
 		do_level_update_scrolling2();
 		do_level_update_objects();
-		screen_clear_last_sprite();
 		screen_redraw_sprites();
-		if (!g_options.amiga_data) {
+		if (!g_res.amiga_data) {
 			draw_foreground_tiles();
 		}
 		++g_vars.level_loop_counter;
 		draw_level_panel();
-		screen_unk6();
+
+		if (screen_transition_flag) {
+			screen_transition_flag = false;
+			g_sys.update_screen(g_res.vga, 0);
+			screen_do_transition2();
+		} else {
+			g_sys.update_screen(g_res.vga, 1);
+		}
+		memset(g_res.vga, 0, GAME_SCREEN_W * GAME_SCREEN_H);
 
 		const int diff = (timestamp + (1000 / 30)) - g_sys.get_timestamp();
 		g_sys.sleep(diff < 10 ? 10 : diff);
 		screen_clear_sprites();
 
 	} while (!g_sys.input.quit && !g_vars.quit_level_flag);
-	g_vars.screen_draw_offset -= TILEMAP_OFFSET_Y * 40;
+	// g_vars.screen_draw_offset -= TILEMAP_OFFSET_Y * 40;
 	screen_unk5();
 	if (g_options.amiga_copper_bars) {
 		g_sys.set_copper_bars(0);
 	}
+	render_set_sprites_clipping_rect(0, 0, GAME_SCREEN_W, GAME_SCREEN_H);
 	g_vars.inp_keyboard[0xBF] = 0;
 }

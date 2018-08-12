@@ -28,10 +28,7 @@ struct trigger_t {
 #define SOUND_SIZE     29376
 #define SPRITES_COUNT    146
 
-#define RESOURCE_FLAGS_DEMO (1 << 0)
-
 struct resource_data_t {
-	uint32_t flags;
 	uint8_t *sql;
 	uint8_t *spr_sqv;
 	uint8_t *avt_sqv;
@@ -46,6 +43,8 @@ struct resource_data_t {
 	int vga_size;
 	uint8_t *tiles;
 	uint8_t *snd;
+	bool dos_demo;
+	bool amiga_data;
 };
 
 extern struct resource_data_t g_res;

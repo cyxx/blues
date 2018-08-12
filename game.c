@@ -24,12 +24,12 @@ void update_input() {
 	g_vars.inp_key_up = ((g_sys.input.direction & INPUT_DIRECTION_UP) != 0) || g_vars.inp_keyboard[0x48] || g_vars.inp_keyboard[0x7C];
 	g_vars.inp_key_down = ((g_sys.input.direction & INPUT_DIRECTION_DOWN) != 0) || g_vars.inp_keyboard[0x50] || g_vars.inp_keyboard[0x7B];
 	g_vars.inp_key_space = g_sys.input.space || g_vars.inp_keyboard[0x39] || g_vars.inp_keyboard[0x77];
-	g_vars.inp_key_tab = g_vars.inp_keyboard[0xF] || g_vars.inp_keyboard[0x78];
+	// g_vars.inp_key_tab = g_vars.inp_keyboard[0xF] || g_vars.inp_keyboard[0x78];
 }
 
 void do_title_screen() {
 	const uint32_t timestamp = g_sys.get_timestamp() + 20 * 1000;
-	load_img(g_options.amiga_data ? "blues.lbm" : "pres.sqz", GAME_SCREEN_W);
+	load_img(g_res.amiga_data ? "blues.lbm" : "pres.sqz", GAME_SCREEN_W);
 	fade_in_palette();
 	do {
 		update_input();
@@ -50,11 +50,11 @@ void do_select_player() {
 	int frame2 = 1;
 	const int color_rgb = 2;
 	const int colors_count = 25;
-	load_img(g_options.amiga_data ? "choix.lbm" : "choix.sqz", GAME_SCREEN_W);
+	load_img(g_res.amiga_data ? "choix.lbm" : "choix.sqz", GAME_SCREEN_W);
 	screen_load_graphics();
 	screen_clear_sprites();
 	do {
-		screen_unk4();
+		screen_copy_img();
 		update_input();
 		const uint32_t timestamp = g_sys.get_timestamp();
 		switch (state) {
@@ -181,13 +181,11 @@ void do_select_player() {
 			}
 			continue;
 		}
-		screen_clear_last_sprite();
 		screen_redraw_sprites();
 		screen_flip();
 		screen_vsync();
 		const int diff = (timestamp + (1000 / 30)) - g_sys.get_timestamp();
 		g_sys.sleep(diff < 10 ? 10 : diff);
-		g_vars.screen_draw_offset ^= 0x2000;
 		screen_clear_sprites();
 		if (g_sys.input.space || g_vars.play_demo_flag) {
 			quit = 1;
@@ -196,12 +194,8 @@ void do_select_player() {
 }
 
 static void do_inter_screen_helper(int xpos, int ypos, int c) {
-	if (c != 0) {
-		g_vars.screen_draw_offset ^= 0x2000;
-	}
 	for (int i = 0; i < 40; ++i) {
 		screen_add_sprite(xpos + 20 - 1 - i, ypos - 20 + 1 + i, 125);
-		screen_clear_last_sprite();
 		screen_redraw_sprites();
 		if (c != 0) {
 			screen_vsync();
@@ -210,22 +204,18 @@ static void do_inter_screen_helper(int xpos, int ypos, int c) {
 	}
 	for (int i = 0; i < 40; ++i) {
 		screen_add_sprite(xpos - 20 + 1 + i, ypos - 20 + 1 + i, 125);
-		screen_clear_last_sprite();
 		screen_redraw_sprites();
 		if (c != 0) {
 			screen_vsync();
 		}
 		screen_clear_sprites();
 	}
-	if (c != 0) {
-		g_vars.screen_draw_offset ^= 0x2000;
-	}
 }
 
 static void do_inter_screen() {
 	static const uint8_t xpos[] = { 0xFA, 0x50, 0xF0, 0xC8, 0x50, 0x50 };
 	static const uint8_t ypos[] = { 0xAA, 0x37, 0x28, 0x5F, 0xA5, 0xAA };
-	load_img(g_options.amiga_data ? "inter.lbm" : "inter.sqz", GAME_SCREEN_W);
+	load_img(g_res.amiga_data ? "inter.lbm" : "inter.sqz", GAME_SCREEN_W);
 	g_vars.screen_draw_h = GAME_SCREEN_H - 1;
 	screen_clear_sprites();
 	if (g_vars.level > 1) {
@@ -240,16 +230,13 @@ static void do_inter_screen() {
 	if (g_vars.level > 0 && g_vars.level < MAX_LEVELS - 1) {
 		do_inter_screen_helper(xpos[g_vars.level - 1], ypos[g_vars.level - 1], 1);
 	}
-	g_vars.screen_draw_offset = 0x2000;
-	screen_do_transition2();
+	// screen_do_transition2();
 	screen_flip();
 	if (g_vars.level < MAX_LEVELS - 1) {
 		play_sound(SOUND_2);
 		screen_add_sprite(xpos[g_vars.level], ypos[g_vars.level], 126);
-		screen_clear_last_sprite();
 		screen_redraw_sprites();
 	}
-	g_vars.screen_draw_offset = 0x2000;
 	screen_flip();
 	const uint32_t timestamp = g_sys.get_timestamp() + 4 * 1000;
 	do {
@@ -263,17 +250,16 @@ static void do_inter_screen() {
 
 void game_main() {
 	play_music(0);
-	g_vars.screen_draw_offset = 0;
 	screen_init();
 	screen_flip();
 	g_vars.start_level = 0;
-	if (g_options.amiga_data) {
+	if (g_res.amiga_data) {
 		load_spr("sprite", g_res.spr_sqv, 0);
 		load_spr("objet", g_res.spr_sqv + SPRITE_SIZE, 101);
 	} else {
 		load_sqv("sprite.sqv", g_res.spr_sqv, 0);
 	}
-	if (g_options.amiga_status_bar) {
+	if (g_options.amiga_status_bar || g_res.amiga_data) {
 		uint16_t palette[16];
 		for (int i = 0; i < 16; ++i) {
 			assert(_colors_180_data[i * 2] == 0x180 + i * 2);

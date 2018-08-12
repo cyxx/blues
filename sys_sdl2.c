@@ -192,6 +192,40 @@ static void sdl2_fade_out_palette() {
 	fade_palette_helper(0);
 }
 
+static void sdl2_transition_screen(enum sys_transition_e type, bool open) {
+	const int step_w = _screen_w / FADE_STEPS;
+	const int step_h = _screen_h / FADE_STEPS;
+	SDL_Rect r;
+	r.x = 0;
+	r.w = 0;
+	r.y = 0;
+	r.h = (type == TRANSITION_CURTAIN) ? _screen_h : 0;
+	do {
+		r.x = (_screen_w - r.w) / 2;
+		if (r.x < 0) {
+			r.x = 0;
+		}
+		r.w += step_w;
+		if (r.x + r.w > _screen_w) {
+			r.w = _screen_w - r.x;
+		}
+		if (type == TRANSITION_SQUARE) {
+			r.y = (_screen_h - r.h) / 2;
+			if (r.y < 0) {
+				r.y = 0;
+			}
+			r.h += step_h;
+			if (r.y + r.h > _screen_h) {
+				r.h = _screen_h - r.y;
+			}
+		}
+		SDL_RenderClear(_renderer);
+		SDL_RenderCopy(_renderer, _texture, &r, &r);
+		SDL_RenderPresent(_renderer);
+		SDL_Delay(30);
+	} while (r.x > 0 && (type == TRANSITION_CURTAIN || r.y > 0));
+}
+
 static void sdl2_update_screen(const uint8_t *p, int present) {
 	if (_copper_color != -1) {
 		for (int j = 0; j < _screen_h; ++j) {
@@ -459,6 +493,7 @@ struct sys_t g_sys = {
 	.fade_in_palette	= sdl2_fade_in_palette,
 	.fade_out_palette	= sdl2_fade_out_palette,
 	.update_screen	= sdl2_update_screen,
+	.transition_screen = sdl2_transition_screen,
 	.process_events	= sdl2_process_events,
 	.sleep	= sdl2_sleep,
 	.get_timestamp = sdl2_get_timestamp,

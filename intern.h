@@ -9,15 +9,6 @@
 #include <string.h>
 #include <stdbool.h>
 
-#ifndef MIN
-#define MIN(a,b) ((a)<(b)?(a):(b))
-#endif
-#ifndef MAX
-#define MAX(a,b) ((a)>(b)?(a):(b))
-#endif
-#ifndef ABS
-#define ABS(a) (((a)<0)?(-(a)):(a))
-#endif
 #ifndef ARRAYSIZE
 #define ARRAYSIZE(a) (sizeof(a)/sizeof(a[0]))
 #endif

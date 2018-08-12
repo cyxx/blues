@@ -10,6 +10,7 @@
 #define TILEMAP_OFFSET_Y  14
 #define TILEMAP_SCREEN_W  GAME_SCREEN_W
 #define TILEMAP_SCREEN_H (GAME_SCREEN_H - 40)
+#define TILEMAP_SCROLL_W  64
 
 #define PLAYER_JAKE   0
 #define PLAYER_ELWOOD 1
@@ -46,8 +47,8 @@ struct options_t {
 	int screen_h;
 	bool amiga_copper_bars;
 	bool amiga_colors;
-	bool amiga_data;
 	bool amiga_status_bar;
+	bool dos_scrolling;
 };
 
 extern struct options_t g_options;
@@ -150,12 +151,11 @@ struct vars_t {
 	int16_t level_xpos[MAX_OBJECTS];
 	int16_t level_ypos[MAX_OBJECTS];
 	int screen_tilemap_w, screen_tilemap_h;
-	int screen_tilemap_w16, screen_tilemap_h16;
 	int screen_tilemap_xorigin, screen_tilemap_yorigin;
 	int screen_tilemap_xoffset, screen_tilemap_yoffset;
 	int screen_tilemap_size_w, screen_tilemap_size_h;
-	int screen_scrolling_dirmask, screen_unk1;
-	int screen_draw_h, screen_draw_offset;
+	int screen_scrolling_dirmask;
+	int screen_draw_h;
 	int screen_tile_lut[256];
 	bool level_completed_flag;
 	bool play_level_flag;
@@ -167,17 +167,17 @@ struct vars_t {
 	bool play_demo_flag;
 	bool quit_level_flag;
 	bool two_players_flag;
+	bool switch_player_scrolling_flag;
 	int music_num;
 	uint8_t inp_keyboard[256];
-	int inp_key_space;
-	int inp_key_tab;
-	int inp_key_up;
-	int inp_key_down;
-	int inp_key_right;
-	int inp_key_left;
-	int inp_key_up_prev;
-	int inp_key_down_prev;
-	int inp_key_action;
+	bool inp_key_space;
+	bool inp_key_up;
+	bool inp_key_down;
+	bool inp_key_right;
+	bool inp_key_left;
+	bool inp_key_up_prev;
+	bool inp_key_down_prev;
+	bool inp_key_action;
 	struct door_t doors[MAX_DOORS];
 	struct object_t objects[MAX_OBJECTS];
 	int vinyls_count;
@@ -240,7 +240,6 @@ extern void	level_call_object_func(struct object_t *);
 extern void	screen_init();
 extern void	screen_clear_sprites();
 extern void	screen_add_sprite(int x, int y, int frame);
-extern void	screen_clear_last_sprite();
 extern void	screen_redraw_sprites();
 extern void	fade_in_palette();
 extern void	fade_out_palette();
@@ -248,13 +247,12 @@ extern void	screen_adjust_palette_color(int color, int b, int c);
 extern void	screen_vsync();
 extern void	screen_draw_frame(const uint8_t *frame, int fh, int fw, int x, int y);
 extern void	screen_flip();
-extern void	screen_unk4();
+extern void	screen_copy_img();
 extern void	screen_unk5();
-extern void	screen_unk6();
 extern void	screen_do_transition1(int a);
 extern void	screen_do_transition2();
 extern void	screen_clear(int a);
-extern void	screen_draw_tile(int tile, int dst, int type);
+extern void	screen_draw_tile(int tile, int type, int x, int y);
 extern void	screen_draw_number(int num, int x, int y, int color);
 extern void	screen_add_game_sprite1(int x, int y, int frame);
 extern void	screen_add_game_sprite2(int x, int y, int frame);

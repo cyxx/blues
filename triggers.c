@@ -79,7 +79,7 @@ static void trigger_func_op2(struct object_t *obj) {
 		obj->ypos16 = obj->ypos >> 4;
 		obj->sprite_type = 1;
 		obj->yfriction = 0;
-		if (!g_vars.screen_unk1) {
+		if (!g_vars.switch_player_scrolling_flag) {
 			obj->unk1C = 5;
 		}
 	} else if (obj->yvelocity < 0) {
@@ -90,7 +90,7 @@ static void trigger_func_op2(struct object_t *obj) {
 		obj->yfriction = 0;
 	}
 	obj->unk2F = 0;
-	if (g_vars.screen_unk1) {
+	if (g_vars.switch_player_scrolling_flag) {
 		obj->special_anim = 18;
 		obj->anim_num = 1;
 	}
@@ -114,7 +114,7 @@ static void trigger_func_op3(struct object_t *obj) {
 		obj->ypos = obj->ypos16 << 4;
 		obj->screen_xpos = obj->xpos - g_vars.screen_tilemap_xorigin;
 		obj->screen_ypos = obj->ypos - g_vars.screen_tilemap_yorigin;
-		g_vars.screen_unk1 = 1;
+		g_vars.switch_player_scrolling_flag = 1;
 	}
 }
 
@@ -825,9 +825,6 @@ void triggers_update_tiles1(struct object_t *obj) {
 					g_vars.objects[OBJECT_NUM_PLAYER2].data5F = p[7];
 				}
 				screen_draw_frame(g_res.spr_frames[140 + g_vars.level], 12, 16, 80 + g_vars.level * 32, -12);
-				g_vars.screen_draw_offset ^= 0x2000;
-				screen_draw_frame(g_res.spr_frames[140 + g_vars.level], 12, 16, 80 + g_vars.level * 32, -12);
-				g_vars.screen_draw_offset ^= 0x2000;
 				g_vars.found_music_instrument_flag = 1;
 				g_vars.triggers_counter = 0;
 				play_sound(SOUND_12);
@@ -883,19 +880,10 @@ void triggers_update_tiles1(struct object_t *obj) {
 			++obj->lifes_count;
 			if (!g_vars.two_players_flag) {
 				screen_draw_number(obj->lifes_count - 1, 64, 163, 2);
-				g_vars.screen_draw_offset ^= 0x2000;
-				screen_draw_number(obj->lifes_count - 1, 64, 163, 2);
-				g_vars.screen_draw_offset ^= 0x2000;
-			} else if (obj->type == 0) {
+			} else if (obj->type == PLAYER_JAKE) {
 				screen_draw_number(obj->lifes_count - 1, 48, 163, 2);
-				g_vars.screen_draw_offset ^= 0x2000;
-				screen_draw_number(obj->lifes_count - 1, 48, 163, 2);
-				g_vars.screen_draw_offset ^= 0x2000;
 			} else {
 				screen_draw_number(obj->lifes_count - 1, 216, 163, 2);
-				g_vars.screen_draw_offset ^= 0x2000;
-				screen_draw_number(obj->lifes_count - 1, 216, 163, 2);
-				g_vars.screen_draw_offset ^= 0x2000;
 			}
 		}
 	} else {
@@ -931,7 +919,7 @@ void triggers_update_tiles2(struct object_t *obj) {
 		obj->anim_num = 1;
 		obj->unk2F = 0;
 		obj->xvelocity = p[3] - 100;
-		obj->xmaxvelocity = ABS(obj->xvelocity);
+		obj->xmaxvelocity = abs(obj->xvelocity);
 		do_level_player_hit(obj);
 	}
 	obj->trigger3_num = 0;

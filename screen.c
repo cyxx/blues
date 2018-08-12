@@ -41,9 +41,6 @@ void screen_add_sprite(int x, int y, int frame) {
 	add_game_sprite(x, y, frame, 0);
 }
 
-void screen_clear_last_sprite() {
-}
-
 void screen_redraw_sprites() {
 }
 
@@ -70,7 +67,7 @@ void screen_draw_frame(const uint8_t *frame, int fh, int fw, int x, int y) {
 		y += _offset_y;
 	}
 	y += fh + 2;
-	if (g_options.amiga_status_bar) {
+	if (g_options.amiga_status_bar || g_res.amiga_data) {
 		if (frame == g_res.spr_frames[123] || frame == g_res.spr_frames[124]) { // top or bottom status bar
 			for (int x = 0; x < GAME_SCREEN_W; x += 16) {
 				decode_amiga_gfx(g_res.vga + y * GAME_SCREEN_W + x, GAME_SCREEN_W, 16, 12, 4, frame, 16, 0x20, 0xFFFF);
@@ -91,64 +88,64 @@ void screen_flip() {
 	g_sys.update_screen(g_res.vga, 1);
 }
 
-void screen_unk4() {
+void screen_copy_img() {
 	memcpy(g_res.vga, g_res.tmp + 32000, GAME_SCREEN_W * GAME_SCREEN_H);
 }
 
 void screen_unk5() {
-	screen_clear(0);
-	screen_do_transition2();
-	screen_clear(0);
-}
-
-void screen_unk6() {
-	// g_vars.screen_draw_offset -= 12;
 	// screen_do_transition2();
-	// g_vars.screen_draw_offset += 12;
-	g_sys.update_screen(g_res.vga, 1);
-	memset(g_res.vga, 0, GAME_SCREEN_W * GAME_SCREEN_H);
-}
-
-static void screen_unk13(int a) {
+	screen_clear(0);
 }
 
 void screen_do_transition1(int a) {
-	int i, count, increment;
-	if (a != 0) {
-		i = 11;
-		count = 0;
-		increment = -1;
-	} else {
-		screen_clear(0);
-		i = 0;
-		count = 11;
-		increment = 1;
-	}
-	while (i != count) {
-		screen_unk13(i);
-		screen_unk13(19 - i);
-		screen_vsync();
-		i += increment;
+	print_warning("screen_do_transition1 %d", a);
+	if (a) {
+		g_sys.transition_screen(TRANSITION_CURTAIN, true);
 	}
 }
 
 void screen_do_transition2() {
 	print_warning("screen_do_transition2");
+	g_sys.transition_screen(TRANSITION_SQUARE, true);
 }
 
 void screen_clear(int a) {
 	memset(g_res.vga, 0, GAME_SCREEN_W * GAME_SCREEN_H);
 }
 
-void screen_draw_tile(int tile, int dst, int type) {
-	const int y = (dst / 640) * 16 + TILEMAP_OFFSET_Y;
-	const int x = (dst % 640) / 2 * 16;
+void screen_draw_tile(int tile, int type, int x, int y) {
 	const uint8_t *src = g_res.tiles + tile * 16;
 	if (type == 4) {
 		src += 320;
 	}
-	for (int i = 0; i < 16; ++i) {
-		memcpy(g_res.vga + (y + i) * GAME_SCREEN_W + x, src, 16);
+	x = g_vars.screen_tilemap_xoffset + x * 16;
+	int tile_w = 16;
+	if (x < 0) {
+		tile_w += x;
+		src -= x;
+		x = 0;
+	}
+	if (x + tile_w > TILEMAP_SCREEN_W) {
+		tile_w = TILEMAP_SCREEN_W - x;
+	}
+	if (tile_w <= 0) {
+		return;
+	}
+	y = g_vars.screen_tilemap_yoffset + y * 16;
+	int tile_h = 16;
+	if (y < 0) {
+		tile_h += y;
+		src -= y * 640;
+		y = 0;
+	}
+	if (y + tile_h > TILEMAP_SCREEN_H) {
+		tile_h = TILEMAP_SCREEN_H - y;
+	}
+	if (tile_h <= 0) {
+		return;
+	}
+	for (int i = 0; i < tile_h; ++i) {
+		memcpy(g_res.vga + (TILEMAP_OFFSET_Y + y + i) * GAME_SCREEN_W + x, src, tile_w);
 		src += 640;
 	}
 }
@@ -174,7 +171,7 @@ void screen_draw_number(int num, int x, int y, int color) {
 		y += _offset_y;
 	}
 	y += TILEMAP_OFFSET_Y;
-	if (g_options.amiga_status_bar) {
+	if (g_options.amiga_status_bar || g_res.amiga_data) {
 		draw_number_amiga(num / 10, x - 8, y - 2);
 		draw_number_amiga(num % 10, x,     y - 2);
 	} else {
@@ -204,7 +201,7 @@ static void decode_graphics(int spr_type, int start, int end) {
 	struct sys_rect_t r[MAX_SPR_FRAMES];
 	uint8_t *data = (uint8_t *)calloc(MAX_SPRITESHEET_W * MAX_SPRITESHEET_H, 1);
 	if (data) {
-		const int depth = g_options.amiga_data && (start == 0) ? 3 : 4;
+		const int depth = g_res.amiga_data && (start == 0) ? 3 : 4;
 		int current_x = 0;
 		int max_w = 0;
 		int current_y = 0;
@@ -230,7 +227,7 @@ static void decode_graphics(int spr_type, int start, int end) {
 					max_h = h;
 				}
 			}
-			decode_spr(ptr, w, w, h, depth, data, MAX_SPRITESHEET_W, current_x, current_y, g_options.amiga_data);
+			decode_spr(ptr, w, w, h, depth, data, MAX_SPRITESHEET_W, current_x, current_y, g_res.amiga_data);
 			r[j].x = current_x;
 			r[j].y = current_y;
 			r[j].w = w;
@@ -243,7 +240,7 @@ static void decode_graphics(int spr_type, int start, int end) {
 		assert(max_w <= MAX_SPRITESHEET_W);
 		assert(current_y + max_h <= MAX_SPRITESHEET_H);
 		render_unload_sprites(spr_type);
-		const int palette_offset = (g_options.amiga_data && start == 0) ? 16 : 0;
+		const int palette_offset = (g_res.amiga_data && start == 0) ? 16 : 0;
 		render_load_sprites(spr_type, end - start, r, data, MAX_SPRITESHEET_W, current_y + max_h, palette_offset);
 		free(data);
 	}
@@ -273,7 +270,7 @@ void screen_load_graphics() {
 			free(data);
 		}
 		// background tiles (Amiga) - re-arrange to match DOS .ck1/.ck2 layout
-		if (g_options.amiga_data) {
+		if (g_res.amiga_data) {
 			static const int BG_TILES_COUNT = 256;
 			static const int W = 320 / 16;
 			memcpy(g_res.tmp, g_res.tiles, BG_TILES_COUNT * 16 * 8);

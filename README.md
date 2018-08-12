@@ -8,7 +8,7 @@ This is a rewrite of the game [Blues Brothers](https://www.mobygames.com/game/bl
 
 ## Requirements
 
-The game data files of the DOS version (retail or demo) are required.
+The game data files of the DOS or Amiga version are required.
 
 ```
 *.BIN, *.CK1, *.CK2, *.SQL, *.SQV, *.SQZ

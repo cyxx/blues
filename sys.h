@@ -25,6 +25,11 @@ struct sys_rect_t {
 	int w, h;
 };
 
+enum sys_transition_e {
+	TRANSITION_SQUARE,
+	TRANSITION_CURTAIN
+};
+
 struct sys_t {
 	struct input_t	input;
 	int	(*init)();
@@ -36,6 +41,7 @@ struct sys_t {
 	void	(*fade_in_palette)();
 	void	(*fade_out_palette)();
 	void	(*update_screen)(const uint8_t *p, int present);
+	void	(*transition_screen)(enum sys_transition_e type, bool open);
 	void	(*process_events)();
 	void	(*sleep)(int duration);
 	uint32_t	(*get_timestamp)();

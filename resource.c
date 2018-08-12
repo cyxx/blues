@@ -48,7 +48,10 @@ void res_init(int vga_size) {
 		}
 	}
 	if (fio_exists("demomag.sql")) {
-		g_res.flags = RESOURCE_FLAGS_DEMO;
+		g_res.dos_demo = true;
+	}
+	if (fio_exists("mag.tbl")) {
+		g_res.amiga_data = true;
 	}
 }
 
