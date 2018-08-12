@@ -37,6 +37,7 @@ int main(int argc, char *argv[]) {
 	g_options.amiga_colors = true;
 	// g_options.amiga_status_bar = true;
 	g_options.dos_scrolling = false;
+	// g_options.cga_colors = true;
 	const char *data_path = DEFAULT_DATA_PATH;
 	int scale_factor = DEFAULT_SCALE_FACTOR;
 	const char *scale_filter = DEFAULT_SCALE_FILTER;

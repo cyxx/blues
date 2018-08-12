@@ -49,6 +49,7 @@ struct options_t {
 	bool amiga_colors;
 	bool amiga_status_bar;
 	bool dos_scrolling;
+	bool cga_colors;
 };
 
 extern struct options_t g_options;
@@ -155,8 +156,7 @@ struct vars_t {
 	int screen_tilemap_xoffset, screen_tilemap_yoffset;
 	int screen_tilemap_size_w, screen_tilemap_size_h;
 	int screen_scrolling_dirmask;
-	int screen_draw_h;
-	int screen_tile_lut[256];
+	uint16_t screen_tile_lut[128];
 	bool level_completed_flag;
 	bool play_level_flag;
 	bool game_over_flag;
@@ -177,7 +177,7 @@ struct vars_t {
 	bool inp_key_left;
 	bool inp_key_up_prev;
 	bool inp_key_down_prev;
-	bool inp_key_action;
+	bool inp_key_space_prev;
 	struct door_t doors[MAX_DOORS];
 	struct object_t objects[MAX_OBJECTS];
 	int vinyls_count;

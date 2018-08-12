@@ -15,6 +15,10 @@ static const uint16_t _colors_1a0_data[] = {
 	0x1b0,0xbcf,0x1b2,0xfca,0x1b4,0x30a,0x1b6,0xa9a,0x1b8,0x900,0x1ba,0x666,0x1bc,0x747,0x1be,0x020
 };
 
+static const uint8_t _colors_cga[] = {
+	0x00, 0x00, 0x00, 0x55, 0xFF, 0xFF, 0xFF, 0x55, 0xFF, 0xFF, 0xFF, 0xFF
+};
+
 struct vars_t g_vars;
 
 void update_input() {
@@ -29,7 +33,7 @@ void update_input() {
 
 void do_title_screen() {
 	const uint32_t timestamp = g_sys.get_timestamp() + 20 * 1000;
-	load_img(g_res.amiga_data ? "blues.lbm" : "pres.sqz", GAME_SCREEN_W);
+	load_img(g_res.amiga_data ? "blues.lbm" : "pres.sqz", GAME_SCREEN_W, g_options.cga_colors ? 0 : -1);
 	fade_in_palette();
 	do {
 		update_input();
@@ -50,7 +54,7 @@ void do_select_player() {
 	int frame2 = 1;
 	const int color_rgb = 2;
 	const int colors_count = 25;
-	load_img(g_res.amiga_data ? "choix.lbm" : "choix.sqz", GAME_SCREEN_W);
+	load_img(g_res.amiga_data ? "choix.lbm" : "choix.sqz", GAME_SCREEN_W, g_options.cga_colors ? 1 : -1);
 	screen_load_graphics();
 	screen_clear_sprites();
 	do {
@@ -215,8 +219,7 @@ static void do_inter_screen_helper(int xpos, int ypos, int c) {
 static void do_inter_screen() {
 	static const uint8_t xpos[] = { 0xFA, 0x50, 0xF0, 0xC8, 0x50, 0x50 };
 	static const uint8_t ypos[] = { 0xAA, 0x37, 0x28, 0x5F, 0xA5, 0xAA };
-	load_img(g_res.amiga_data ? "inter.lbm" : "inter.sqz", GAME_SCREEN_W);
-	g_vars.screen_draw_h = GAME_SCREEN_H - 1;
+	load_img(g_res.amiga_data ? "inter.lbm" : "inter.sqz", GAME_SCREEN_W, g_options.cga_colors ? 9 : -1);
 	screen_clear_sprites();
 	if (g_vars.level > 1) {
 		for (int i = 0; i < g_vars.level - 1; ++i) {
@@ -297,7 +300,9 @@ void game_main() {
 		extern const uint8_t icon778e[]; // instrument level 5 (found)
 		g_res.spr_frames[144] = icon778e;
 	}
-	if (g_options.amiga_colors) {
+	if (g_options.cga_colors) {
+		g_sys.set_screen_palette(_colors_cga, 4);
+	} else if (g_options.amiga_colors) {
 		uint16_t palette[16];
 		for (int i = 0; i < 16; ++i) {
 			assert(_colors_1a0_data[i * 2] == 0x1a0 + i * 2);

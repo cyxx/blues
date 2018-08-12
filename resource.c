@@ -23,6 +23,11 @@ void res_init(int vga_size) {
 	if (!g_res.avt_sqv) {
 		print_error("Failed to allocate avt buffer, %d bytes", AVT_SQV_SIZE);
 	}
+	static const int CGA_SIZE = 160 * 200;
+	g_res.cga = (uint8_t *)malloc(CGA_SIZE);
+	if (!g_res.cga) {
+		print_error("Failed to allocate cga buffer, %d bytes", CGA_SIZE);
+	}
 	const int tmp_size = 32000 + vga_size;
 	g_res.tmp = (uint8_t *)malloc(tmp_size);
 	if (!g_res.tmp) {
@@ -64,6 +69,8 @@ void res_fini() {
 	g_res.avt_sqv = 0;
 	free(g_res.tmp);
 	g_res.tmp = 0;
+	free(g_res.cga);
+	g_res.cga = 0;
 	free(g_res.vga);
 	g_res.vga = 0;
 	free(g_res.tiles);
@@ -88,6 +95,60 @@ int read_compressed_file(const char *filename, uint8_t *dst) {
 	return unpack(filename, dst);
 }
 
+extern const uint8_t dither_cga_table[];
+
+static void dither_cga(int num, uint8_t *dst) {
+	const uint8_t *_bx = dither_cga_table + num * 32;
+	for (int i = 0; i < 256; ++i) { // even lines
+		const uint8_t a = _bx[(i & 15) * 2];     // 0x20 | 0x10
+		const uint8_t b = _bx[(i >> 4) * 2 + 1]; // 0x80 | 0x40
+		const uint8_t tmp = ((b & 3) << 2) | (a & 3);
+		dst[0x100 + i] = tmp << 4;
+		dst[        i] = tmp;
+	}
+	for (int i = 0; i < 256; ++i) { // odd lines
+		const uint8_t a = _bx[(i & 15) * 2 + 1]; // 0x20 | 0x10
+		const uint8_t b = _bx[(i >> 4) * 2];     // 0x80 | 0x40
+		const uint8_t tmp = ((b & 3) << 2) | (a & 3);
+		dst[0x300 + i] = tmp << 4;
+		dst[0x200 + i] = tmp;
+	}
+	for (int i = 0; i < 256; ++i) {
+		uint8_t mask = i;
+		static const uint8_t lut[] = { 1, 0, 3, 2 };
+		for (int j = 0; j < 4; ++j) {
+			dst[0x400 + lut[j]] = ((mask & 1) << 7) | ((mask & 2) << 2); // 0x80 | 0x08
+			mask >>= 2;
+		}
+		dst += 4;
+	}
+}
+
+static void copy_cga(const uint8_t *src, uint8_t *di, uint8_t *dither_temp) {
+	for (int y = 0; y < 200; ++y) {
+		for (int x = 0; x < 40; ++x) {
+			int a = 0;
+			int d = 0;
+			for (int i = 0; i < 4; ++i) {
+				const int b = src[i * 40] * 4;
+				a |= READ_LE_UINT16(dither_temp + 0x400 + b) >> (3 - i);
+				d |= READ_LE_UINT16(dither_temp + 0x402 + b) >> (3 - i);
+			}
+			const uint8_t *p = dither_temp + (y & 1) * 0x200;
+			uint8_t _cl = p[a & 255] | p[0x100 + (a >> 8)];
+			uint8_t _ch = p[d & 255] | p[0x100 + (d >> 8)];
+			for (int i = 0; i < 4; ++i) {
+				*di++ = _ch & 3; _ch >>= 2;
+			}
+			for (int i = 0; i < 4; ++i) {
+				*di++ = _cl & 3; _cl >>= 2;
+			}
+			++src;
+		}
+		src += 120;
+	}
+}
+
 static void decode_bitplane_scanline(const uint8_t *src, int depth, int w, uint8_t *dst) {
 	const int plane_size = w / depth;
 	for (int x = 0; x < plane_size; ++x) {
@@ -106,7 +167,7 @@ static void decode_bitplane_scanline(const uint8_t *src, int depth, int w, uint8
 	}
 }
 
-static void load_iff(const uint8_t *data, uint32_t size, uint8_t *dst, int dst_pitch) {
+static void load_iff(const uint8_t *data, uint32_t size, uint8_t *dst, int dst_pitch, int cga_dither_pattern) {
 	print_debug(DBG_RESOURCE, "load_iff size %d", size);
 	if (data && memcmp(data, "FORM", 4) == 0) {
 		int offset = 12;
@@ -147,14 +208,18 @@ static void load_iff(const uint8_t *data, uint32_t size, uint8_t *dst, int dst_p
 				while (i < len && offset < 32000) {
 					int code = (int8_t)buf[i++];
 					if (code != -128) {
+						const int scanline_offset = offset % 160;
 						if (code < 0) {
 							code = 1 - code;
-							memset(scanline + offset % 160, buf[i], code);
+							memset(scanline + scanline_offset, buf[i], code);
 							++i;
 						} else {
 							++code;
-							memcpy(scanline + offset % 160, buf + i, code);
+							memcpy(scanline + scanline_offset, buf + i, code);
 							i += code;
+						}
+						if (!(cga_dither_pattern < 0)) {
+							memcpy(g_res.cga + offset, scanline + scanline_offset, code);
 						}
 						offset += code;
 						if ((offset % 160) == 0) {
@@ -168,6 +233,12 @@ static void load_iff(const uint8_t *data, uint32_t size, uint8_t *dst, int dst_p
 			}
 			offset += 8 + len;
 		}
+	}
+	if (!(cga_dither_pattern < 0)) {
+		uint8_t dither_temp[2048];
+		memset(dither_temp, 0, sizeof(dither_temp));
+		dither_cga(cga_dither_pattern, dither_temp);
+		copy_cga(g_res.cga, dst, dither_temp);
 	}
 }
 
@@ -237,7 +308,7 @@ void load_blk(const char *filename) {
 	read_file(filename, g_res.tiles, 256 * 16 * 8);
 }
 
-void load_ck(const char *filename, uint16_t offset) {
+void load_ck(const char *filename, uint16_t offset, int dither_pattern) {
 	const int size = read_compressed_file(filename, g_res.tmp);
 	switch (offset) {
 	case 0x6000: // page3
@@ -250,11 +321,13 @@ void load_ck(const char *filename, uint16_t offset) {
 		print_error("Unexpected offset 0x%x in load_ck()", offset);
 		break;
 	}
-	load_iff(g_res.tmp, size, g_res.tiles + offset, 640);
-	g_sys.set_screen_palette(g_res.palette, 16);
+	load_iff(g_res.tmp, size, g_res.tiles + offset, 640, dither_pattern);
+	if (dither_pattern < 0) {
+		g_sys.set_screen_palette(g_res.palette, 16);
+	}
 }
 
-void load_img(const char *filename, int screen_w) {
+void load_img(const char *filename, int screen_w, int dither_pattern) {
 	int size;
 	const char *ext = strrchr(filename, '.');
 	if (ext && strcmp(ext + 1, "lbm") == 0) {
@@ -263,8 +336,10 @@ void load_img(const char *filename, int screen_w) {
 		size = read_compressed_file(filename, g_res.tmp);
 	}
 	assert(size <= 32000);
-	load_iff(g_res.tmp, size, g_res.tmp + 32000, screen_w);
-	g_sys.set_screen_palette(g_res.palette, 16);
+	load_iff(g_res.tmp, size, g_res.tmp + 32000, screen_w, dither_pattern);
+	if (dither_pattern < 0) {
+		g_sys.set_screen_palette(g_res.palette, 16);
+	}
 	g_sys.update_screen(g_res.tmp + 32000, 0);
 	memcpy(g_res.vga, g_res.tmp + 32000, g_res.vga_size);
 }

@@ -53,9 +53,11 @@ void fade_out_palette() {
 }
 
 void screen_adjust_palette_color(int color, int b, int c) {
-	g_res.palette[color * 3 + b] += c;
-	screen_vsync();
-	g_sys.set_screen_palette(g_res.palette, 16);
+	if (!g_options.cga_colors) {
+		g_res.palette[color * 3 + b] += c;
+		screen_vsync();
+		g_sys.set_screen_palette(g_res.palette, 16);
+	}
 }
 
 void screen_vsync() {
@@ -115,7 +117,7 @@ void screen_clear(int a) {
 
 void screen_draw_tile(int tile, int type, int x, int y) {
 	const uint8_t *src = g_res.tiles + tile * 16;
-	if (type == 4) {
+	if (type != 0) {
 		src += 320;
 	}
 	x = g_vars.screen_tilemap_xoffset + x * 16;
