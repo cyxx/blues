@@ -346,6 +346,24 @@ static void level_init_object_spr_num_104(int x_pos, int y_pos) {
 	}
 }
 
+static void level_update_mushroom_tiles(struct player_t *player) {
+	const uint16_t offset = player_tilemap_offset(&player->obj);
+	uint8_t *p = &g_vars.tilemap_data[(offset >> 8) * g_vars.tilemap_w + (offset & 255)];
+	int num = *p;
+	int adj = 2;
+	if (num > 0x20 && (num <= 0x22 || num > 0x9C)) {
+		adj = -adj;
+	}
+	if ((num & 1) == 0) {
+		--p;
+	}
+	p[0] += adj;
+	p[1] += adj;
+	p[g_vars.tilemap_w] += adj;
+	p[g_vars.tilemap_w + 1] += adj;
+
+}
+
 static int level_player_update_flags(struct player_t *player) {
 	if (player_flags2(&player->obj) & 0x40) {
 		return 1;
@@ -506,7 +524,7 @@ static void level_update_player_anim_9(struct player_t *player) {
 }
 
 static void level_update_player_anim_10(struct player_t *player) {
-	player->obj.spr_num = 19;
+	player->obj.spr_num = 10;
 	player->obj.y_pos += 2;
 	const int x = (player->obj.x_pos & 15) - 8;
 	if (x < 0) {
@@ -605,10 +623,10 @@ static void level_update_player_anim_28(struct player_t *player) {
 }
 
 static void level_update_player_from_input(struct player_t *player) {
-	if (player_flags2(&player->obj) & 8) {
+	if (player_flags2(&player->obj) & 8) { // dead
 		if ((player_flags2(&player->obj) & 1) == 0) {
 			player_y_delta(&player->obj) = -120;
-			player_x_delta(&player->obj) = (player->obj.x_pos < g_vars.tilemap_x + 10) ? -24 : 24;
+			player_x_delta(&player->obj) = (player->obj.x_pos < (g_vars.tilemap_x * 16 + TILEMAP_SCREEN_W / 2)) ? 24 : -24;
 			player_flags2(&player->obj) |= 1;
 		}
 		player->obj.x_pos += player_x_delta(&player->obj) >> 3;
@@ -636,7 +654,7 @@ static void level_update_player_from_input(struct player_t *player) {
 	} else {
 		player_power(&player->obj) = 0;
 	}
-	const uint8_t flags = player_flags(&player->obj);
+	uint8_t flags = player_flags(&player->obj);
 	if (g_vars.input_key_right) {
 		player_flags(&player->obj) &= ~4;
 	}
@@ -646,57 +664,49 @@ static void level_update_player_from_input(struct player_t *player) {
 	if (((flags ^ player_flags(&player->obj)) & 4) != 0) { // horizontal direction changed
 		player->change_hdir_counter += 4;
 	}
-	uint8_t _ah = player_flags(&player->obj);
-	uint8_t _al = 0;
-	uint8_t _dh = _ah;
-	uint8_t _dl = _ah;
-	_ah >>= 1;
-	_al = (_al << 1) | (_ah & 1);
-	_ah >>= 1;
-
-	_dl <<= 1;
-	_al = (_al << 1) | ((_dl >> 7) & 1);
-	//_dl <<= 1;
-
-	_dh <<= 1;
-	_dh <<= 1;
-	_al = (_al << 1) | ((_dh >> 7) & 1);
-	//_dh <<= 1;
-
-
-	_ah = g_vars.input_key_space & 1;
-	if (_ah) {
+	// flags = player_flags(&player->obj);
+	uint8_t mask = 0;
+	if (flags & 1) {
+		mask |= 4;
+	}
+	if (flags & 0x40) {
+		mask |= 2;
+	}
+	if (flags & 0x20) {
+		mask |= 1;
+	}
+	flags = g_vars.input_key_space & 1;
+	if (flags) {
 		if (player_power(&player->obj) >= 33 && (player_flags(&player->obj) & 8) != 0) {
-			_ah = 1;
+			flags = 1;
 		} else {
 			player_flags(&player->obj) &= ~8;
 		}
 	} else {
 		if (player_flags(&player->obj) & 8) {
-			_ah = 0;
+			flags = 0;
 		}
 	}
-	_al = (_al << 1) | _ah;
-
+	mask = (mask << 1) | flags;
 	if (player_flags2(&player->obj) & 1) {
-		_al <<= 4;
-		_al |= 2;
+		mask <<= 4;
+		mask |= 2;
 	} else {
-		_al <<= 4;
+		mask <<= 4;
 		if ((player_flags(&player->obj) & 0x10) == 0) {
-			_al |= (g_vars.input_key_up & 8);
+			mask |= (g_vars.input_key_up & 8);
 		}
-		_al |= (g_vars.input_key_right & 4);
+		mask |= (g_vars.input_key_right & 4);
 		if (player_jump_counter(&player->obj) == 7) {
-			_al |= ((player_flags(&player->obj) & 0x10) == 0) ? (g_vars.input_key_down & 2) : 2;
+			mask |= ((player_flags(&player->obj) & 0x10) == 0) ? (g_vars.input_key_down & 2) : 2;
 		}
-		_al |= (g_vars.input_key_left & 1);
+		mask |= (g_vars.input_key_left & 1);
 	}
 	if (player_flags2(&player->obj) & 0x40) {
-		player->dir_mask = _al;
-		_al = 0;
+		player->dir_mask = mask;
+		mask = 0;
 	}
-	switch (player_anim_lut[_al]) {
+	switch (player_anim_lut[mask]) {
 	case 0:
 		level_update_player_anim_0(player);
 		break;
@@ -809,7 +819,7 @@ static void level_update_player_from_input(struct player_t *player) {
 		level_update_player_anim_28(player);
 		break;
 	default:
-		print_warning("Unhandled anim_lut %d _al %d", player_anim_lut[_al], _al);
+		print_warning("Unhandled anim_lut %d mask %d", player_anim_lut[mask], mask);
 		break;
 	}
 	if (g_vars.tilemap_h <= (player->obj.y_pos >> 4)) {
@@ -962,12 +972,12 @@ static int level_is_respawn_object_visible(const uint8_t *data) {
 	return !level_is_object_visible(x_pos, y_pos);
 }
 
-static void init_object82(int type, const uint8_t *data, struct object_t *obj, uint16_t *ptr) {
+static void init_object82(int type, int x_pos, int y_pos, struct object_t *obj, uint16_t *ptr) {
 	obj->data[2].w = ptr - g_vars.buffer;
 	object82_state(obj) = 0;
 	object82_type(obj) = type;
-	obj->x_pos = READ_LE_UINT16(data);
-	obj->y_pos = READ_LE_UINT16(data + 2);
+	obj->x_pos = x_pos;
+	obj->y_pos = y_pos;
 	*ptr = obj - g_vars.objects_table;
 	object_blinking_counter(obj) = 0;
 }
@@ -1078,23 +1088,23 @@ static struct object_t *level_collide_vinyl_objects64(struct object_t *obj) {
 	return 0;
 }
 
-static int level_update_object82_helper(struct object_t *obj, int8_t al, int8_t dl) {
-	int bp = 0;
-	obj->data[3].b[0] = al;
-	obj->x_pos += al >> 3;
+static int level_update_object82_position(struct object_t *obj, int8_t dx, int8_t dy) {
+	int ret = 0;
+	object82_hflip(obj) = dx;
+	obj->x_pos += dx >> 3;
 	if (obj->x_pos < 0) {
 		obj->x_pos = 0;
-		++bp;
+		++ret;
 	}
 	if (g_vars.tilemap_w <= (obj->x_pos >> 4)) {
-		++bp;
 		obj->x_pos -= 8;
+		++ret;
 	}
-	obj->y_pos += dl >> 3;
+	obj->y_pos += dy >> 3;
 	if (obj->y_pos < 0) {
 		obj->y_pos = 0;
 	}
-	return bp;
+	return ret;
 }
 
 static struct player_t *level_get_closest_player(struct object_t *obj, int x_dist) {
@@ -1124,7 +1134,7 @@ static void level_update_object82_type0(struct object_t *obj) {
 		if (state == 0) {
 			const int num = object82_counter(obj) << 1;
 			int16_t ax1 = ((int16_t)READ_LE_UINT16(level_data4 + 0x1AE + num) * 60) >> 8;
-			obj->data[3].b[0] = ax1 >> 8;
+			object82_hflip(obj) = ax1 >> 8;
 			int16_t ax2 = ((int16_t)READ_LE_UINT16(level_data4 + 0x12C + num) * 60) >> 8;
 			object82_counter(obj) += 2;
 			const uint8_t *p = object82_type0_init_data(obj);
@@ -1184,22 +1194,23 @@ static void level_update_object82_type0(struct object_t *obj) {
 				}
 			}
 			object82_type0_y_delta(obj) = dy;
-			if (level_update_object82_helper(obj, object82_type0_x_delta(obj), object82_type0_y_delta(obj)) != 0) {
+			if (level_update_object82_position(obj, object82_type0_x_delta(obj), object82_type0_y_delta(obj)) != 0) {
 				object82_type0_x_delta(obj) = -object82_type0_x_delta(obj);
 			}
 		}
 	}
 }
 
+// snail
 static void level_update_object82_type1(struct object_t *obj) {
 	if (!level_is_object_visible(obj->x_pos, obj->y_pos)) {
 		obj->spr_num = 0xFFFF;
 		g_vars.buffer[obj->data[2].w] = 0xFFFF;
 		object82_counter(obj) = 0;
 	} else {
-		int dx = obj->data[4].w + (int8_t)object82_type1_hdir(obj);
+		int dx = object82_x_delta(obj) + (int8_t)object82_type1_hdir(obj);
 		if (dx < 128 && dx > -128) {
-			obj->data[4].w += dx;
+			object82_x_delta(obj) += dx;
 		}
 		if ((g_vars.level_loop_counter & 3) == 0) {
 			++object82_counter(obj);
@@ -1207,13 +1218,13 @@ static void level_update_object82_type1(struct object_t *obj) {
 				object82_type1_hdir(obj) = -object82_type1_hdir(obj);
 				object82_counter(obj) = 0;
 			}
-			dx = obj->data[7].b[0] + obj->data[4].w;
-			obj->data[7].b[0] = dx;
-			obj->x_pos += (dx >> 8);
-			obj->data[3].b[0] += (int8_t)object82_type1_hdir(obj);
-			level_update_tiles(obj, obj->x_pos, obj->y_pos, _undefined);
-			obj->y_pos += obj->data[5].w >> 3;
 		}
+		dx = obj->data[7].b[0] + object82_x_delta(obj);
+		obj->data[7].b[0] = dx;
+		obj->x_pos += (dx >> 8);
+		object82_hflip(obj) = object82_type1_hdir(obj);
+		level_update_tiles(obj, obj->x_pos, obj->y_pos, _undefined);
+		obj->y_pos += object82_y_delta(obj) >> 3;
 	}
 }
 
@@ -1232,7 +1243,7 @@ static void level_update_object82_type3(struct object_t *obj) {
 			}
 		} else if (al == 1) {
 			level_update_tiles(obj, obj->x_pos, obj->y_pos, _undefined);
-			level_update_object82_helper(obj, 0, obj->data[5].b[0]);
+			level_update_object82_position(obj, 0, obj->data[5].b[0]);
 			if (--object82_counter(obj) == 0) {
 				object82_counter(obj) = 40;
 				obj->data[5].w = -80;
@@ -1279,7 +1290,7 @@ static void level_update_object82_type2(struct object_t *obj) {
 			}
 		} else {
 			if (state == 1) {
-				if (obj->data[5].b[0] == 0 && --object82_counter(obj) == 0) {
+				if (obj->data[5].w == 0 && --object82_counter(obj) == 0) {
 					object82_state(obj) = state = 2;
 					object82_counter(obj) = 20;
 				}
@@ -1294,21 +1305,22 @@ static void level_update_object82_type2(struct object_t *obj) {
 				obj->data[4].b[0] = 0;
 			}
 		}
-		if (level_update_object82_helper(obj, obj->data[4].b[0], 0) != 0) {
+		if (level_update_object82_position(obj, obj->data[4].b[0], 0) != 0) {
 			obj->data[4].b[0] = -obj->data[4].b[0];
 		}
 update_tiles:
 		level_update_tiles(obj, obj->x_pos, obj->y_pos, _undefined);
 		if (level_is_object_on_tile_5dc8(obj)) {
-			obj->data[4].w = -obj->data[4].w;
-			if (level_update_object82_helper(obj, obj->data[4].b[0], 0) != 0) {
+			object82_x_delta(obj) = -object82_x_delta(obj);
+			if (level_update_object82_position(obj, obj->data[4].b[0], 0) != 0) {
 				obj->data[4].b[0] = -obj->data[4].b[0];
 			}
 		}
-		obj->y_pos += obj->data[5].w >> 3;
+		obj->y_pos += object82_y_delta(obj) >> 3;
 	}
 }
 
+// grass cutter
 static void level_update_object82_type4_6(struct object_t *obj) {
 	if (!level_is_object_visible(obj->x_pos, obj->y_pos)) {
 		obj->spr_num = 0xFFFF;
@@ -1319,24 +1331,24 @@ static void level_update_object82_type4_6(struct object_t *obj) {
 		if (state == 0) {
 			struct player_t *player = level_get_closest_player(obj, 300);
 			if (player) {
-				obj->data[4].w = (obj->x_pos < player->obj.x_pos) ? 8 : -8;
+				object82_x_delta(obj) = (obj->x_pos < player->obj.x_pos) ? 8 : -8;
 				object82_state(obj) = 1;
 			}
 		} else if (state == 1) { // head to player
 			struct player_t *player = level_get_closest_player(obj, 300);
 			if (player) {
-				obj->data[4].w <<= 2; // faster
+				object82_x_delta(obj) <<= 2; // faster
 				object82_pos_data(obj) = (object82_type(obj) == 4) ? (monster_pos_data6 + 10) : (monster_pos_data8 + 26);
 				object82_state(obj) = 2;
 			}
 		}
 		level_update_tiles(obj, obj->x_pos, obj->y_pos, _undefined);
 		if (level_is_object_on_tile_5dc8(obj)) {
-			obj->data[4].w = -obj->data[4].w;
+			object82_x_delta(obj) = -object82_x_delta(obj);
 		}
-		obj->data[3].b[0] = obj->data[4].w >> 8;
-		if (level_update_object82_helper(obj, obj->data[4].b[0], obj->data[5].b[0]) != 0) {
-			obj->data[4].w = -obj->data[4].w;
+		object82_hflip(obj) = object82_x_delta(obj) >> 8;
+		if (level_update_object82_position(obj, obj->data[4].b[0], obj->data[5].b[0]) != 0) {
+			object82_x_delta(obj) = -object82_x_delta(obj);
 		}
 	}
 }
@@ -1366,10 +1378,12 @@ static void level_update_triggers() {
 		if (*ptr != 0xFFFF) {
 			continue;
 		}
+		const int x_pos = READ_LE_UINT16(data);
+		const int y_pos = READ_LE_UINT16(data + 2);
 		if (READ_LE_UINT16(data + 4) == 0 && READ_LE_UINT16(data + 6) == 9) {
 			const uint16_t num = READ_LE_UINT16(data + 8);
 			if (num == 12 || num == 25 || num == 8) {
-				if (!level_is_object_visible(READ_LE_UINT16(data), READ_LE_UINT16(data + 2))) {
+				if (!level_is_object_visible(x_pos, y_pos)) {
 					continue;
 				}
 				struct object_t *obj = find_object(32, 8, 4);
@@ -1378,12 +1392,12 @@ static void level_update_triggers() {
 					if (num != 8) {
 						dx = 224; // ball with spikes
 						if (num == 12) {
-							WRITE_LE_UINT16(&g_vars.triggers_table[19] + i * 16 + 0xE, 0x260);
+							WRITE_LE_UINT16(&g_vars.triggers_table[19] + i * 16 + 14, 0x260);
 						}
 					}
 					obj[0].spr_num = dx;
 					object_blinking_counter(&obj[0]) = 0;
-					obj[0].data[1].w = READ_LE_UINT16(data + 0xE);
+					obj[0].data[1].w = READ_LE_UINT16(data + 14);
 					obj[1].spr_num = 204;
 					object_blinking_counter(&obj[1]) = 0;
 					obj[2].spr_num = 204;
@@ -1405,8 +1419,8 @@ static void level_update_triggers() {
 				struct object_t *obj = find_object(64, 8, 1);
 				if (obj) {
 					obj->spr_num = (num == 2) ? 199 : 205; // crate
-					obj->x_pos = READ_LE_UINT16(data);
-					obj->y_pos = READ_LE_UINT16(data + 2);
+					obj->x_pos = x_pos;
+					obj->y_pos = y_pos;
 					object64_counter(obj) = READ_LE_UINT16(data + 14);
 					object_blinking_counter(obj) = 0;
 					*ptr = obj - g_vars.objects_table;
@@ -1417,7 +1431,7 @@ static void level_update_triggers() {
 				struct object_t *obj = find_object(82, 20, 1);
 				if (obj) {
 					obj->spr_num = 198; // jukebox
-					init_object82(5, data, obj, ptr);
+					init_object82(5, x_pos, y_pos, obj, ptr);
 					object82_pos_data(obj) = monster_pos_data9;
 				}
 			} else if (num == 19 || num == 3 || num == 16) {
@@ -1448,7 +1462,7 @@ static void level_update_triggers() {
 						type = 7; // fall-through
 						obj->y_pos -= 60;
 					}
-					init_object82(type, data, obj, ptr);
+					init_object82(type, x_pos, y_pos, obj, ptr);
 					object82_energy(obj) = 128;
 					object82_counter(obj) = 0;
 					object82_type0_init_data(obj) = data;
@@ -1460,13 +1474,13 @@ static void level_update_triggers() {
 				struct object_t *obj = find_object(82, 20, 1);
 				if (obj) {
 					obj->spr_num = 217; // snail
-					init_object82(1, data, obj, ptr);
+					init_object82(1, x_pos, y_pos, obj, ptr);
 					object82_pos_data(obj) = monster_pos_data2;
 					object82_type1_hdir(obj) = -32;
-					obj->data[4].w = 0;
+					object82_x_delta(obj) = 0;
 					obj->data[7].w = 0;
 					object82_counter(obj) = 0;
-					obj->data[5].w = 0;
+					object82_y_delta(obj) = 0;
 					object82_energy(obj) = 512;
 				}
 			} else if (num == 21 || num == 18) {
@@ -1488,7 +1502,7 @@ static void level_update_triggers() {
 						object82_pos_data(obj) = monster_pos_data3;
 						type = 2;
 					}
-					init_object82(type, data, obj, ptr);
+					init_object82(type, x_pos, y_pos, obj, ptr);
 					obj->data[5].w = 0;
 					obj->data[4].b[0] = 0;
 					obj->data[7].p = data;
@@ -1513,20 +1527,20 @@ static void level_update_triggers() {
 						type = 6;
 						object82_pos_data(obj) = monster_pos_data8;
 					}
-					init_object82(type, data, obj, ptr);
+					init_object82(type, x_pos, y_pos, obj, ptr);
 					obj->data[5].w = 0;
 					obj->data[4].b[0] = 0;
 					object82_energy(obj) = 512;
 				}
 			} else if (num == 14) {
-				if (!level_is_object_visible(READ_LE_UINT16(data), READ_LE_UINT16(data + 2))) {
+				if (!level_is_object_visible(x_pos, y_pos)) {
 					continue;
 				}
 				struct object_t *obj = find_object(112, 9, 1);
 				if (obj) {
 					obj->spr_num = 242;
-					obj->x_pos = READ_LE_UINT16(data);
-					obj->y_pos = READ_LE_UINT16(data + 2) + 16;
+					obj->x_pos = x_pos;
+					obj->y_pos = y_pos + 16;
 					obj->data[3].w = 0;
 					obj->data[0].w = READ_LE_UINT16(data + 14);
 					object_blinking_counter(obj) = 0;
@@ -1535,15 +1549,14 @@ static void level_update_triggers() {
 					obj->data[1].w = data - start;
 				}
 			}
-		} else if (READ_LE_UINT16(data + 4) == 2 && level_is_object_visible(READ_LE_UINT16(data), READ_LE_UINT16(data + 2))) { // bonus
-			const uint16_t num = READ_LE_UINT16(data + 8);
-			const uint16_t ax = 190 + level_data4[0x3B0 + num];
+		} else if (READ_LE_UINT16(data + 4) == 2 && level_is_object_visible(x_pos, y_pos)) { // bonus
 			struct object_t *obj = find_object(72, 10, 1);
 			if (obj) {
-				obj->spr_num = ax;
+				const uint16_t num = READ_LE_UINT16(data + 8);
+				obj->spr_num = 190 + level_data4[0x3B0 + num];
 				object_blinking_counter(obj) = 0;
-				obj->x_pos = READ_LE_UINT16(data);
-				obj->y_pos = READ_LE_UINT16(data + 2);
+				obj->x_pos = x_pos;
+				obj->y_pos = y_pos;
 				*ptr = obj - g_vars.objects_table;
 				obj->data[0].w = data - start;
 			}
@@ -1719,11 +1732,11 @@ static void level_update_triggers() {
 		struct object_t *obj2 = level_collide_vinyl_objects82(obj);
 		if (obj2 && object_blinking_counter(obj2) == 0) {
 			level_init_object_spr_num_92(obj->x_pos, obj->y_pos);
-			obj2->data[5].w = -48;
+			object82_y_delta(obj2) = -48;
 			const int num = object82_type(obj2);
 			if (num == 6 || num == 4 || num == 1) {
-				ax = abs(obj2->data[4].w);
-				obj2->data[4].w = (obj->data[0].w < 0) ? -ax : ax;
+				ax = abs(object82_x_delta(obj2));
+				object82_x_delta(obj2) = (obj->data[0].w < 0) ? -ax : ax;
 			} else if (num == 2) {
 				ax = abs((int8_t)obj2->data[4].b[0]);
 				obj2->data[4].b[0] = (obj->data[0].w < 0) ? -ax : ax;
@@ -1803,7 +1816,7 @@ static void level_update_triggers() {
 	}
 	if (player_bounce_counter(&g_vars.players_table[0].obj) != 0) {
 		--player_bounce_counter(&g_vars.players_table[0].obj);
-
+		level_update_mushroom_tiles(&g_vars.players_table[0]);
 	}
 	assert(g_vars.player != 2);
 	// update monsters
@@ -1819,7 +1832,7 @@ static void level_update_triggers() {
 				}
 				p += num << 1; // loop
 			}
-			obj->spr_num = num | ((obj->data[3].b[0] & 0x80) << 8);
+			obj->spr_num = num | ((object82_hflip(obj) & 0x80) << 8); // hflip
 			object82_pos_data(obj) = p + 2;
 			switch (object82_type(obj)) {
 			case 0:
@@ -1840,7 +1853,7 @@ static void level_update_triggers() {
 				break;
 			case 5:
 				level_update_tiles(obj, obj->x_pos, obj->y_pos, _undefined);
-				level_update_object82_helper(obj, 0, obj->data[5].b[0]);
+				level_update_object82_position(obj, 0, obj->data[5].b[0]);
 				break;
 			case 16:
 				level_update_object82_type16(obj);
@@ -2312,7 +2325,7 @@ static void level_tile_func_5f16(struct object_t *obj, int bp) {
 		player_y_delta(obj) = MAX(-player_y_delta(obj) - 16, -112);
 		player_jump_counter(obj) = 0;
 		player_bounce_counter(obj) = 7;
-		obj->data[8].w = g_vars.player_yscroll;
+		player_tilemap_offset(obj) = g_vars.player_yscroll;
 		const int x = (obj->x_pos >> 4) - g_vars.tilemap_x;
 		if (x < 0 || x > TILEMAP_SCREEN_W / 16) {
 			return;
@@ -2366,6 +2379,9 @@ static void level_tile_func_5f7b(struct object_t *obj, int bp, int bx) {
 
 // electricity
 static void level_tile_func_5f94(struct object_t *obj) {
+	if (g_vars.cheats & CHEATS_DECOR_NO_HIT) {
+		return;
+	}
 	level_player_die((struct player_t *)obj);
 }
 
@@ -2531,10 +2547,10 @@ static void sub_15BA5(struct player_t *player) {
 				play_sound(SOUND_5);
 			}
 		}
-	}
-	player_flags(&player->obj) &= ~2;
-	if (!sub_15D99(player, player->obj.x_pos, player->obj.y_pos)) {
-		level_update_tiles(&player->obj, player->obj.x_pos, player->obj.y_pos, 0);
+		player_flags(&player->obj) &= ~2;
+		if (!sub_15D99(player, player->obj.x_pos, player->obj.y_pos)) {
+			level_update_tiles(&player->obj, player->obj.x_pos, player->obj.y_pos, 0);
+		}
 	}
 	obj->y_pos = player->obj.y_pos;
 	const int spr_num = obj->spr_num & 0x1FFF;
@@ -2791,11 +2807,6 @@ static void level_init_tilemap() {
 	}
 }
 
-static void level_fixup_tilemap() {
-
-	level_draw_tilemap();
-}
-
 static void level_player_draw_death_animation(struct player_t *player) {
 	if (player_flags(&player->obj) & 0x20) {
 		player_flags(&player->obj) &= ~0x20;
@@ -2808,7 +2819,7 @@ static void level_player_draw_death_animation(struct player_t *player) {
 			0x7D, 0x7D, 0x7C, 0x8A, 0xFF
 		};
 		for (int i = 0; data[i] != 0xFF; ++i) {
-			level_fixup_tilemap();
+			level_draw_tilemap();
 			level_draw_objects();
 			level_sync();
 			player_obj->spr_num = data[i];
@@ -2836,7 +2847,7 @@ static void level_player_draw_power_animation(struct player_t *player, struct ob
 		};
 		struct object_t *player_obj = &g_vars.objects_table[player_obj_num(&player->obj)];
 		for (int i = 0; data[i] != 0xFF; ++i) {
-			level_fixup_tilemap();
+			level_draw_tilemap();
 			level_draw_objects();
 			level_sync();
 			player_obj->spr_num = data[i];
@@ -2852,7 +2863,7 @@ static void init_level(uint16_t level) {
 	reset_level_data();
 	level_init_players();
 	level_init_tilemap();
-	level_fixup_tilemap();
+	level_draw_tilemap();
 	g_vars.reset_palette_flag = 0;
 }
 
@@ -2890,7 +2901,7 @@ void do_level() {
 		level_update_input();
 		level_update_triggers();
 		level_update_players();
-		level_fixup_tilemap();
+		level_draw_tilemap();
 		draw_panel();
 		level_reset_palette();
 		level_draw_objects();
@@ -2908,6 +2919,7 @@ void do_level() {
 		if ((player_flags2(&g_vars.players_table[0].obj) & 0x10) == 0) {
 			continue;
 		}
+		// player fell or no energy left
 		fade_out_palette();
 		assert(g_vars.player != 2);
 		if (g_vars.players_table[0].lifes_count != 0) {

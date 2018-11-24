@@ -50,6 +50,7 @@ void video_copy_vga(int size) {
 		if (GAME_SCREEN_W * GAME_SCREEN_H == 64000) {
 			memcpy(g_res.vga, src, 64000);
 		} else {
+			memset(g_res.vga, 0, GAME_SCREEN_W * GAME_SCREEN_H);
 			for (int y = 0; y < MIN(200, GAME_SCREEN_H); ++y) {
 				memcpy(g_res.vga + y * GAME_SCREEN_W, src, MIN(320, GAME_SCREEN_W));
 				src += 320;

@@ -6,6 +6,7 @@
 
 #define CHEATS_OBJECT_NO_HIT (1 << 0)
 #define CHEATS_ONE_HIT_VINYL (1 << 1)
+#define CHEATS_DECOR_NO_HIT  (1 << 2)
 
 #define GAME_SCREEN_W g_vars.screen_w
 #define GAME_SCREEN_H g_vars.screen_h
@@ -17,12 +18,12 @@
 
 #define SOUND_0 0
 #define SOUND_1 1 // monster knocked out
-#define SOUND_2 2
-#define SOUND_3 3
-#define SOUND_4 4
+#define SOUND_2 2 // bouncing mushroom
+#define SOUND_3 3 // decor hit
+#define SOUND_4 4 // player hit
 #define SOUND_5 5 // grab vinyl
-#define SOUND_8 8
-#define SOUND_9 9
+#define SOUND_8 8 // no vinyl
+#define SOUND_9 9 // throw vinyl
 #define SOUND_10 10 // "rock,rock,rock and roll"
 #define SOUND_11 11
 #define SOUND_14 14 // player lost life
@@ -49,6 +50,7 @@ struct object_t {
 #define player_flags(obj)          (obj)->data[6].b[0]  // 0x12, 4:facing_left 8:throw 32:powerup
 #define player_jump_counter(obj)   (obj)->data[6].b[1]  // 0x13
 #define player_bounce_counter(obj) (obj)->data[7].b[0]  // 0x14
+#define player_tilemap_offset(obj) (obj)->data[8].w     // 0x16
 #define player_hit_counter(obj)    (obj)->data[9].b[0]  // 0x18
 #define player_throw_counter(obj)  (obj)->data[9].b[1]  // 0x19
 #define player_flags2(obj)         (obj)->data[10].b[0] // 0x1A, 8:dead 1:blocked
@@ -72,22 +74,23 @@ struct object_t {
 #define object82_state(obj)      (obj)->data[0].b[0]
 #define object82_type(obj)       (obj)->data[0].b[1]
 #define object82_pos_data(obj)   (obj)->data[1].p
+#define object82_hflip(obj)      (obj)->data[3].b[0]
 #define object82_counter(obj)    (obj)->data[3].b[1]
-#define object82_x_delta(obj)    (obj)->data[4].b[0]
-#define object82_y_delta(obj)    (obj)->data[5].b[0]
+#define object82_x_delta(obj)    (obj)->data[4].w
+#define object82_y_delta(obj)    (obj)->data[5].w
 #define object82_energy(obj)     (obj)->data[8].w
 #define object82_type0_init_data(obj)  (obj)->data[4].p
 #define object82_type0_player_num(obj) (obj)->data[5].w
-#define object82_type0_x_delta(obj)    (obj)->data[6].b[0]
-#define object82_type0_y_delta(obj)    (obj)->data[7].b[0]
-#define object82_type1_hdir(obj)       (obj)->data[6].b[0]
+#define object82_type0_x_delta(obj)    (obj)->data[6].b[0] // signed
+#define object82_type0_y_delta(obj)    (obj)->data[7].b[0] // signed
+#define object82_type1_hdir(obj)       (obj)->data[6].b[0] // signed
 
 #define object102_x_delta(obj)   (obj)->data[0].w
 #define object102_y_delta(obj)   (obj)->data[1].w
 
 struct player_t {
 	struct object_t obj;
-	int16_t unk_counter; // 0x1D
+	int16_t unk_counter; // 0x1D always zero
 	int16_t change_hdir_counter;
 	uint8_t lifes_count;
 	int16_t vinyls_count;
