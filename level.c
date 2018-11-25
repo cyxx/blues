@@ -18,14 +18,14 @@ static const uint16_t _vinyl_throw_delay = 5;
 static const uint16_t _object_respawn_delay = 224;
 static const uint16_t _undefined = 0x55AA;
 
-static void level_player_draw_death_animation(struct player_t *player);
-static void level_player_draw_power_animation(struct player_t *player, struct object_t *obj);
+static void level_player_draw_powerdown_animation(struct player_t *player);
+static void level_player_draw_powerup_animation(struct player_t *player, struct object_t *obj);
 static void level_update_tiles(struct object_t *obj, int ax, int dx, int bp);
 
 static void level_player_die(struct player_t *player) {
 	g_vars.player_xscroll = 0;
 	player_flags2(&player->obj) |= 8;
-	level_player_draw_death_animation(player);
+	level_player_draw_powerdown_animation(player);
 	if (player_flags(&player->obj) & 0x40) {
 		// player_flags2(&player->other_player->obj) &= ~1;
 	}
@@ -122,7 +122,6 @@ static void level_draw_tilemap() {
 			memcpy(g_res.vga + y * GAME_SCREEN_W + x, g_res.background + y * 320, MIN(320, GAME_SCREEN_W - x));
 		}
 	}
-
 	const uint8_t *current_lut = g_vars.tilemap_current_lut + 0x100;
 	if (current_lut >= &g_vars.tilemap_lut_init[0x600]) {
 		g_vars.tilemap_current_lut = g_vars.tilemap_lut_init;
@@ -230,14 +229,14 @@ static void level_player_hit_object(struct player_t *p, struct object_t *obj) {
 		return;
 	}
 	play_sound(SOUND_4);
-	if ((player_flags(&p->obj) & 0x20) == 0 && (--p->energy < 0)) {
+	if ((player_flags(&p->obj) & PLAYER_FLAGS_POWERUP) == 0 && (--p->energy < 0)) {
 		p->energy = 0;
 		level_player_die(p);
 	}
 	player_hit_counter(&p->obj) = 8;
 	player_y_delta(&p->obj) = -40;
-	if (player_flags(&p->obj) & 0x20) {
-		level_player_draw_death_animation(p);
+	if (player_flags(&p->obj) & PLAYER_FLAGS_POWERUP) {
+		level_player_draw_powerdown_animation(p);
 	}
 	level_hit_player(p);
 	object_blinking_counter(obj) = 33;
@@ -346,9 +345,9 @@ static void level_init_object_spr_num_104(int x_pos, int y_pos) {
 	}
 }
 
-static void level_update_mushroom_tiles(struct player_t *player) {
-	const uint16_t offset = player_tilemap_offset(&player->obj);
-	uint8_t *p = &g_vars.tilemap_data[(offset >> 8) * g_vars.tilemap_w + (offset & 255)];
+static void level_update_bouncing_tiles(struct player_t *player) {
+	const int offset = player_tilemap_offset(&player->obj);
+	uint8_t *p = &g_vars.tilemap_data[offset];
 	int num = *p;
 	int adj = 2;
 	if (num > 0x20 && (num <= 0x22 || num > 0x9C)) {
@@ -361,7 +360,6 @@ static void level_update_mushroom_tiles(struct player_t *player) {
 	p[1] += adj;
 	p[g_vars.tilemap_w] += adj;
 	p[g_vars.tilemap_w + 1] += adj;
-
 }
 
 static int level_player_update_flags(struct player_t *player) {
@@ -371,9 +369,9 @@ static int level_player_update_flags(struct player_t *player) {
 	if (abs(player_x_delta(&player->obj)) < 24) {
 		return 0;
 	}
-	player_flags(&player->obj) &= ~4;
+	player_flags(&player->obj) &= ~PLAYER_FLAGS_FACING_LEFT;
 	if (player_x_delta(&player->obj) < 0) {
-		player_flags(&player->obj) |= 4;
+		player_flags(&player->obj) |= PLAYER_FLAGS_FACING_LEFT;
 	}
 	if (g_vars.level_loop_counter - player->ticks_counter < 4) {
 		return 1;
@@ -481,15 +479,15 @@ static void level_update_player_anim_6(struct player_t *player) {
 			object22_player_num(obj) = player - &g_vars.players_table[0];
 			obj->x_pos = player->obj.x_pos;
 			obj->y_pos = player->obj.y_pos - 12;
-			object22_xvelocity(obj) = (player_flags(&player->obj) & 4) ? -24 : 24;
-			int ax = ((player_flags(&player->obj) & 0x20) != 0) ? 0x200 : 0x100;
+			object22_xvelocity(obj) = (player_flags(&player->obj) & PLAYER_FLAGS_FACING_LEFT) ? -24 : 24;
+			int ax = ((player_flags(&player->obj) & PLAYER_FLAGS_POWERUP) != 0) ? 0x200 : 0x100;
 			if (player_power(&player->obj) >= 33) {
 				ax = 0x4000;
 				player->vinyls_count -= 4;
 			}
 			--player->vinyls_count;
 			object22_damage(obj) = ax;
-			player_flags(&player->obj) |= 8;
+			player_flags(&player->obj) |= PLAYER_FLAGS_THROW_VINYL;
 			player_power(&player->obj) = 0;
 			play_sound(SOUND_9);
 		}
@@ -523,8 +521,8 @@ static void level_update_player_anim_9(struct player_t *player) {
 	player_y_delta(&player->obj) = 0;
 }
 
-static void level_update_player_anim_10(struct player_t *player) {
-	player->obj.spr_num = 10;
+static void level_update_player_anim_10(struct player_t *player, int spr_num) {
+	player->obj.spr_num = spr_num;
 	player->obj.y_pos += 2;
 	const int x = (player->obj.x_pos & 15) - 8;
 	if (x < 0) {
@@ -608,18 +606,66 @@ static void level_update_player_anim_26(struct player_t *player) {
 }
 
 static void level_update_player_anim_27(struct player_t *player) {
-	print_warning("Unimplemented level_update_player_anim_27");
+	g_vars.player_hit_counter = 7;
+	player->obj.spr_num = 27;
+	level_player_update_xvelocity(player, 0);
+	if (player_throw_counter(&player->obj) == 0) {
+		return;
+	}
+	if (player_flags(&player->obj) & PLAYER_FLAGS_POWERUP) {
+		player->obj.spr_num = 35;
+	}
+	player_flags(&player->obj) |= PLAYER_FLAGS_THROW_VINYL;
+	player_flags(&player->obj) &= ~0x40;
+	// struct player_t *other_player = player->other_player;
 }
 
 static void level_update_player_anim_28(struct player_t *player) {
 	player->obj.y_pos += 12;
 	level_update_player_anim_27(player);
 	player->obj.y_pos -= 12;
-	if (player_throw_counter(&player->obj) != 0 && (player_flags(&player->obj) & 0x20) != 0) {
+	if (player_throw_counter(&player->obj) != 0 && (player_flags(&player->obj) & PLAYER_FLAGS_POWERUP) != 0) {
 		player_obj_num(&player->obj) = 35;
 	} else {
 		player_obj_num(&player->obj) = 28;
 	}
+}
+
+static void level_update_player_anim_29(struct player_t *player) {
+	player->obj.spr_num = 29;
+	player->obj.y_pos -= 2;
+	const int x = (player->obj.x_pos & 15) - 8;
+	if (x < 0) {
+		++player->obj.x_pos;
+	} else if (x > 0) {
+		--player->obj.x_pos;
+	}
+	player_jump_counter(&player->obj) = 7;
+	player_x_delta(&player->obj) = 0;
+	player_y_delta(&player->obj) = 0;
+}
+
+static void level_update_player_anim_30(struct player_t *player) {
+	player->obj.spr_num = 30;
+	player_jump_counter(&player->obj) = 7;
+	player_x_delta(&player->obj) = 0;
+	player_y_delta(&player->obj) = 0;
+}
+
+static void level_update_player_anim_32(struct player_t *player) {
+	player->obj.spr_num = 30;
+	--player->obj.x_pos;
+	player_jump_counter(&player->obj) = 7;
+	player_x_delta(&player->obj) = 0;
+	player_y_delta(&player->obj) = 0;
+}
+
+static void level_update_player_anim_33(struct player_t *player) {
+	player->obj.spr_num = 30;
+	++player->obj.x_pos;
+	player_jump_counter(&player->obj) = 7;
+	player_x_delta(&player->obj) = 0;
+	player_y_delta(&player->obj) = 0;
 }
 
 static void level_update_player_from_input(struct player_t *player) {
@@ -635,9 +681,9 @@ static void level_update_player_from_input(struct player_t *player) {
 		if ((player->obj.y_pos >> 4) - g_vars.tilemap_y > TILEMAP_SCREEN_H / 16 + 3) {
 			player_flags2(&player->obj) |= 0x10;
 		}
-		player_flags(&player->obj) &= ~8;
+		player_flags(&player->obj) &= ~PLAYER_FLAGS_THROW_VINYL;
 		if (g_vars.input_key_space) {
-			player_flags(&player->obj) |= 8;
+			player_flags(&player->obj) |= PLAYER_FLAGS_THROW_VINYL;
 		}
 		return;
 	}
@@ -649,41 +695,43 @@ static void level_update_player_from_input(struct player_t *player) {
 	}
 	player_flags2(&player->obj) &= ~4;
 	player_flags2(&player->obj) |= (g_vars.input_key_down & 4);
-	if (player_flags(&player->obj) & 0x8) {
-		++player_power(&player->obj);
+	if ((player_flags(&player->obj) & PLAYER_FLAGS_THROW_VINYL) != 0 && player->vinyls_count > 4) {
+		if (player_power(&player->obj) < 255) {
+			++player_power(&player->obj);
+		}
 	} else {
 		player_power(&player->obj) = 0;
 	}
 	uint8_t flags = player_flags(&player->obj);
 	if (g_vars.input_key_right) {
-		player_flags(&player->obj) &= ~4;
+		player_flags(&player->obj) &= ~PLAYER_FLAGS_FACING_LEFT;
 	}
 	if (g_vars.input_key_left) {
-		player_flags(&player->obj) |= 4;
+		player_flags(&player->obj) |= PLAYER_FLAGS_FACING_LEFT;
 	}
-	if (((flags ^ player_flags(&player->obj)) & 4) != 0) { // horizontal direction changed
+	if (((flags ^ player_flags(&player->obj)) & PLAYER_FLAGS_FACING_LEFT) != 0) { // horizontal direction changed
 		player->change_hdir_counter += 4;
 	}
 	// flags = player_flags(&player->obj);
 	uint8_t mask = 0;
-	if (flags & 1) {
+	if (flags & PLAYER_FLAGS_STAIRS) {
 		mask |= 4;
 	}
 	if (flags & 0x40) {
 		mask |= 2;
 	}
-	if (flags & 0x20) {
+	if (flags & PLAYER_FLAGS_POWERUP) {
 		mask |= 1;
 	}
 	flags = g_vars.input_key_space & 1;
-	if (flags) {
-		if (player_power(&player->obj) >= 33 && (player_flags(&player->obj) & 8) != 0) {
+	if (flags == 0) {
+		if (player_power(&player->obj) >= 33 && (player_flags(&player->obj) & PLAYER_FLAGS_THROW_VINYL) != 0) {
 			flags = 1;
 		} else {
-			player_flags(&player->obj) &= ~8;
+			player_flags(&player->obj) &= ~PLAYER_FLAGS_THROW_VINYL;
 		}
 	} else {
-		if (player_flags(&player->obj) & 8) {
+		if (player_flags(&player->obj) & PLAYER_FLAGS_THROW_VINYL) {
 			flags = 0;
 		}
 	}
@@ -738,7 +786,7 @@ static void level_update_player_from_input(struct player_t *player) {
 		level_update_player_anim_9(player);
 		break;
 	case 10:
-		level_update_player_anim_10(player);
+		level_update_player_anim_10(player, 10);
 		break;
 	case 11:
 		level_update_player_anim_11(player);
@@ -818,6 +866,21 @@ static void level_update_player_from_input(struct player_t *player) {
 	case 28:
 		level_update_player_anim_28(player);
 		break;
+	case 29:
+		level_update_player_anim_29(player);
+		break;
+	case 30:
+		level_update_player_anim_30(player);
+		break;
+	case 31:
+		level_update_player_anim_10(player, 31);
+		break;
+	case 32:
+		level_update_player_anim_32(player);
+		break;
+	case 33:
+		level_update_player_anim_33(player);
+		break;
 	default:
 		print_warning("Unhandled anim_lut %d mask %d", player_anim_lut[mask], mask);
 		break;
@@ -853,7 +916,6 @@ static void level_update_player_position() {
 	struct player_t *bp = &g_vars.players_table[0];
 	if ((player_flags2(&bp->obj) & 8) == 0) {
 		if ((g_vars.input_key_right | g_vars.input_key_left) == 0) {
-
 		}
 	}
 	assert(g_vars.player != 2);
@@ -899,7 +961,6 @@ static void level_update_player_position() {
 
 static void level_update_input() {
 	if (g_vars.input_keystate[0x19]) {
-
 	}
 	if (g_vars.input_keystate[0x3B]) {
 		if (player_flags2(&g_vars.players_table[0].obj) & 8) {
@@ -1001,7 +1062,7 @@ static uint8_t get_random_number() {
 	return random_b;
 }
 
-static void level_init_object102_1(struct object_t *si, int x, int y, int num) {
+static void level_init_object102_1(struct object_t *obj22, int x, int y, int num) {
 	struct object_t *obj = find_object(102, 10, 1);
 	if (obj) {
 		obj->x_pos = x;
@@ -1009,19 +1070,19 @@ static void level_init_object102_1(struct object_t *si, int x, int y, int num) {
 		obj->spr_num = num;
 		object_blinking_counter(obj) = 0;
 		const int n = (get_random_number() & 7) << 3;
-		object102_x_delta(obj) = (object102_x_delta(obj) < 0) ? -n : n;
+		object102_x_delta(obj) = (object22_xvelocity(obj22) < 0) ? -n : n;
 		object102_y_delta(obj) = -(((get_random_number() & 7) + 4) << 3);
 	}
 }
 
-static void level_init_object102_2(int x, int y) {
+static void level_init_object102_2(struct object_t *obj22, int x, int y) {
 	struct object_t *obj = find_object(102, 10, 1);
 	if (obj) {
 		obj->x_pos = x + 8;
 		obj->y_pos = y + 12;
 		obj->spr_num = (get_random_number() & 1) + 96;
 		object_blinking_counter(obj) = 0;
-		object102_x_delta(obj) = (object102_x_delta(obj) < 0) ? -16 : 16;
+		object102_x_delta(obj) = (object22_xvelocity(obj22) < 0) ? -16 : 16;
 		object102_y_delta(obj) = -80;
 	}
 }
@@ -1050,7 +1111,7 @@ static bool level_collide_vinyl_decor(int x, int y, struct object_t *obj) {
 		play_sound(SOUND_3);
 	} else if (al == 9) {
 		g_vars.tilemap_data[offset] = 0;
-		level_init_object102_2(x, y);
+		level_init_object102_2(obj, x, y);
 		play_sound(SOUND_1);
 	} else if (al == 10) {
 		obj->spr_num = 0xFFFF;
@@ -1124,7 +1185,7 @@ static struct player_t *level_get_closest_player(struct object_t *obj, int x_dis
 }
 
 static void level_update_object82_type0(struct object_t *obj) {
-	if (object82_pos_data(obj) != monster_pos_data0 && !level_is_object_visible(obj->x_pos, obj->y_pos)) {
+	if (object82_anim_data(obj) != &monster_spr_anim_data0[2] && !level_is_object_visible(obj->x_pos, obj->y_pos)) {
 		obj->spr_num = 0xFFFF;
 		g_vars.buffer[obj->data[2].w] = 0xFFFF;
 		object82_counter(obj) = 0;
@@ -1156,7 +1217,7 @@ static void level_update_object82_type0(struct object_t *obj) {
 					x_pos -= 120;
 					if ((player->dir_mask & 1) == 0) {
 						x_pos += 60;
-						if ((player_flags(&player->obj) & 4) != 0) {
+						if ((player_flags(&player->obj) & PLAYER_FLAGS_FACING_LEFT) != 0) {
 							x_pos -= 20;
 						} else {
 							x_pos = player->obj.x_pos;
@@ -1238,33 +1299,33 @@ static void level_update_object82_type3(struct object_t *obj) {
 		if (al == 0) {
 			if (level_get_closest_player(obj, 160)) {
 				object82_state(obj) = 1;
-				object82_pos_data(obj) = monster_pos_data4;
+				object82_anim_data(obj) = monster_spr_anim_data4;
 				object82_counter(obj) = 40;
 			}
 		} else if (al == 1) {
 			level_update_tiles(obj, obj->x_pos, obj->y_pos, _undefined);
-			level_update_object82_position(obj, 0, obj->data[5].b[0]);
+			level_update_object82_position(obj, 0, object82_y_delta(obj));
 			if (--object82_counter(obj) == 0) {
 				object82_counter(obj) = 40;
-				obj->data[5].w = -80;
+				object82_y_delta(obj) = -80;
 			}
 		}
 	}
 }
 
 static int level_is_object_on_tile_5dc8(struct object_t *obj) {
-	uint8_t _al;
-	const uint16_t offset = (g_vars.player_yscroll >> 8) * g_vars.tilemap_w + (g_vars.player_yscroll & 255);
-	_al = level_get_tile(offset - g_vars.tilemap_w);
-	if (tile_funcs2[_al] == 0x5DC8) {
+	uint8_t tile_num;
+	const int offset = g_vars.player_map_offset;
+	tile_num = level_get_tile(offset - g_vars.tilemap_w);
+	if (tile_funcs2[tile_num] == 0x5DC8) {
 		return 0;
 	}
-	_al = level_get_tile(offset - g_vars.tilemap_w - 1);
-	if (tile_funcs2[_al] == 0x5DC8) {
+	tile_num = level_get_tile(offset - g_vars.tilemap_w - 1);
+	if (tile_funcs2[tile_num] == 0x5DC8) {
 		return 1;
 	}
-	_al = level_get_tile(offset - g_vars.tilemap_w + 1);
-	if (tile_funcs2[_al] == 0x5DC8) {
+	tile_num = level_get_tile(offset - g_vars.tilemap_w + 1);
+	if (tile_funcs2[tile_num] == 0x5DC8) {
 		return 1;
 	}
 	obj->data[0].b[1] = 0x10;
@@ -1296,7 +1357,7 @@ static void level_update_object82_type2(struct object_t *obj) {
 				}
 			}
 			if (state == 2) {
-				object82_pos_data(obj) = monster_pos_data3;
+				object82_anim_data(obj) = monster_spr_anim_data3;
 				if (--object82_counter(obj) != 0) {
 					goto update_tiles; // do not update position
 				}
@@ -1338,7 +1399,7 @@ static void level_update_object82_type4_6(struct object_t *obj) {
 			struct player_t *player = level_get_closest_player(obj, 300);
 			if (player) {
 				object82_x_delta(obj) <<= 2; // faster
-				object82_pos_data(obj) = (object82_type(obj) == 4) ? (monster_pos_data6 + 10) : (monster_pos_data8 + 26);
+				object82_anim_data(obj) = (object82_type(obj) == 4) ? (monster_spr_anim_data6 + 10) : (monster_spr_anim_data8 + 26);
 				object82_state(obj) = 2;
 			}
 		}
@@ -1347,9 +1408,50 @@ static void level_update_object82_type4_6(struct object_t *obj) {
 			object82_x_delta(obj) = -object82_x_delta(obj);
 		}
 		object82_hflip(obj) = object82_x_delta(obj) >> 8;
-		if (level_update_object82_position(obj, obj->data[4].b[0], obj->data[5].b[0]) != 0) {
+		if (level_update_object82_position(obj, object82_x_delta(obj), object82_y_delta(obj)) != 0) {
 			object82_x_delta(obj) = -object82_x_delta(obj);
 		}
+	}
+}
+
+// dragon
+static void level_update_object82_type7(struct object_t *obj) {
+	level_update_object82_type0(obj);
+	int num = g_vars.dragon_coords[0];
+	const int x_pos = obj->x_pos;
+	const int y_pos = obj->y_pos;
+	g_vars.dragon_coords[(num + 2) / 2] = x_pos;
+	g_vars.dragon_coords[(num + 4) / 2] = y_pos;
+	if (player_flags2(&g_vars.players_table[0].obj) & 0x40) {
+		g_vars.players_table[0].obj.x_pos = x_pos;
+		g_vars.players_table[0].obj.y_pos = y_pos;
+		int spr_num = 6;
+		if (obj->spr_num & 0x8000) {
+			spr_num |= 0x8000;
+		}
+		if (player_flags(&g_vars.players_table[0].obj) & PLAYER_FLAGS_JAKE) {
+			spr_num += 50;
+		}
+		const int dx = (int8_t)obj->data[6].b[0];
+		player_x_delta(&g_vars.players_table[0].obj) = (dx >> 2) + dx;
+	}
+	if (player_flags2(&g_vars.players_table[1].obj) & 0x40) {
+		g_vars.players_table[1].obj.x_pos = x_pos;
+		g_vars.players_table[1].obj.y_pos = y_pos;
+		const int dx = (int8_t)obj->data[6].b[0];
+		player_x_delta(&g_vars.players_table[1].obj) = (dx >> 2) + dx;
+	}
+	num = (num + 4) & 0x7F;
+	g_vars.dragon_coords[0] = num;
+	for (int i = 0; i < 8; ++i) {
+		obj = &g_vars.objects_table[121 + i];
+		num -= 12;
+		if (num < 0) {
+			num += 128;
+		}
+		obj->x_pos = g_vars.dragon_coords[(num + 2) / 2];
+		obj->y_pos = g_vars.dragon_coords[(num + 4) / 2];
+		object_blinking_counter(obj) = 0;
 	}
 }
 
@@ -1432,7 +1534,7 @@ static void level_update_triggers() {
 				if (obj) {
 					obj->spr_num = 198; // jukebox
 					init_object82(5, x_pos, y_pos, obj, ptr);
-					object82_pos_data(obj) = monster_pos_data9;
+					object82_anim_data(obj) = monster_spr_anim_data9;
 				}
 			} else if (num == 19 || num == 3 || num == 16) {
 				if (abs((int16_t)ptr[128] - g_vars.level_loop_counter) < _object_respawn_delay) {
@@ -1444,13 +1546,15 @@ static void level_update_triggers() {
 				struct object_t *obj = find_object(82, 20, 1);
 				if (obj) {
 					obj->spr_num = 214; // mosquito
-					object82_pos_data(obj) = monster_pos_data1;
+					object82_anim_data(obj) = monster_spr_anim_data1;
 					int type = 0;
 					if (num == 3) {
 						obj->spr_num = 230; // dragon
+						object82_anim_data(obj) = monster_spr_anim_data0;
 						for (int i = 0; i < 128; ++i) {
-							g_vars.buffer[0x101 + i] = 0xFFFF;
+							g_vars.dragon_coords[1 + i] = -1;
 						}
+						g_vars.dragon_coords[0] = 0;
 						g_vars.objects_table[121].spr_num = 233;
 						g_vars.objects_table[122].spr_num = 233;
 						g_vars.objects_table[123].spr_num = 233;
@@ -1475,7 +1579,7 @@ static void level_update_triggers() {
 				if (obj) {
 					obj->spr_num = 217; // snail
 					init_object82(1, x_pos, y_pos, obj, ptr);
-					object82_pos_data(obj) = monster_pos_data2;
+					object82_anim_data(obj) = monster_spr_anim_data2;
 					object82_type1_hdir(obj) = -32;
 					object82_x_delta(obj) = 0;
 					obj->data[7].w = 0;
@@ -1496,17 +1600,17 @@ static void level_update_triggers() {
 					if (num == 21) {
 						obj->spr_num = 228; // closed trap
 						type = 3;
-						object82_pos_data(obj) = monster_pos_data4 + 18;
+						object82_anim_data(obj) = monster_spr_anim_data4 + 18;
 					} else {
 						obj->spr_num = 225; // open trap
-						object82_pos_data(obj) = monster_pos_data3;
+						object82_anim_data(obj) = monster_spr_anim_data3;
 						type = 2;
 					}
 					init_object82(type, x_pos, y_pos, obj, ptr);
-					obj->data[5].w = 0;
+					object82_y_delta(obj) = 0;
 					obj->data[4].b[0] = 0;
 					obj->data[7].p = data;
-					obj->data[4].b[1] = -40;
+					obj->data[4].b[1] = ((data[11] & 1) != 0) ? -40 : 40;
 					object82_energy(obj) = 768;
 				}
 			} else if (num == 26 || num == 5 || num == 17) {
@@ -1522,10 +1626,10 @@ static void level_update_triggers() {
 					uint8_t type;
 					if (num == 17) {
 						type = 4;
-						object82_pos_data(obj) = monster_pos_data6;
+						object82_anim_data(obj) = monster_spr_anim_data6;
 					} else {
 						type = 6;
-						object82_pos_data(obj) = monster_pos_data8;
+						object82_anim_data(obj) = monster_spr_anim_data8;
 					}
 					init_object82(type, x_pos, y_pos, obj, ptr);
 					obj->data[5].w = 0;
@@ -1538,10 +1642,10 @@ static void level_update_triggers() {
 				}
 				struct object_t *obj = find_object(112, 9, 1);
 				if (obj) {
-					obj->spr_num = 242;
+					obj->spr_num = 242; // vertical bar base
 					obj->x_pos = x_pos;
 					obj->y_pos = y_pos + 16;
-					obj->data[3].w = 0;
+					obj->data[3].w = obj->y_pos;
 					obj->data[0].w = READ_LE_UINT16(data + 14);
 					object_blinking_counter(obj) = 0;
 					obj->data[2].w = 0;
@@ -1666,9 +1770,13 @@ static void level_update_triggers() {
 		int offset;
 		while (1) {
 			obj->data[2].w += obj->data[0].w;
-			obj->y_pos += (int8_t)obj->data[2].b[1];
-			obj->data[2].b[1] = 0;
+			obj->y_pos += obj->data[2].w >> 8;
+			obj->data[2].w &= 0xFF;
 			offset = (obj->y_pos >> 4) * g_vars.tilemap_w + (obj->x_pos >> 4);
+			if (offset < 0) {
+				print_warning("Invalid object #112 position %d,%d", obj->x_pos, obj->y_pos);
+				break;
+			}
 			if (obj->data[0].w < 0) {
 				offset -= g_vars.tilemap_w;
 				if (obj->y_pos > obj->data[3].w) {
@@ -1692,20 +1800,18 @@ static void level_update_triggers() {
 			}
 			WRITE_LE_UINT16(g_vars.tilemap_data + offset - 2, 0);
 			WRITE_LE_UINT16(g_vars.tilemap_data + offset, 0);
-
 		} else {
 			offset -= g_vars.tilemap_w;
 			uint16_t tiles = READ_LE_UINT16(g_vars.tilemap_data + offset - 2);
 			if (tiles != 0x9594 && tiles != 0) {
-				level_init_object102_2(offset / g_vars.tilemap_w, offset % g_vars.tilemap_w - 2);
+				level_init_object102_2(obj, offset % g_vars.tilemap_w - 2, offset / g_vars.tilemap_w);
 			}
 			WRITE_LE_UINT16(g_vars.tilemap_data + offset - 2, 0x9594);
 			tiles = READ_LE_UINT16(g_vars.tilemap_data + offset);
 			if (tiles != 0x9695 && tiles != 0) {
-				level_init_object102_2(offset / g_vars.tilemap_w, offset % g_vars.tilemap_w);
+				level_init_object102_2(obj, offset % g_vars.tilemap_w, offset / g_vars.tilemap_w);
 			}
 			WRITE_LE_UINT16(g_vars.tilemap_data + offset, 0x9695);
-
 		}
 	}
 	for (int i = 0; i < 10; ++i) {
@@ -1753,11 +1859,11 @@ static void level_update_triggers() {
 				ax = -80;
 				object82_type(obj2) = 16;
 				// seek to ko animation
-				const uint8_t *p = object82_pos_data(obj2);
+				const uint8_t *p = object82_anim_data(obj2);
 				while (READ_LE_UINT16(p) != 0x7D00) {
 					p += 2;
 				}
-				object82_pos_data(obj2) = p + 2;
+				object82_anim_data(obj2) = p + 2;
 			}
 			object82_energy(obj2) = ax;
 			object22_damage(obj) -= dx;
@@ -1776,16 +1882,15 @@ static void level_update_triggers() {
 			level_init_object102_1(obj, obj->x_pos, obj->y_pos, 203);
 			obj2->spr_num = 0xFFFF;
 			g_vars.buffer[obj->data[0].w / 16] = 0xFFFF;
-			if (obj->data[1].w <= 0x200) {
+			if (object22_damage(obj) > 0x200) {
+				level_init_object_spr_num_46(obj->x_pos, obj->y_pos);
+			} else {
 				obj->spr_num = 0xFFFF;
 				continue;
 			}
-			// if (obj->data[1].w > 0x200) {
-			level_init_object_spr_num_46(obj->x_pos, obj->y_pos);
-
 		} else {
 			assert(g_vars.player != 2);
-			if (obj->data[1].w < 0x200) {
+			if (object22_damage(obj) > 0x200) {
 				level_init_object_spr_num_46(obj->x_pos, obj->y_pos);
 			}
 		}
@@ -1816,14 +1921,14 @@ static void level_update_triggers() {
 	}
 	if (player_bounce_counter(&g_vars.players_table[0].obj) != 0) {
 		--player_bounce_counter(&g_vars.players_table[0].obj);
-		level_update_mushroom_tiles(&g_vars.players_table[0]);
+		level_update_bouncing_tiles(&g_vars.players_table[0]);
 	}
 	assert(g_vars.player != 2);
 	// update monsters
 	for (int i = 0; i < 20; ++i) {
 		struct object_t *obj = &g_vars.objects_table[82 + i];
 		if (obj->spr_num != 0xFFFF) {
-			const uint8_t *p = object82_pos_data(obj);
+			const uint8_t *p = object82_anim_data(obj);
 			int num;
 			while (1) {
 				num = (int16_t)READ_LE_UINT16(p);
@@ -1833,7 +1938,7 @@ static void level_update_triggers() {
 				p += num << 1; // loop
 			}
 			obj->spr_num = num | ((object82_hflip(obj) & 0x80) << 8); // hflip
-			object82_pos_data(obj) = p + 2;
+			object82_anim_data(obj) = p + 2;
 			switch (object82_type(obj)) {
 			case 0:
 				level_update_object82_type0(obj);
@@ -1854,6 +1959,9 @@ static void level_update_triggers() {
 			case 5:
 				level_update_tiles(obj, obj->x_pos, obj->y_pos, _undefined);
 				level_update_object82_position(obj, 0, obj->data[5].b[0]);
+				break;
+			case 7:
+				level_update_object82_type7(obj);
 				break;
 			case 16:
 				level_update_object82_type16(obj);
@@ -1977,7 +2085,7 @@ bonus_objects:
 		}
 		const int spr_num = (obj->spr_num & 0x1FFF);
 		if (spr_num == 194) { // cake, power up
-			level_player_draw_power_animation(player, obj);
+			level_player_draw_powerup_animation(player, obj);
 		} else {
 			play_sound(SOUND_10);
 			if (spr_num == 197) { // checkpoint
@@ -2164,7 +2272,7 @@ static void level_player_update_spr(struct player_t *player, struct object_t *ob
 		if (player->obj.spr_num != 6 && player->obj.spr_num != 19 && player_y_delta(&player->obj) > 64) {
 			num = abs(player_x_delta(&player->obj));
 			num = (num == 32) ? 0 : 4;
-			if (player_flags(&player->obj) & 0x20) {
+			if (player_flags(&player->obj) & PLAYER_FLAGS_POWERUP) {
 				num |= 2;
 			}
 			if (player_flags(&player->obj) & 0x40) {
@@ -2185,7 +2293,7 @@ static void level_player_update_spr(struct player_t *player, struct object_t *ob
 	}
 	const int _dx = num & 0x4000;
 	num &= 0x1FFF;
-	num |= (player_flags(&player->obj) & 4) << 13;
+	num |= (player_flags(&player->obj) & PLAYER_FLAGS_FACING_LEFT) << 13;
 	if (_dx) {
 		num ^= 0x8000;
 	}
@@ -2205,7 +2313,7 @@ static void level_tile_func_5dc9(struct object_t *obj, int bp) {
 	if (bp == _undefined) {
 		return;
 	}
-	const int offset = (g_vars.player_yscroll >> 8) * g_vars.tilemap_w + (g_vars.player_yscroll & 255);
+	const int offset = g_vars.player_map_offset;
 	uint8_t al;
 	al = g_vars.tilemap_data[offset - g_vars.tilemap_w];
 	al = g_vars.level_tiles_lut[al];
@@ -2246,7 +2354,7 @@ static void level_tile_func_5e58(struct object_t *obj, int bp) {
 		play_sound(SOUND_4);
 	}
 	player_y_delta(obj) = 0;
-	if (player_flags(obj) & 2) {
+	if (player_flags(obj) & PLAYER_FLAGS_STAIRS) {
 		obj->y_pos += 2;
 	}
 }
@@ -2289,7 +2397,7 @@ static void level_tile_func_5d3e(struct object_t *obj, int bp) {
 		level_tile_func_5daa(obj, bp);
 		return;
 	}
-	const uint16_t offset = (g_vars.player_yscroll >> 8) * g_vars.tilemap_w + (g_vars.player_yscroll & 255);
+	const int offset = g_vars.player_map_offset;
 	uint8_t ah = (player_flags(obj) & 0x40) | (player_flags2(obj) & 1);
 	uint8_t al = g_vars.tilemap_data[offset - g_vars.tilemap_w];
 	al = g_vars.level_tiles_lut[al];
@@ -2306,7 +2414,7 @@ static void level_tile_func_5d3e(struct object_t *obj, int bp) {
 		}
 	}
 	player_y_delta(obj) = 0;
-	player_flags(obj) |= 2;
+	player_flags(obj) |= PLAYER_FLAGS_STAIRS;
 }
 
 // bouncing mushrooms
@@ -2325,7 +2433,7 @@ static void level_tile_func_5f16(struct object_t *obj, int bp) {
 		player_y_delta(obj) = MAX(-player_y_delta(obj) - 16, -112);
 		player_jump_counter(obj) = 0;
 		player_bounce_counter(obj) = 7;
-		player_tilemap_offset(obj) = g_vars.player_yscroll;
+		player_tilemap_offset(obj) = g_vars.player_map_offset;
 		const int x = (obj->x_pos >> 4) - g_vars.tilemap_x;
 		if (x < 0 || x > TILEMAP_SCREEN_W / 16) {
 			return;
@@ -2341,10 +2449,10 @@ static void level_tile_func_5f16(struct object_t *obj, int bp) {
 static void level_tile_func_5eec(struct object_t *obj, int bp) {
 	assert(bp != _undefined);
 	struct player_t *player = (struct player_t *)obj;
-	const uint16_t bx = g_vars.player_yscroll;
-	g_vars.tilemap_data[(bx >> 8) * g_vars.tilemap_w + (bx & 255)] = 0;
+	const int offset = g_vars.player_map_offset;
+	g_vars.tilemap_data[offset] = 0;
 	++player->vinyls_count;
-	level_init_object_spr_num_104(bx & 0xFF, bx >> 8);
+	level_init_object_spr_num_104(offset % g_vars.tilemap_w, offset / g_vars.tilemap_w);
 	play_sound(SOUND_5);
 	level_tile_func_5daa(obj, bp);
 }
@@ -2450,7 +2558,7 @@ static void level_tile_func(int ax, struct object_t *obj, int bp, int bx) {
 static void level_update_tiles(struct object_t *obj, int ax, int dx, int bp) {
 	const int level_update_tiles_x = ax;
 	const int level_update_tiles_y = dx;
-	g_vars.player_yscroll = (dx >> 4) * 256 + (ax >> 4);
+	g_vars.player_map_offset = (dx >> 4) * g_vars.tilemap_w + (ax >> 4);
 	uint8_t _al = 0;
 	while (1) {
 		const int offset = (dx >> 4) * g_vars.tilemap_w + (ax >> 4);
@@ -2475,31 +2583,30 @@ static void level_update_tiles(struct object_t *obj, int ax, int dx, int bp) {
 	}
 	level_tile_func(ax, obj, bp, num);
 	if (bp == _undefined) {
-		return;
+		return; // not player
 	}
-	struct player_t *player = (struct player_t *)obj;
-	ax = level_update_tiles_x + ((player_x_delta(&player->obj) < 0) ? 6 : -6);
+	ax = level_update_tiles_x + ((player_x_delta(obj) < 0) ? -6 : 6);
 	dx = level_update_tiles_y;
 	const int offset = (dx >> 4) * g_vars.tilemap_w + (ax >> 4);
 	_al = level_get_tile(offset - g_vars.tilemap_w);
 	level_tile_func(tile_funcs2[_al], obj, bp, _al * 2);
-	if (player->obj.spr_num == 3) {
+	if (obj->spr_num == 3) {
 		_al = level_get_tile(offset - g_vars.tilemap_w * 2);
 		level_tile_func(tile_funcs2[_al], obj, bp, _al * 2);
 	}
-	player_flags(&player->obj) &= ~0x10;
-	player_flags2(&player->obj) &= ~0x20;
-	if (player_jump_counter(&player->obj) == 7) {
+	player_flags(obj) &= ~0x10;
+	player_flags2(obj) &= ~0x20;
+	if (player_jump_counter(obj) == 7) {
 		_al = level_get_tile(offset - g_vars.tilemap_w * 2);
 		if (_al == 10) {
-			player_flags2(&player->obj) |= 0x20;
+			player_flags2(obj) |= 0x20;
 		}
 		if (tile_funcs3[_al] == 0x5E58) {
-			player_flags(&player->obj) |= 0x10;
-			player_flags2(&player->obj) &= ~1;
+			player_flags(obj) |= 0x10;
+			player_flags2(obj) &= ~1;
 		}
 	}
-	if ((player_flags(&player->obj) & 2) == 0 && player_y_delta(&player->obj) >= 0) {
+	if ((player_flags(obj) & PLAYER_FLAGS_STAIRS) == 0 && player_y_delta(obj) >= 0) {
 		return;
 	}
 	_al = level_get_tile(offset - g_vars.tilemap_w * 2);
@@ -2547,7 +2654,7 @@ static void sub_15BA5(struct player_t *player) {
 				play_sound(SOUND_5);
 			}
 		}
-		player_flags(&player->obj) &= ~2;
+		player_flags(&player->obj) &= ~PLAYER_FLAGS_STAIRS;
 		if (!sub_15D99(player, player->obj.x_pos, player->obj.y_pos)) {
 			level_update_tiles(&player->obj, player->obj.x_pos, player->obj.y_pos, 0);
 		}
@@ -2557,7 +2664,7 @@ static void sub_15BA5(struct player_t *player) {
 	if ((player_flags(&player->obj) & 0x60) == 0x60) {
 		obj->spr_num += (spr_num <= 148) ? 13 : 12;
 	}
-	if ((player_flags(&player->obj) & 0x80) != 0) {
+	if ((player_flags(&player->obj) & PLAYER_FLAGS_JAKE) != 0) {
 		int d = (spr_num < 50) ? 50 : 25;
 		if (spr_num == 138) {
 			d = 1;
@@ -2735,7 +2842,7 @@ static void reset_level_data() {
 	g_vars.change_next_level_flag = 0;
 	g_vars.player_hit_counter = 0;
 	g_vars.player_xscroll = 0;
-	g_vars.player_yscroll = 0;
+	g_vars.player_map_offset = 0;
 	g_vars.throw_vinyl_counter = 0;
 	g_vars.tilemap_flags = 0;
 	memset(&g_vars.objects_table[32], 0xFF, 40 * sizeof(struct object_t));
@@ -2767,7 +2874,7 @@ static void level_init_players() {
 	player_bounce_counter(&player->obj) = 0;
 	player_hit_counter(&player->obj) = 0;
 	player_flags2(&player->obj) = 0;
-	const uint8_t flag = (g_vars.player & 1) << 7;
+	const uint8_t flag = ((g_vars.player & 1) != 0) ? PLAYER_FLAGS_JAKE : 0;
 	player_flags(&player->obj) |= flag;
 	player_flags2(&player->obj) = flag;
 	player->energy = 4;
@@ -2807,9 +2914,9 @@ static void level_init_tilemap() {
 	}
 }
 
-static void level_player_draw_death_animation(struct player_t *player) {
-	if (player_flags(&player->obj) & 0x20) {
-		player_flags(&player->obj) &= ~0x20;
+static void level_player_draw_powerdown_animation(struct player_t *player) {
+	if (player_flags(&player->obj) & PLAYER_FLAGS_POWERUP) {
+		player_flags(&player->obj) &= ~PLAYER_FLAGS_POWERUP;
 		struct object_t *player_obj = &g_vars.objects_table[player_obj_num(&player->obj)];
 		player_jump_counter(player_obj) = 0;
 		static const uint8_t data[] = { // death animation sprites
@@ -2823,20 +2930,20 @@ static void level_player_draw_death_animation(struct player_t *player) {
 			level_draw_objects();
 			level_sync();
 			player_obj->spr_num = data[i];
-			if (player_flags(&player->obj) & 0x80) {
+			if (player_flags(&player->obj) & PLAYER_FLAGS_JAKE) {
 				player_obj->spr_num += 11;
 			}
 		}
 	}
 }
 
-static void level_player_draw_power_animation(struct player_t *player, struct object_t *obj) {
-	if ((player_flags(&player->obj) & 0x20) == 0) {
+static void level_player_draw_powerup_animation(struct player_t *player, struct object_t *obj) {
+	if ((player_flags(&player->obj) & PLAYER_FLAGS_POWERUP) == 0) {
 		play_sound(SOUND_10);
 		if (player_flags(&player->obj) & 0x40) {
 			player_flags(&player->obj) &= ~0x40;
 		}
-		player_flags(&player->obj) |= 0x20;
+		player_flags(&player->obj) |= PLAYER_FLAGS_POWERUP;
 		obj->spr_num = 0xFFFF;
 		static const uint8_t data[] = { // power animation sprites
 			0x7D, 0x7D, 0x7D, 0x7D, 0x7D, 0x74, 0x75, 0x74, 0x75, 0x7C, 0x7C,
@@ -2851,7 +2958,7 @@ static void level_player_draw_power_animation(struct player_t *player, struct ob
 			level_draw_objects();
 			level_sync();
 			player_obj->spr_num = data[i];
-			if (player_flags(&player->obj) & 0x80) {
+			if (player_flags(&player->obj) & PLAYER_FLAGS_JAKE) {
 				player_obj->spr_num += 11;
 			}
 		}

@@ -40,6 +40,14 @@ struct object_t {
 	} data[11]; // 0x6..0x1C
 };
 
+enum {
+	PLAYER_FLAGS_STAIRS = 2,
+	PLAYER_FLAGS_FACING_LEFT = 4,
+	PLAYER_FLAGS_THROW_VINYL = 8,
+	PLAYER_FLAGS_POWERUP = 0x20,
+	PLAYER_FLAGS_JAKE = 0x80
+};
+
 #define player_obj_num(obj)        (obj)->data[0].w     //  0x6
 #define player_prev_spr_num(obj)   (obj)->data[1].w     //  0x8
 #define player_anim_data(obj)      (obj)->data[2].p     //  0xA
@@ -47,7 +55,7 @@ struct object_t {
 #define player_power(obj)          (obj)->data[3].b[1]  //  0xD
 #define player_x_delta(obj)        (obj)->data[4].w     //  0xE
 #define player_y_delta(obj)        (obj)->data[5].w     // 0x10
-#define player_flags(obj)          (obj)->data[6].b[0]  // 0x12, 4:facing_left 8:throw 32:powerup
+#define player_flags(obj)          (obj)->data[6].b[0]  // 0x12
 #define player_jump_counter(obj)   (obj)->data[6].b[1]  // 0x13
 #define player_bounce_counter(obj) (obj)->data[7].b[0]  // 0x14
 #define player_tilemap_offset(obj) (obj)->data[8].w     // 0x16
@@ -73,7 +81,7 @@ struct object_t {
 // monster
 #define object82_state(obj)      (obj)->data[0].b[0]
 #define object82_type(obj)       (obj)->data[0].b[1]
-#define object82_pos_data(obj)   (obj)->data[1].p
+#define object82_anim_data(obj)  (obj)->data[1].p
 #define object82_hflip(obj)      (obj)->data[3].b[0]
 #define object82_counter(obj)    (obj)->data[3].b[1]
 #define object82_x_delta(obj)    (obj)->data[4].w
@@ -110,7 +118,8 @@ struct player_t {
 //  72      10      bonuses spr_num:190
 //  82      20      monsters
 // 102      10
-// 112      9
+// 112      9       vertical bars
+// 121      8       dragon monster (level 26)
 
 struct vars_t {
 	uint32_t cheats;
@@ -122,10 +131,11 @@ struct vars_t {
 	bool input_keystate[128];
 	uint32_t timestamp;
 	uint8_t input_key_left, input_key_right, input_key_down, input_key_up, input_key_space;
-	uint16_t buffer[128 * 3 + 1]; // level objects state 0xFFFF, 0xFF20 or g_vars.objects_table index
+	uint16_t buffer[128 * 2]; // level objects state 0xFFFF, 0xFF20 or g_vars.objects_table index
+	int16_t dragon_coords[1 + 128];
 	struct player_t players_table[2];
 	uint8_t player_hit_counter;
-	int16_t player_xscroll, player_yscroll;
+	int16_t player_xscroll, player_map_offset;
 	struct object_t objects_table[OBJECTS_COUNT];
 	int level_start_1p_x_pos, level_start_1p_y_pos;
 	int level_start_2p_player1_x_pos, level_start_2p_player1_y_pos, level_start_2p_player2_x_pos, level_start_2p_player2_y_pos;
@@ -163,14 +173,14 @@ extern const uint8_t level_data1p[];
 extern const uint8_t level_data2p[];
 extern const uint8_t level_data3[];
 extern const uint8_t level_data4[];
-extern const uint8_t monster_pos_data0[];
-extern const uint8_t monster_pos_data1[];
-extern const uint8_t monster_pos_data2[];
-extern const uint8_t monster_pos_data3[];
-extern const uint8_t monster_pos_data4[];
-extern const uint8_t monster_pos_data6[];
-extern const uint8_t monster_pos_data8[];
-extern const uint8_t monster_pos_data9[];
+extern const uint8_t monster_spr_anim_data0[];
+extern const uint8_t monster_spr_anim_data1[];
+extern const uint8_t monster_spr_anim_data2[];
+extern const uint8_t monster_spr_anim_data3[];
+extern const uint8_t monster_spr_anim_data4[];
+extern const uint8_t monster_spr_anim_data6[];
+extern const uint8_t monster_spr_anim_data8[];
+extern const uint8_t monster_spr_anim_data9[];
 extern const uint8_t common_palette_data[];
 extern const uint8_t levels_palette_data[];
 extern const uint8_t tile_lut_data0[];

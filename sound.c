@@ -76,7 +76,7 @@ void sound_init() {
 	uint16_t offset = 0;
 	for (int i = 0; i < MAX_SOUNDS; ++i) {
 		const int num = i;
-		_samples[i].size = sound_offsets[num * 2 + 1];
+		_samples[i].size = sound_offsets[num];
 		_samples[i].offset = offset;
 		offset += _samples[i].size;
 	}

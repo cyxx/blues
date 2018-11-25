@@ -237,12 +237,10 @@ static int do_options_screen() {
 	while (!g_sys.input.quit) {
 		scroll_screen_palette();
 		if (g_vars.input_keystate[2] || g_vars.input_keystate[0x4F]) {
-
 			fade_out_palette();
 			return 1;
 		}
 		if (g_vars.input_keystate[3] || g_vars.input_keystate[0x50]) {
-
 			fade_out_palette();
 			return 2;
 		}
