@@ -7,6 +7,7 @@
 struct resource_t {
 	uint8_t *font;
 	uint8_t *board;
+	uint8_t *motif;
 	uint8_t *sprites;
 	uint8_t *samples;
 	uint8_t *tmp;

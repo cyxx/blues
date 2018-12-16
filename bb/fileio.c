@@ -32,18 +32,6 @@ void fio_init(const char *data_path) {
 void fio_fini() {
 }
 
-static FILE *fio_open_no_case(const char *filename) {
-	char buf[MAXPATHLEN];
-	snprintf(buf, sizeof(buf), "%s/%s", _data_path, filename);
-	FILE *fp = fopen(buf, "rb");
-	if (!fp) {
-		char *p = buf + strlen(_data_path) + 1;
-		string_upper(p);
-		fp = fopen(buf, "rb");
-	}
-	return fp;
-}
-
 int fio_open(const char *filename, int error_flag) {
 	int slot = find_free_slot();
 	if (slot < 0) {
@@ -51,7 +39,7 @@ int fio_open(const char *filename, int error_flag) {
 	} else {
 		struct fileio_slot_t *file_slot = &_fileio_slots_table[slot];
 		memset(file_slot, 0, sizeof(fileio_slot_t));
-		file_slot->fp = fio_open_no_case(filename);
+		file_slot->fp = fopen_nocase(_data_path, filename);
 		if (!file_slot->fp) {
 			if (error_flag) {
 				print_error("Unable to open file '%s'", filename);
@@ -98,7 +86,7 @@ int fio_read(int slot, void *data, int len) {
 }
 
 int fio_exists(const char *filename) {
-	FILE *fp = fio_open_no_case(filename);
+	FILE *fp = fopen_nocase(_data_path, filename);
 	if (fp) {
 		fclose(fp);
 		return 1;

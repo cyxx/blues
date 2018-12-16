@@ -22,7 +22,7 @@ void video_draw_dot_pattern(int offset) {
 }
 
 void video_draw_sprite(int num, int x, int y, int flag) {
-	render_add_sprite(RENDER_SPR_GAME, num, x, y, flag != 0);
+	g_sys.render_add_sprite(RENDER_SPR_GAME, num, x, y, flag != 0);
 }
 
 void video_draw_string(const char *s, int offset, int hspace) {
@@ -44,8 +44,8 @@ void video_copy_vga(int size) {
 	if (size == 0xB500) {
 		memcpy(g_res.background, g_res.tmp + 768, 64000);
 	} else {
-		g_sys.set_screen_palette(g_res.tmp, 0, 256, 6);
 		assert(size == 0x7D00);
+		g_sys.set_screen_palette(g_res.tmp, 0, 256, 6);
 		const uint8_t *src = g_res.tmp + 768;
 		if (GAME_SCREEN_W * GAME_SCREEN_H == 64000) {
 			memcpy(g_res.vga, src, 64000);
@@ -58,9 +58,6 @@ void video_copy_vga(int size) {
 		}
 		g_sys.update_screen(g_res.vga, 0);
 	}
-}
-
-void video_vsync(int delay) {
 }
 
 void fade_in_palette() {
@@ -167,6 +164,28 @@ void ja_decode_tile(const uint8_t *buffer, uint8_t pal_mask, uint8_t *dst, int d
 	}
 }
 
+static void decode_motif(const uint8_t *src, uint8_t *dst, uint8_t color) {
+	for (int x = 0; x < 40; ++x) {
+		for (int b = 0; b < 8; ++b) {
+			const uint8_t mask = 1 << (7 - b);
+			if (src[x] & mask) {
+				dst[x * 8 + b] = color;
+			}
+		}
+	}
+}
+
+void ja_decode_motif(int num, uint8_t color) {
+	const uint8_t *src = g_res.motif + 25 * 320 * num;
+	int y = 0;
+	for (int j = 0; j < 25; ++j) {
+		for (int i = 0; i < 8; ++i) {
+			decode_motif(src + i * 40 + j * 320, g_res.vga + y * GAME_SCREEN_W, color);
+			++y;
+		}
+	}
+}
+
 void video_load_sprites() {
 	struct sys_rect_t r[MAX_SPRITES];
 	uint8_t *data = (uint8_t *)calloc(MAX_SPRITESHEET_W * MAX_SPRITESHEET_H, 1);
@@ -211,15 +230,12 @@ void video_load_sprites() {
 			r[i].w = w;
 			r[i].h = h;
 			current_x += w;
-			if (h > max_h) {
-				max_h = h;
-			}
 		}
 		assert(count <= MAX_SPRITES);
 		assert(max_w <= MAX_SPRITESHEET_W);
 		assert(current_y + max_h <= MAX_SPRITESHEET_H);
-		render_unload_sprites(RENDER_SPR_GAME);
-		render_load_sprites(RENDER_SPR_GAME, count, r, data, MAX_SPRITESHEET_W, current_y + max_h, 0, 0x0);
+		g_sys.render_unload_sprites(RENDER_SPR_GAME);
+		g_sys.render_load_sprites(RENDER_SPR_GAME, count, r, data, MAX_SPRITESHEET_W, current_y + max_h, 0, 0x0);
 		free(data);
 	}
 }

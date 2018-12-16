@@ -2073,7 +2073,7 @@ static void draw_foreground_tiles() {
 			if (avt_num != 255) {
 				const int tile_y = g_vars.screen_tilemap_yoffset + j * 16 + TILEMAP_OFFSET_Y;
 				const int tile_x = g_vars.screen_tilemap_xoffset + i * 16;
-				render_add_sprite(RENDER_SPR_FG, avt_num, tile_x, tile_y, 0);
+				g_sys.render_add_sprite(RENDER_SPR_FG, avt_num, tile_x, tile_y, 0);
 			}
 		}
 		++y;
@@ -2105,7 +2105,7 @@ void do_level() {
 	g_vars.quit_level_flag = 0;
 	g_vars.player2_scrolling_flag = 0;
 	g_vars.found_music_instrument_flag = 0;
-	render_set_sprites_clipping_rect(0, TILEMAP_OFFSET_Y, TILEMAP_SCREEN_W, TILEMAP_SCREEN_H);
+	g_sys.render_set_sprites_clipping_rect(0, TILEMAP_OFFSET_Y, TILEMAP_SCREEN_W, TILEMAP_SCREEN_H);
 	bool screen_transition_flag = true;
 	do {
 		const uint32_t timestamp = g_sys.get_timestamp();
@@ -2156,6 +2156,6 @@ void do_level() {
 	if (g_options.amiga_copper_bars) {
 		g_sys.set_copper_bars(0);
 	}
-	render_set_sprites_clipping_rect(0, 0, GAME_SCREEN_W, GAME_SCREEN_H);
+	g_sys.render_set_sprites_clipping_rect(0, 0, GAME_SCREEN_W, GAME_SCREEN_H);
 	g_vars.inp_keyboard[0xBF] = 0;
 }

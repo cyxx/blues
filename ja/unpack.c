@@ -13,11 +13,6 @@ struct unpack_eat_t {
 
 static struct unpack_eat_t g_unpack;
 
-static uint16_t fread_le16(FILE *fp) {
-	const uint16_t val = fgetc(fp);
-	return val | (fgetc(fp) << 8);
-}
-
 static int next_bit(struct unpack_eat_t *u) {
 	const int bit = (u->bits & (1 << (16 - u->len))) != 0;
 	--u->len;

@@ -16,9 +16,13 @@ extern int g_debug_mask;
 
 extern void	string_lower(char *p);
 extern void	string_upper(char *p);
+
 extern void	print_debug(int debug_channel, const char *msg, ...);
 extern void	print_warning(const char *msg, ...);
 extern void	print_error(const char *msg, ...);
 extern void	print_info(const char *msg, ...);
+
+extern FILE *	fopen_nocase(const char *path, const char *filename);
+extern uint16_t	fread_le16(FILE *fp);
 
 #endif /* UTIL_H__ */

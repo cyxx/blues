@@ -17,11 +17,15 @@ void screen_init() {
 }
 
 void screen_clear_sprites() {
-	render_clear_sprites();
+	g_sys.render_clear_sprites();
 }
 
 static void add_game_sprite(int x, int y, int frame, int xflip) {
 	const uint8_t *p = g_res.spr_frames[frame];
+	if (!p) {
+		print_warning("add_game_sprite missing frame %d", frame);
+		return;
+	}
 	const int h = READ_LE_UINT16(p - 4);
 	const int w = READ_LE_UINT16(p - 2);
 	int spr_type = RENDER_SPR_GAME;
@@ -34,7 +38,7 @@ static void add_game_sprite(int x, int y, int frame, int xflip) {
 			y += _offset_y;
 		}
 	}
-	render_add_sprite(spr_type, frame, x - w / 2, y - h, xflip);
+	g_sys.render_add_sprite(spr_type, frame, x - w / 2, y - h, xflip);
 }
 
 void screen_add_sprite(int x, int y, int frame) {
@@ -256,9 +260,9 @@ static void decode_graphics(int spr_type, int start, int end, const uint8_t *dit
 		}
 		assert(max_w <= MAX_SPRITESHEET_W);
 		assert(current_y + max_h <= MAX_SPRITESHEET_H);
-		render_unload_sprites(spr_type);
+		g_sys.render_unload_sprites(spr_type);
 		const int palette_offset = (g_res.amiga_data && start == 0) ? 16 : 0;
-		render_load_sprites(spr_type, end - start, r, data, MAX_SPRITESHEET_W, current_y + max_h, palette_offset, color_key);
+		g_sys.render_load_sprites(spr_type, end - start, r, data, MAX_SPRITESHEET_W, current_y + max_h, palette_offset, color_key);
 		free(data);
 	}
 }
@@ -286,8 +290,8 @@ void screen_load_graphics(const uint8_t *dither_lut_sqv, const uint8_t *dither_l
 			if (dither_lut_avt) {
 				dither_graphics(data, FG_TILE_W * g_res.avt_count, FG_TILE_W * g_res.avt_count, FG_TILE_H, dither_lut_avt, color_key);
 			}
-			render_unload_sprites(RENDER_SPR_FG);
-			render_load_sprites(RENDER_SPR_FG, g_res.avt_count, r, data, g_res.avt_count * FG_TILE_W, FG_TILE_H, 0, color_key);
+			g_sys.render_unload_sprites(RENDER_SPR_FG);
+			g_sys.render_load_sprites(RENDER_SPR_FG, g_res.avt_count, r, data, g_res.avt_count * FG_TILE_W, FG_TILE_H, 0, color_key);
 			free(data);
 		}
 		// background tiles (Amiga) - re-arrange to match DOS .ck1/.ck2 layout

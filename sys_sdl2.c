@@ -511,28 +511,7 @@ static void sdl2_unlock_audio() {
 	SDL_UnlockAudio();
 }
 
-struct sys_t g_sys = {
-	.init = sdl2_init,
-	.fini = sdl2_fini,
-	.set_screen_size = sdl2_set_screen_size,
-	.set_screen_palette = sdl2_set_screen_palette,
-	.set_palette_amiga = sdl2_set_palette_amiga,
-	.set_copper_bars = sdl2_set_copper_bars,
-	.set_palette_color = sdl2_set_palette_color,
-	.fade_in_palette = sdl2_fade_in_palette,
-	.fade_out_palette = sdl2_fade_out_palette,
-	.update_screen = sdl2_update_screen,
-	.transition_screen = sdl2_transition_screen,
-	.process_events = sdl2_process_events,
-	.sleep = sdl2_sleep,
-	.get_timestamp = sdl2_get_timestamp,
-	.start_audio = sdl2_start_audio,
-	.stop_audio = sdl2_stop_audio,
-	.lock_audio = sdl2_lock_audio,
-	.unlock_audio = sdl2_unlock_audio,
-};
-
-void render_load_sprites(int spr_type, int count, const struct sys_rect_t *r, const uint8_t *data, int w, int h, int palette_offset, uint8_t color_key) {
+static void render_load_sprites(int spr_type, int count, const struct sys_rect_t *r, const uint8_t *data, int w, int h, int palette_offset, uint8_t color_key) {
 	assert(spr_type < ARRAYSIZE(_spritesheets));
 	struct spritesheet_t *spr_sheet = &_spritesheets[spr_type];
 	spr_sheet->count = count;
@@ -558,7 +537,7 @@ void render_load_sprites(int spr_type, int count, const struct sys_rect_t *r, co
 	}
 }
 
-void render_unload_sprites(int spr_type) {
+static void render_unload_sprites(int spr_type) {
 	struct spritesheet_t *spr_sheet = &_spritesheets[spr_type];
 	free(spr_sheet->r);
 	if (spr_sheet->texture) {
@@ -567,7 +546,7 @@ void render_unload_sprites(int spr_type) {
 	memset(spr_sheet, 0, sizeof(struct spritesheet_t));
 }
 
-void render_add_sprite(int spr_type, int frame, int x, int y, int xflip) {
+static void render_add_sprite(int spr_type, int frame, int x, int y, int xflip) {
 	assert(_sprites_count < ARRAYSIZE(_sprites));
 	struct sprite_t *spr = &_sprites[_sprites_count];
 	spr->sheet = spr_type;
@@ -578,13 +557,39 @@ void render_add_sprite(int spr_type, int frame, int x, int y, int xflip) {
 	++_sprites_count;
 }
 
-void render_clear_sprites() {
+static void render_clear_sprites() {
 	_sprites_count = 0;
 }
 
-void render_set_sprites_clipping_rect(int x, int y, int w, int h) {
+static void render_set_sprites_clipping_rect(int x, int y, int w, int h) {
 	_sprites_cliprect.x = x;
 	_sprites_cliprect.y = y;
 	_sprites_cliprect.w = w;
 	_sprites_cliprect.h = h;
 }
+
+struct sys_t g_sys = {
+	.init = sdl2_init,
+	.fini = sdl2_fini,
+	.set_screen_size = sdl2_set_screen_size,
+	.set_screen_palette = sdl2_set_screen_palette,
+	.set_palette_amiga = sdl2_set_palette_amiga,
+	.set_copper_bars = sdl2_set_copper_bars,
+	.set_palette_color = sdl2_set_palette_color,
+	.fade_in_palette = sdl2_fade_in_palette,
+	.fade_out_palette = sdl2_fade_out_palette,
+	.update_screen = sdl2_update_screen,
+	.transition_screen = sdl2_transition_screen,
+	.process_events = sdl2_process_events,
+	.sleep = sdl2_sleep,
+	.get_timestamp = sdl2_get_timestamp,
+	.start_audio = sdl2_start_audio,
+	.stop_audio = sdl2_stop_audio,
+	.lock_audio = sdl2_lock_audio,
+	.unlock_audio = sdl2_unlock_audio,
+	.render_load_sprites = render_load_sprites,
+	.render_unload_sprites = render_unload_sprites,
+	.render_add_sprite = render_add_sprite,
+	.render_clear_sprites = render_clear_sprites,
+	.render_set_sprites_clipping_rect = render_set_sprites_clipping_rect
+};

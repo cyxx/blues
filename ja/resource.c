@@ -33,6 +33,14 @@ void res_init(const char *path, int vga_size) {
 	snprintf(filepath, sizeof(filepath), "%s/board.eat", _datapath);
 	unpack(filepath, g_res.board, BOARD_SIZE);
 
+	static const int MOTIF_SIZE = 320 * 25 * 9;
+	g_res.motif = (uint8_t *)malloc(MOTIF_SIZE);
+	if (!g_res.motif) {
+		print_error("Failed to allocate motif buffer, %d bytes", MOTIF_SIZE);
+	}
+	snprintf(filepath, sizeof(filepath), "%s/motif.eat", _datapath);
+	unpack(filepath, g_res.motif, MOTIF_SIZE);
+
 	static const int SPRITES_SIZE = 108044;
 	g_res.sprites = (uint8_t *)malloc(SPRITES_SIZE);
 	if (!g_res.sprites) {
@@ -70,6 +78,8 @@ void res_fini() {
 	g_res.font = 0;
 	free(g_res.board);
 	g_res.board = 0;
+	free(g_res.motif);
+	g_res.motif = 0;
 	free(g_res.sprites);
 	g_res.sprites = 0;
 	free(g_res.tmp);

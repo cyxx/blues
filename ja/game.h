@@ -4,9 +4,10 @@
 
 #include "intern.h"
 
-#define CHEATS_OBJECT_NO_HIT (1 << 0)
-#define CHEATS_ONE_HIT_VINYL (1 << 1)
-#define CHEATS_DECOR_NO_HIT  (1 << 2)
+#define CHEATS_OBJECT_NO_HIT    (1 << 0)
+#define CHEATS_ONE_HIT_VINYL    (1 << 1)
+#define CHEATS_DECOR_NO_HIT     (1 << 2)
+#define CHEATS_UNLIMITED_VINYLS (1 << 3)
 
 extern struct options_t g_options;
 
@@ -129,7 +130,6 @@ struct vars_t {
 	uint16_t buffer[128 * 2]; // level objects state 0xFFFF, 0xFF20 or g_vars.objects_table index
 	int16_t dragon_coords[1 + 128];
 	struct player_t players_table[2];
-	uint8_t player_hit_counter;
 	int16_t player_xscroll, player_map_offset;
 	struct object_t objects_table[OBJECTS_COUNT];
 	int level_start_1p_x_pos, level_start_1p_y_pos;
@@ -172,7 +172,6 @@ extern const uint8_t monster_spr_anim_data0[];
 extern const uint8_t monster_spr_anim_data1[];
 extern const uint8_t monster_spr_anim_data2[];
 extern const uint8_t monster_spr_anim_data3[];
-extern const uint8_t monster_spr_anim_data4[];
 extern const uint8_t monster_spr_anim_data6[];
 extern const uint8_t monster_spr_anim_data8[];
 extern const uint8_t monster_spr_anim_data9[];
@@ -208,12 +207,12 @@ extern void	video_draw_dot_pattern(int offset);
 extern void	video_draw_sprite(int num, int x, int y, int flag);
 extern void	video_draw_string(const char *s, int offset, int hspace);
 extern void	video_copy_vga(int size);
-extern void	video_vsync(int delay);
 extern void	fade_in_palette();
 extern void	fade_out_palette();
 extern void	ja_decode_spr(const uint8_t *src, int w, int h, uint8_t *dst, int dst_pitch, uint8_t pal_mask);
 extern void	ja_decode_chr(const uint8_t *buffer, const int size, uint8_t *dst, int dst_pitch);
 extern void	ja_decode_tile(const uint8_t *buffer, uint8_t pal_mask, uint8_t *dst, int dst_pitch, int x, int y);
+extern void	ja_decode_motif(int num, uint8_t color);
 extern void	video_load_sprites();
 
 /* sound.c */

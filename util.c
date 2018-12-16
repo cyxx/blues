@@ -1,5 +1,6 @@
 
 #include <stdarg.h>
+#include <sys/param.h>
 #include "util.h"
 
 int g_debug_mask = 0;
@@ -57,4 +58,21 @@ void print_info(const char *msg, ...) {
 	vsprintf(buf, msg, va);
 	va_end(va);
 	fprintf(stdout, "%s\n", buf);
+}
+
+FILE *fopen_nocase(const char *path, const char *filename) {
+	char buf[MAXPATHLEN];
+	snprintf(buf, sizeof(buf), "%s/%s", path, filename);
+	FILE *fp = fopen(buf, "rb");
+	if (!fp) {
+		char *p = buf + strlen(path) + 1;
+		string_upper(p);
+		fp = fopen(buf, "rb");
+	}
+	return fp;
+}
+
+uint16_t fread_le16(FILE *fp) {
+	const uint16_t val = fgetc(fp);
+	return val | (fgetc(fp) << 8);
 }

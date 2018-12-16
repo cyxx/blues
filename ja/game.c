@@ -96,7 +96,6 @@ static void do_select_screen() {
 	int bl = 2;
 	while (!g_sys.input.quit) {
 		int bh = bl;
-		video_vsync(60);
 		if (g_sys.input.direction & INPUT_DIRECTION_RIGHT) {
 			g_sys.input.direction &= ~INPUT_DIRECTION_RIGHT;
 			++bl;
@@ -104,7 +103,6 @@ static void do_select_screen() {
 			if (bl == 0) {
 				bl = 1;
 			}
-			video_vsync(60);
 		}
 		if (g_sys.input.direction & INPUT_DIRECTION_LEFT) {
 			g_sys.input.direction &= ~INPUT_DIRECTION_LEFT;
@@ -113,7 +111,6 @@ static void do_select_screen() {
 			if (bl == 0) {
 				bl = 3;
 			}
-			video_vsync(60);
 		}
 		bh ^= bl;
 		if (bh & 1) {
@@ -316,7 +313,7 @@ void game_main() {
 	do_splash_screen();
 	g_sys.set_screen_palette(common_palette_data, 0, 128, 6);
 	video_load_sprites();
-	render_set_sprites_clipping_rect(0, 0, TILEMAP_SCREEN_W, TILEMAP_SCREEN_H);
+	g_sys.render_set_sprites_clipping_rect(0, 0, TILEMAP_SCREEN_W, TILEMAP_SCREEN_H);
 	while (!g_sys.input.quit) {
 		update_input();
 		g_vars.level = g_options.start_level;

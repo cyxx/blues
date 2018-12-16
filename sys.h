@@ -11,6 +11,10 @@
 
 #define SYS_AUDIO_FREQ 22050
 
+#define RENDER_SPR_GAME  0 /* player sprites */
+#define RENDER_SPR_LEVEL 1 /* level sprites */
+#define RENDER_SPR_FG    2 /* foreground tiles */
+
 struct input_t {
 	uint8_t direction;
 	bool quit;
@@ -51,18 +55,13 @@ struct sys_t {
 	void	(*stop_audio)();
 	void	(*lock_audio)();
 	void	(*unlock_audio)();
+	void	(*render_load_sprites)(int spr_type, int count, const struct sys_rect_t *r, const uint8_t *data, int w, int h, int palette_offset, uint8_t color_key);
+	void	(*render_unload_sprites)(int spr_type);
+	void	(*render_add_sprite)(int spr_type, int frame, int x, int y, int xflip);
+	void	(*render_clear_sprites)();
+	void	(*render_set_sprites_clipping_rect)(int x, int y, int w, int h);
 };
 
 extern struct sys_t g_sys;
-
-#define RENDER_SPR_GAME  0 /* player sprites */
-#define RENDER_SPR_LEVEL 1 /* level sprites */
-#define RENDER_SPR_FG    2 /* foreground tiles */
-
-extern void	render_load_sprites(int spr_type, int count, const struct sys_rect_t *r, const uint8_t *data, int w, int h, int palette_offset, uint8_t color_key);
-extern void	render_unload_sprites(int spr_type);
-extern void	render_add_sprite(int spr_type, int frame, int x, int y, int xflip);
-extern void	render_clear_sprites();
-extern void	render_set_sprites_clipping_rect(int x, int y, int w, int h);
 
 #endif /* SYS_H__ */
