@@ -145,8 +145,8 @@ void play_music(int num) {
 					}
 				}
 				_mpf = ModPlug_Load(buf, size);
+				free(buf);
 			}
-			free(buf);
 		}
 		fio_close(slot);
 	} else { // ExoticA

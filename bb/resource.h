@@ -12,7 +12,7 @@ struct trigger_t {
 	int16_t tile_type;
 	int16_t tile_flags;
 	uint8_t op_func;
-	const uint8_t *op_table1; // dy for (x&15)
+	const uint8_t *op_table1; // tile_yoffset
 	const uint8_t *op_table2; // tile_animation
 	int16_t unk10;
 	const uint8_t *op_table3; // tile_trigger
@@ -51,7 +51,7 @@ struct resource_data_t {
 
 extern struct resource_data_t g_res;
 
-extern void	res_init(int vga_size);
+extern void	res_init(const char *datapath, int vga_size);
 extern void	res_fini();
 extern int	read_file(const char *filename, uint8_t *dst, int size);
 extern int	read_compressed_file(const char *filename, uint8_t *dst);

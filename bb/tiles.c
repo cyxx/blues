@@ -12,9 +12,7 @@ uint16_t triggers_get_tile_type(int x, int y) {
 }
 
 uint16_t triggers_get_next_tile_flags(int x, int y) {
-	const uint8_t *p = lookup_sql(x, y);
-	int num = p[0];
-	num = g_res.triggers[num].unk16;
+	const int num = triggers_get_next_tile_num(x, y);
 	return g_res.triggers[num].tile_flags;
 }
 
@@ -470,7 +468,7 @@ static void trigger_func_op30(struct object_t *obj) {
 static void trigger_func_op31(struct object_t *obj) {
 	if (obj->yvelocity > 0 && obj->unk2B == 0) {
 		obj->yvelocity = 0;
-		obj->ypos = (obj->ypos & ~15) + triggers_get_dy(obj);
+		obj->ypos = (obj->ypos & ~15) + triggers_tile_get_yoffset(obj);
 		obj->ypos16 = obj->ypos >> 4;
 		obj->screen_ypos = obj->ypos - g_vars.screen_tilemap_yorigin;
 		obj->sprite_type = 1;
@@ -482,7 +480,7 @@ static void trigger_func_op31(struct object_t *obj) {
 static void trigger_func_op32(struct object_t *obj) {
 	if (obj->yvelocity > 0 && obj->unk2B == 0) {
 		obj->yvelocity = 0;
-		obj->ypos = (obj->ypos & ~15) + triggers_get_dy(obj);
+		obj->ypos = (obj->ypos & ~15) + triggers_tile_get_yoffset(obj);
 		obj->ypos16 = obj->ypos >> 4;
 		obj->screen_ypos = obj->ypos - g_vars.screen_tilemap_yorigin;
 		obj->sprite_type = 1;
@@ -508,7 +506,7 @@ static void trigger_func_op33(struct object_t *obj) {
 static void trigger_func_op34(struct object_t *obj) {
 	if (obj->yvelocity > 0 && obj->unk2B == 0) {
 		obj->yvelocity = 0;
-		obj->ypos = (obj->ypos & ~15) + triggers_get_dy(obj);
+		obj->ypos = (obj->ypos & ~15) + triggers_tile_get_yoffset(obj);
 		obj->ypos16 = obj->ypos >> 4;
 		obj->screen_ypos = obj->ypos - g_vars.screen_tilemap_yorigin;
 		obj->sprite_type = 1;
@@ -534,7 +532,7 @@ static void trigger_func_op35(struct object_t *obj) {
 static void trigger_func_op36(struct object_t *obj) {
 	if (obj->yvelocity > 0 && obj->unk2B == 0) {
 		obj->yvelocity = 0;
-		obj->ypos = (obj->ypos & ~15) + triggers_get_dy(obj);
+		obj->ypos = (obj->ypos & ~15) + triggers_tile_get_yoffset(obj);
 		obj->ypos16 = obj->ypos >> 4;
 		obj->screen_ypos = obj->ypos - g_vars.screen_tilemap_yorigin;
 		obj->sprite_type = 4;
@@ -556,7 +554,7 @@ static void trigger_func_op37(struct object_t *obj) {
 static void trigger_func_op38(struct object_t *obj) {
 	if (obj->yvelocity > 0 && obj->unk2B == 0) {
 		obj->yvelocity = 0;
-		obj->ypos = (obj->ypos & ~15) + triggers_get_dy(obj);
+		obj->ypos = (obj->ypos & ~15) + triggers_tile_get_yoffset(obj);
 		obj->ypos16 = obj->ypos >> 4;
 		obj->screen_ypos = obj->ypos - g_vars.screen_tilemap_yorigin;
 		obj->sprite_type = 4;
@@ -599,7 +597,7 @@ static void trigger_func_op40(struct object_t *obj) {
 	if (counter == 400) {
 		if (!g_vars.two_players_flag) {
 			g_vars.level_completed_flag = 1;
-		} else if (g_vars.objects[OBJECT_NUM_PLAYER1].flag_end_level != 0 && g_vars.objects[OBJECT_NUM_PLAYER2].flag_end_level != 0) {
+		} else if (g_vars.objects[OBJECT_NUM_PLAYER1].level_complete_flag != 0 && g_vars.objects[OBJECT_NUM_PLAYER2].level_complete_flag != 0) {
 			g_vars.level_completed_flag = 1;
 		}
 	}
@@ -764,9 +762,9 @@ void triggers_update_tiles1(struct object_t *obj) {
 		}
 		if (p[8] != 0) {
 			if (obj->data5F == g_vars.level + 1) { // music instrument must have been found to complete the level
-				if (obj->flag_end_level == 0) {
+				if (obj->level_complete_flag == 0) {
 					play_sound(SOUND_13);
-					obj->flag_end_level = 1;
+					obj->level_complete_flag = 1;
 					if (_di == 0) {
 						do_level_update_tile(obj->xpos16, obj->ypos16, p[2]);
 					} else {
@@ -784,10 +782,8 @@ void triggers_update_tiles1(struct object_t *obj) {
 					}
 					g_vars.triggers_counter = 0;
 				}
-
 			} else if (g_vars.triggers_counter == 0) {
 				g_vars.triggers_counter = 1;
-
 			}
 		} else {
 			if (_di == 0) {
@@ -890,7 +886,7 @@ void triggers_update_tiles1(struct object_t *obj) {
 	}
 }
 
-int16_t triggers_get_dy(struct object_t *obj) {
+int16_t triggers_tile_get_yoffset(struct object_t *obj) {
 	const uint8_t *p = lookup_sql(obj->xpos16, obj->ypos16);
 	const int num = p[0];
 	return g_res.triggers[num].op_table1[obj->xpos & 15] - 1;

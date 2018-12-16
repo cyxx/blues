@@ -1,10 +1,6 @@
 
 #include <getopt.h>
 #include <sys/stat.h>
-
-#include "fileio.h"
-#include "game.h"
-#include "resource.h"
 #include "sys.h"
 #include "util.h"
 
@@ -23,11 +19,32 @@ static const char *USAGE =
 	"  --cheats=MASK     Cheats mask\n"
 	"  --startpos=XxY    Start at position (X,Y)\n"
 	"  --fullscreen      Enable fullscreen\n"
-	"  --scale           Graphics scaling factor (default 2)\n"
-	"  --filter          Graphics scaling filter\n"
+	"  --scale=N         Graphics scaling factor (default 2)\n"
+	"  --filter=NAME     Graphics scaling filter (default 'nearest')\n"
 	"  --screensize=WxH  Graphics screen size (default 320x200)\n"
 	"  --cga             Enable CGA colors\n"
 ;
+
+static struct game_t *detect_game(const char *data_path) {
+#if 0
+	extern struct game_t bb_game;
+	extern struct game_t ja_game;
+	static struct game_t *games[] = {
+		&bb_game,
+		&ja_game,
+		0
+	};
+	for (int i = 0; games[i]; ++i) {
+		if (games[i]->detect(data_path)) {
+			return games[i];
+		}
+	}
+	return 0;
+#else
+	extern struct game_t game;
+	return &game;
+#endif
+}
 
 int main(int argc, char *argv[]) {
 	g_options.start_xpos16 = -1;
@@ -97,7 +114,7 @@ int main(int argc, char *argv[]) {
 			if (sscanf(optarg, "%dx%d", &g_options.screen_w, &g_options.screen_h) == 2) {
 				// align to tile 16x16
 				g_options.screen_w =  (g_options.screen_w + 15) & ~15;
-				g_options.screen_h = ((g_options.screen_h + 15) & ~15) + 40;
+				g_options.screen_h = ((g_options.screen_h + 15) & ~15) + 40; // PANEL_H
 			}
 			break;
 		case 10:
@@ -108,16 +125,15 @@ int main(int argc, char *argv[]) {
 			return -1;
 		}
 	}
-	fio_init(data_path);
-	res_init(GAME_SCREEN_W * GAME_SCREEN_H);
-	g_sys.init();
-	g_sys.set_screen_size(GAME_SCREEN_W, GAME_SCREEN_H, "Blues Brothers", scale_factor, scale_filter, fullscreen);
-	sound_init();
-	game_main();
-	sound_fini();
-	g_sys.fini();
-	res_fini();
-	fio_fini();
+	struct game_t *game = detect_game(data_path);
+	if (!game) {
+		fprintf(stdout, "No data files found\n");
+	} else {
+		g_sys.init();
+		g_sys.set_screen_size(GAME_SCREEN_W, GAME_SCREEN_H, game->name, scale_factor, scale_filter, fullscreen);
+		game->run(data_path);
+		g_sys.fini();
+	}
 	if (data_path != DEFAULT_DATA_PATH) {
 		free((char *)data_path);
 	}

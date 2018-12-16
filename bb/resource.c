@@ -7,7 +7,8 @@
 
 struct resource_data_t g_res;
 
-void res_init(int vga_size) {
+void res_init(const char *datapath, int vga_size) {
+	fio_init(datapath);
 	static const int SQL_SIZE = 640 * 25;
 	g_res.sql = (uint8_t *)malloc(SQL_SIZE);
 	if (!g_res.sql) {
@@ -56,6 +57,7 @@ void res_init(int vga_size) {
 }
 
 void res_fini() {
+	fio_fini();
 	free(g_res.sql);
 	g_res.sql = 0;
 	free(g_res.spr_sqv);
@@ -102,7 +104,7 @@ static void copy_cga(uint8_t *dst, int dst_pitch, uint8_t *dither_lut) {
 	for (int y = 0; y < 200; ++y) {
 		const uint8_t *p = dither_lut + (y & 1) * 0x10;
 		for (int x = 0; x < 320; ++x) {
-			dst[x] = p[dst[x]] & 3;
+			dst[x] = p[dst[x]];
 		}
 		dst += dst_pitch;
 	}
@@ -280,9 +282,6 @@ void load_ck(const char *filename, uint16_t offset, int dither_pattern) {
 		break;
 	}
 	load_iff(g_res.tmp, size, g_res.tiles + offset, 640, dither_pattern);
-	if (dither_pattern < 0) {
-		g_sys.set_screen_palette(g_res.palette, 16);
-	}
 }
 
 void load_img(const char *filename, int screen_w, int dither_pattern) {
@@ -294,12 +293,11 @@ void load_img(const char *filename, int screen_w, int dither_pattern) {
 		size = read_compressed_file(filename, g_res.tmp);
 	}
 	assert(size <= 32000);
-	load_iff(g_res.tmp, size, g_res.tmp + 32000, screen_w, dither_pattern);
+	load_iff(g_res.tmp, size, g_res.vga, screen_w, dither_pattern);
 	if (dither_pattern < 0) {
-		g_sys.set_screen_palette(g_res.palette, 16);
+		g_sys.set_screen_palette(g_res.palette, 0, 16, 8);
 	}
-	g_sys.update_screen(g_res.tmp + 32000, 0);
-	memcpy(g_res.vga, g_res.tmp + 32000, g_res.vga_size);
+	g_sys.update_screen(g_res.vga, 0);
 }
 
 void load_m(const char *filename) {

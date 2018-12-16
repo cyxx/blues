@@ -4,9 +4,6 @@
 
 #include "intern.h"
 
-#define GAME_SCREEN_W g_options.screen_w
-#define GAME_SCREEN_H g_options.screen_h
-
 #define TILEMAP_OFFSET_Y  14
 #define TILEMAP_SCREEN_W  GAME_SCREEN_W
 #define TILEMAP_SCREEN_H (GAME_SCREEN_H - 40)
@@ -37,20 +34,6 @@
 #define CHEATS_NO_HIT           (1 << 0)
 #define CHEATS_UNLIMITED_LIFES  (1 << 1)
 #define CHEATS_UNLIMITED_ENERGY (1 << 2)
-
-struct options_t {
-	uint32_t cheats;
-	int start_level;
-	int start_xpos16;
-	int start_ypos16;
-	int screen_w;
-	int screen_h;
-	bool amiga_copper_bars;
-	bool amiga_colors;
-	bool amiga_status_bar;
-	bool dos_scrolling;
-	bool cga_colors;
-};
 
 extern struct options_t g_options;
 
@@ -134,15 +117,15 @@ struct object_t {
 	uint8_t unk56;
 	int16_t vinyls_count;
 	uint8_t collide_flag;
-	int16_t unk5A; // always zero
-	uint8_t unk5C;
+	// int16_t unk5A; // always zero
+	// uint8_t unk5C; // never read
 	uint8_t unk5D;
 	uint8_t blinking_counter;
 	uint8_t data5F; // music instrument number for obj39/40, counter for other objects
 	uint8_t unk60;
 	uint8_t lifes_count;
-	uint8_t flag_end_level; // level flag, set if music instrument was found
-	uint8_t unk63; // restart_level_flag
+	uint8_t level_complete_flag; // set if music instrument was found
+	uint8_t restart_level_flag;
 };
 
 struct vars_t {
@@ -220,8 +203,6 @@ extern uint8_t *level_tilesdata_1e8c[];
 /* game.c */
 extern void	update_input();
 extern void	game_main();
-extern void	do_title_screen();
-extern void	do_select_player();
 
 /* level.c */
 extern void	load_level_data(int num);
@@ -233,7 +214,7 @@ extern void	do_level_drop_grabbed_object(struct object_t *);
 extern void	do_level_update_projectile(struct object_t *obj);
 extern void	do_level();
 
-/* opcodes.c */
+/* objects.c */
 extern void	level_call_object_func(struct object_t *);
 
 /* screen.c */
@@ -247,7 +228,6 @@ extern void	screen_adjust_palette_color(int color, int b, int c);
 extern void	screen_vsync();
 extern void	screen_draw_frame(const uint8_t *frame, int fh, int fw, int x, int y);
 extern void	screen_flip();
-extern void	screen_copy_img();
 extern void	screen_unk5();
 extern void	screen_do_transition1(int a);
 extern void	screen_do_transition2();
@@ -266,14 +246,14 @@ extern void	sound_fini();
 extern void	play_sound(int num);
 extern void	play_music(int num);
 
-/* triggers.c */
+/* tiles.c */
 extern uint16_t	triggers_get_tile_type(int x, int y);
 extern uint16_t	triggers_get_next_tile_flags(int x, int y);
 extern uint16_t	triggers_get_tile_data(struct object_t *obj);
 extern uint16_t	triggers_get_next_tile_num(int x, int y);
 extern void	level_call_trigger_func(struct object_t *obj, int y);
 extern void	triggers_update_tiles1(struct object_t *obj);
-extern int16_t	triggers_get_dy(struct object_t *obj);
+extern int16_t	triggers_tile_get_yoffset(struct object_t *obj);
 extern void	triggers_update_tiles2(struct object_t *obj);
 
 #endif /* GAME_H__ */

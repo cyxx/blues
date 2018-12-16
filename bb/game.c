@@ -31,7 +31,7 @@ void update_input() {
 	// g_vars.inp_key_tab = g_vars.inp_keyboard[0xF] || g_vars.inp_keyboard[0x78];
 }
 
-void do_title_screen() {
+static void do_title_screen() {
 	const uint32_t timestamp = g_sys.get_timestamp() + 20 * 1000;
 	load_img(g_res.amiga_data ? "blues.lbm" : "pres.sqz", GAME_SCREEN_W, g_options.cga_colors ? 0 : -1);
 	fade_in_palette();
@@ -40,13 +40,33 @@ void do_title_screen() {
 		if (g_sys.input.space || g_sys.input.quit) {
 			break;
 		}
+		g_sys.sleep(10);
 	} while (g_sys.get_timestamp() < timestamp);
 	play_sound(SOUND_0);
 	fade_out_palette();
 	g_sys.input.space = 0;
 }
 
-void do_select_player() {
+static void do_demo_screens() {
+	static const char *filenames[] = { "text1.sqz", "maq1.sqz", "maq2.sqz", "maq3.sqz", "maq4.sqz", "maq5.sqz", 0 };
+	for (int i = 0; filenames[i]; ++i) {
+		load_img(filenames[i], GAME_SCREEN_W, -1);
+		fade_in_palette();
+		while (1) {
+			update_input();
+			if (g_sys.input.space) {
+				break;
+			}
+			if (g_sys.input.quit) {
+				return;
+			}
+			g_sys.sleep(10);
+		}
+		fade_out_palette();
+	}
+}
+
+static void do_select_player() {
 	int quit = 0;
 	int fade = 0;
 	int state = 0;
@@ -58,7 +78,6 @@ void do_select_player() {
 	screen_load_graphics(g_options.cga_colors ? g_res.cga_lut_sqv : 0, 0);
 	screen_clear_sprites();
 	do {
-		screen_copy_img();
 		update_input();
 		const uint32_t timestamp = g_sys.get_timestamp();
 		switch (state) {
@@ -300,7 +319,7 @@ void game_main() {
 		g_res.spr_frames[144] = icon778e;
 	}
 	if (g_options.cga_colors) {
-		g_sys.set_screen_palette(_colors_cga, 4);
+		g_sys.set_screen_palette(_colors_cga, 0, 4, 8);
 	} else if (g_options.amiga_colors) {
 		uint16_t palette[16];
 		for (int i = 0; i < 16; ++i) {
@@ -328,6 +347,23 @@ void game_main() {
 			}
 			load_level_data(g_vars.level);
 			do_level();
+			if (g_res.dos_demo && g_vars.level > 0) {
+				do_demo_screens();
+				return;
+			}
 		}
 	}
 }
+
+static void game_run(const char *data_path) {
+	res_init(data_path, GAME_SCREEN_W * GAME_SCREEN_H);
+	sound_init();
+	game_main();
+	sound_fini();
+	res_fini();
+}
+
+struct game_t game = {
+	"Blues Brothers",
+	game_run
+};

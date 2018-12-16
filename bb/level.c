@@ -94,6 +94,8 @@ void load_level_data(int num) {
 	if (g_options.cga_colors) {
 	} else if (g_options.amiga_colors) {
 		g_sys.set_palette_amiga(_colors_data + g_vars.level * 16, 0);
+	} else {
+		g_sys.set_screen_palette(g_res.palette, 0, 16, 8);
 	}
 	screen_load_graphics(g_options.cga_colors ? g_res.cga_lut_sqv : 0, g_options.cga_colors ? g_res.cga_lut_avt : 0);
 }
@@ -229,13 +231,13 @@ static void init_level() {
 		obj->trigger3 = 0;
 		obj->unk50 = 0;
 		// obj->unk4E = 0;
-		if (obj->unk63 == 0 && obj->flag_end_level == 0 && (g_vars.level == 0 || g_vars.play_demo_flag)) {
+		if (obj->restart_level_flag == 0 && obj->level_complete_flag == 0 && (g_vars.level == 0 || g_vars.play_demo_flag)) {
 			g_vars.player1_dead_flag = 0;
 			g_vars.player2_scrolling_flag = 0;
 			obj->lifes_count = 3;
 			obj->data51 = 3;
 			obj->vinyls_count = 0;
-		} else if (obj->unk63 != 0) {
+		} else if (obj->restart_level_flag != 0) {
 			--obj->lifes_count;
 			obj->data51 = 3;
 			obj->vinyls_count = 0;
@@ -244,15 +246,15 @@ static void init_level() {
 			obj->lifes_count = 3;
 			obj->data51 = 3;
 		}
-		obj->unk63 = 0;
-		obj->flag_end_level = 0;
+		obj->restart_level_flag = 0;
+		obj->level_complete_flag = 0;
 		obj->unk53 = 0;
 		obj->unk54 = 0;
 		obj->unk55 = 0;
 		obj->unk56 = 0;
 		obj->collide_flag = 0;
-		obj->unk5A = 0;
-		obj->unk5C = 1;
+		// obj->unk5A = 0;
+		// obj->unk5C = 1;
 		obj->unk5D = 0;
 		if (obj->ypos > g_vars.screen_tilemap_h) {
 			obj->unk53 = 1;
@@ -789,17 +791,17 @@ static void do_level_add_sprite3(struct object_t *obj) {
 				obj->anim_num = 1;
 				obj->special_anim = 0;
 				obj->sprite3_counter = 0;
-			} else if (obj->unk5A != 0) {
-				obj->unk5C = 4;
+			// } else if (obj->unk5A != 0) {
+				// obj->unk5C = 4;
 			}
 		}
 		if (obj->special_anim == 18 && obj->anim_num > 8 && (g_vars.inp_key_up != 0 /* || g_inp_key_T != 0*/)) {
 			obj->anim_num = 1;
 			obj->special_anim = 0;
 			obj->sprite3_counter = 0;
-			if (obj->unk5A != 0) {
-				obj->unk5C = 4;
-			}
+			// if (obj->unk5A != 0) {
+				// obj->unk5C = 4;
+			// }
 		}
 	}
 	if (obj->type != 100) {
@@ -998,7 +1000,7 @@ void do_level_update_panel_lifes(struct object_t *obj) {
 	}
 	if (obj->data51 == 0) { // health
 		if (!g_vars.two_players_flag) {
-			obj->unk63 = 1;
+			obj->restart_level_flag = 1;
 			g_vars.game_over_flag = 1;
 		} else {
 			if (obj->lifes_count != 1) {
@@ -1151,12 +1153,6 @@ void do_level_enter_door(struct object_t *obj) {
 			}
 			obj->screen_xpos = obj->xpos - g_vars.screen_tilemap_xorigin;
 			obj->screen_ypos = obj->ypos - g_vars.screen_tilemap_yorigin;
-			draw_level_panel();
-			do_level_update_panel_vinyls(obj);
-			if (g_vars.two_players_flag) {
-				do_level_update_panel_2nd_player();
-			}
-			screen_flip();
 			do_level_redraw_tilemap(g_vars.screen_tilemap_xorigin, g_vars.screen_tilemap_yorigin);
 			do_level_update_scrolling2();
 			draw_level_panel();
@@ -1164,8 +1160,8 @@ void do_level_enter_door(struct object_t *obj) {
 			if (g_vars.two_players_flag) {
 				do_level_update_panel_2nd_player();
 			}
-			screen_do_transition1(1);
 			screen_flip();
+			screen_do_transition1(1);
 			obj->unk3D = 0;
 			obj->sprite_type = 0;
 			obj->yacc = 2;
@@ -1456,7 +1452,7 @@ static void do_level_fixup_object_position(struct object_t *obj) {
 	switch (num) {
 	case 2:
 	case 14:
-		ret = triggers_get_dy(obj);
+		ret = triggers_tile_get_yoffset(obj);
 		obj->ypos = ret + (obj->ypos & ~15);
 		obj->ypos16 = obj->ypos >> 4;
 		obj->screen_ypos = obj->ypos - g_vars.screen_tilemap_yorigin;
@@ -1464,7 +1460,7 @@ static void do_level_fixup_object_position(struct object_t *obj) {
 	case 3:
 	case 15:
 		--obj->ypos16;
-		ret = triggers_get_dy(obj);
+		ret = triggers_tile_get_yoffset(obj);
 		obj->ypos = ret + (obj->ypos & ~15) - 16;
 		obj->ypos16 = obj->ypos >> 4;
 		obj->screen_ypos = obj->ypos - g_vars.screen_tilemap_yorigin;
@@ -1909,7 +1905,6 @@ static void do_level_update_objects() {
 				}
 			} else if (g_vars.two_players_flag) {
 				if (!g_vars.player1_dead_flag) {
-					// sub_176D7(obj);
 					do_level_update_object_unk2E(obj);
 					do_level_update_panel_2nd_player();
 				}
@@ -1918,8 +1913,8 @@ static void do_level_update_objects() {
 				}
 			}
 		} else if (obj->type > 2 && obj->collide_flag == 0) {
-			const int x = g_vars.level_xpos[i]; // _si
-			const int y = g_vars.level_ypos[i]; // _di
+			const int x = g_vars.level_xpos[i];
+			const int y = g_vars.level_ypos[i];
 			if (obj->type == 32) {
 				obj->unk5D = i;
 			}
@@ -1992,16 +1987,16 @@ static void do_level_update_objects() {
 			}
 		}
 	}
-	if (!g_vars.two_players_flag && g_vars.objects[OBJECT_NUM_PLAYER1].flag_end_level != 0) {
+	if (!g_vars.two_players_flag && g_vars.objects[OBJECT_NUM_PLAYER1].level_complete_flag != 0) {
 		g_vars.level_completed_flag = 1;
 	} else {
-		if (g_vars.objects[OBJECT_NUM_PLAYER1].flag_end_level != 0 && g_vars.objects[OBJECT_NUM_PLAYER2].flag_end_level != 0) {
+		if (g_vars.objects[OBJECT_NUM_PLAYER1].level_complete_flag != 0 && g_vars.objects[OBJECT_NUM_PLAYER2].level_complete_flag != 0) {
 			g_vars.level_completed_flag = 1;
 		}
-		if (g_vars.objects[OBJECT_NUM_PLAYER1].flag_end_level != 0 && g_vars.player1_dead_flag) {
+		if (g_vars.objects[OBJECT_NUM_PLAYER1].level_complete_flag != 0 && g_vars.player1_dead_flag) {
 			g_vars.level_completed_flag = 1;
 		}
-		if (g_vars.objects[OBJECT_NUM_PLAYER2].flag_end_level != 0 && g_vars.player2_dead_flag) {
+		if (g_vars.objects[OBJECT_NUM_PLAYER2].level_complete_flag != 0 && g_vars.player2_dead_flag) {
 			g_vars.level_completed_flag = 1;
 		}
 	}
@@ -2019,8 +2014,8 @@ static void do_level_update_objects() {
 			g_vars.objects[OBJECT_NUM_PLAYER2].unk60 = 0;
 			g_vars.objects[OBJECT_NUM_PLAYER1].data5F = 0;
 			g_vars.objects[OBJECT_NUM_PLAYER2].data5F = 0;
-			g_vars.objects[OBJECT_NUM_PLAYER1].flag_end_level = 0;
-			g_vars.objects[OBJECT_NUM_PLAYER2].flag_end_level = 0;
+			g_vars.objects[OBJECT_NUM_PLAYER1].level_complete_flag = 0;
+			g_vars.objects[OBJECT_NUM_PLAYER2].level_complete_flag = 0;
 			// g_vars.screen_draw_offset -= TILEMAP_OFFSET_Y * 40;
 			screen_unk5();
 			// g_vars.screen_draw_offset += TILEMAP_OFFSET_Y * 40;
@@ -2034,10 +2029,10 @@ static void do_level_update_objects() {
 			g_vars.objects[OBJECT_NUM_PLAYER2].unk60 = 0;
 			g_vars.objects[OBJECT_NUM_PLAYER1].data5F = 0;
 			g_vars.objects[OBJECT_NUM_PLAYER2].data5F = 0;
-			g_vars.objects[OBJECT_NUM_PLAYER1].unk63 = 0;
-			g_vars.objects[OBJECT_NUM_PLAYER2].unk63 = 0;
-			g_vars.objects[OBJECT_NUM_PLAYER1].flag_end_level = 0;
-			g_vars.objects[OBJECT_NUM_PLAYER2].flag_end_level = 0;
+			g_vars.objects[OBJECT_NUM_PLAYER1].restart_level_flag = 0;
+			g_vars.objects[OBJECT_NUM_PLAYER2].restart_level_flag = 0;
+			g_vars.objects[OBJECT_NUM_PLAYER1].level_complete_flag = 0;
+			g_vars.objects[OBJECT_NUM_PLAYER2].level_complete_flag = 0;
 			screen_vsync();
 		}
 		if (g_vars.objects[35].screen_ypos > 90) {

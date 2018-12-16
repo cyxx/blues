@@ -2,16 +2,26 @@
 SDL_CFLAGS := `sdl2-config --cflags`
 SDL_LIBS   := `sdl2-config --libs`
 
-SRCS := decode.c fileio.c game.c level.c main.c opcodes.c resource.c screen.c sound.c staticres.c sys_sdl2.c triggers.c unpack.c util.c
+BB := decode.c fileio.c game.c level.c objects.c resource.c screen.c sound.c staticres.c tiles.c unpack.c
+JA := game.c level.c resource.c screen.c sound.c staticres.c unpack.c
+
+BB_SRCS := $(foreach f,$(BB),bb/$f)
+JA_SRCS := $(foreach f,$(JA),ja/$f)
+SRCS := $(BB_SRCS) $(JA_SRCS)
 OBJS := $(SRCS:.c=.o)
 DEPS := $(SRCS:.c=.d)
 
-CPPFLAGS := -Wall -Wpedantic -MMD $(SDL_CFLAGS) -g
+CPPFLAGS := -Wall -Wpedantic -MMD $(SDL_CFLAGS) -I. -g
 
-blues: $(OBJS)
-	$(CC) $(LDFLAGS) -o $@ $(OBJS) $(SDL_LIBS) -lmodplug
+all: blues bbja
+
+blues: main.o sys_sdl2.o util.o $(BB_SRCS:.c=.o)
+	$(CC) $(LDFLAGS) -o $@ $^ $(SDL_LIBS) -lmodplug
+
+bbja: main.o sys_sdl2.o util.o $(JA_SRCS:.c=.o)
+	$(CC) $(LDFLAGS) -o $@ $^ $(SDL_LIBS) -lmodplug
 
 clean:
-	rm -f *.o *.d
+	rm -f $(OBJS) $(DEPS)
 
 -include $(DEPS)

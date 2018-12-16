@@ -16,6 +16,7 @@ struct input_t {
 	bool quit;
 	bool escape;
 	bool space;
+	bool digit1, digit2, digit3;
 };
 
 typedef void (*sys_audio_cb)(void *, uint8_t *data, int len);
@@ -35,9 +36,10 @@ struct sys_t {
 	int	(*init)();
 	void	(*fini)();
 	void	(*set_screen_size)(int w, int h, const char *caption, int scale, const char *filter, bool fullscreen);
-	void	(*set_screen_palette)(const uint8_t *colors, int);
+	void	(*set_screen_palette)(const uint8_t *colors, int offset, int count, int depth);
 	void	(*set_palette_amiga)(const uint16_t *colors, int offset);
 	void	(*set_copper_bars)(const uint16_t *data);
+	void	(*set_palette_color)(int i, const uint8_t *colors);
 	void	(*fade_in_palette)();
 	void	(*fade_out_palette)();
 	void	(*update_screen)(const uint8_t *p, int present);

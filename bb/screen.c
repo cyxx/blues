@@ -56,7 +56,7 @@ void screen_adjust_palette_color(int color, int b, int c) {
 	if (!g_options.cga_colors) {
 		g_res.palette[color * 3 + b] += c;
 		screen_vsync();
-		g_sys.set_screen_palette(g_res.palette, 16);
+		g_sys.set_screen_palette(g_res.palette, 0, 16, 8);
 	}
 }
 
@@ -90,24 +90,20 @@ void screen_flip() {
 	g_sys.update_screen(g_res.vga, 1);
 }
 
-void screen_copy_img() {
-	memcpy(g_res.vga, g_res.tmp + 32000, GAME_SCREEN_W * GAME_SCREEN_H);
-}
-
 void screen_unk5() {
 	// screen_do_transition2();
 	screen_clear(0);
 }
 
 void screen_do_transition1(int a) {
-	print_warning("screen_do_transition1 %d", a);
+	// print_warning("screen_do_transition1 %d", a);
 	if (a) {
 		g_sys.transition_screen(TRANSITION_CURTAIN, true);
 	}
 }
 
 void screen_do_transition2() {
-	print_warning("screen_do_transition2");
+	// print_warning("screen_do_transition2");
 	g_sys.transition_screen(TRANSITION_SQUARE, true);
 }
 
@@ -207,7 +203,7 @@ static void dither_graphics(uint8_t *dst, int dst_pitch, int w, int h, const uin
 			if (color == 0) {
 				dst[x] = color_key;
 			} else {
-				dst[x] = p[color] & 3;
+				dst[x] = p[color];
 			}
 		}
 		dst += dst_pitch;
@@ -232,7 +228,6 @@ static void decode_graphics(int spr_type, int start, int end, const uint8_t *dit
 			}
 			const int h = READ_LE_UINT16(ptr - 4);
 			const int w = READ_LE_UINT16(ptr - 2);
-			const int j = i - start;
 			if (current_x + w > MAX_SPRITESHEET_W) {
 				current_y += max_h;
 				if (current_x > max_w) {
@@ -249,6 +244,7 @@ static void decode_graphics(int spr_type, int start, int end, const uint8_t *dit
 			if (dither_lut) {
 				dither_graphics(data + current_y * MAX_SPRITESHEET_W + current_x, MAX_SPRITESHEET_W, w, h, dither_lut, color_key);
 			}
+			const int j = i - start;
 			r[j].x = current_x;
 			r[j].y = current_y;
 			r[j].w = w;

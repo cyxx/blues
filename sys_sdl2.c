@@ -33,7 +33,7 @@ static SDL_Window *_window;
 static SDL_Renderer *_renderer;
 static SDL_Texture *_texture;
 static SDL_PixelFormat *_fmt;
-static uint32_t _screen_palette[48];
+static uint32_t _screen_palette[256];
 static uint32_t *_screen_buffer;
 static struct input_t *_input = &g_sys.input;
 static int _copper_color;
@@ -158,11 +158,30 @@ static void sdl2_set_copper_bars(const uint16_t *data) {
         }
 }
 
-static void sdl2_set_screen_palette(const uint8_t *colors, int count) {
+static void sdl2_set_screen_palette(const uint8_t *colors, int offset, int count, int depth) {
+	const int shift = 8 - depth;
 	for (int i = 0; i < count; ++i) {
-		_screen_palette[i] = SDL_MapRGB(_fmt, colors[0], colors[1], colors[2]);
+		int r = colors[0];
+		int g = colors[1];
+		int b = colors[2];
+		if (depth != 8) {
+			r = (r << shift) | (r >> (depth - shift));
+			g = (g << shift) | (g >> (depth - shift));
+			b = (b << shift) | (b >> (depth - shift));
+		}
+		_screen_palette[offset + i] = SDL_MapRGB(_fmt, r, g, b);
 		colors += 3;
 	}
+}
+
+static void sdl2_set_palette_color(int i, const uint8_t *colors) {
+	int r = colors[0];
+	r = (r << 2) | (r >> 4);
+	int g = colors[1];
+	g = (g << 2) | (g >> 4);
+	int b = colors[2];
+	b = (b << 2) | (b >> 4);
+	_screen_palette[i] = SDL_MapRGB(_fmt, r, g, b);
 }
 
 static void fade_palette_helper(int in) {
@@ -170,10 +189,10 @@ static void fade_palette_helper(int in) {
 	SDL_Rect r;
 	r.x = r.y = 0;
 	SDL_GetRendererOutputSize(_renderer, &r.w, &r.h);
-	for (int i = 1; i <= FADE_STEPS; ++i) {
-		int alpha = 256 * i / FADE_STEPS;
+	for (int i = 0; i <= FADE_STEPS; ++i) {
+		int alpha = 255 * i / FADE_STEPS;
 		if (in) {
-			alpha = 256 - alpha;
+			alpha = 255 - alpha;
 		}
 		SDL_SetRenderDrawColor(_renderer, 0, 0, 0, alpha);
 		SDL_RenderClear(_renderer);
@@ -312,6 +331,15 @@ static void handle_keyevent(int keysym, bool keydown) {
 		break;
 	case SDLK_ESCAPE:
 		_input->escape = keydown;
+		break;
+	case SDLK_1:
+		_input->digit1 = keydown;
+		break;
+	case SDLK_2:
+		_input->digit2 = keydown;
+		break;
+	case SDLK_3:
+		_input->digit3 = keydown;
 		break;
 	}
 }
@@ -484,18 +512,19 @@ static void sdl2_unlock_audio() {
 }
 
 struct sys_t g_sys = {
-	.init	= sdl2_init,
-	.fini	= sdl2_fini,
-	.set_screen_size	= sdl2_set_screen_size,
-	.set_screen_palette	= sdl2_set_screen_palette,
-	.set_palette_amiga	= sdl2_set_palette_amiga,
-	.set_copper_bars	= sdl2_set_copper_bars,
-	.fade_in_palette	= sdl2_fade_in_palette,
-	.fade_out_palette	= sdl2_fade_out_palette,
-	.update_screen	= sdl2_update_screen,
+	.init = sdl2_init,
+	.fini = sdl2_fini,
+	.set_screen_size = sdl2_set_screen_size,
+	.set_screen_palette = sdl2_set_screen_palette,
+	.set_palette_amiga = sdl2_set_palette_amiga,
+	.set_copper_bars = sdl2_set_copper_bars,
+	.set_palette_color = sdl2_set_palette_color,
+	.fade_in_palette = sdl2_fade_in_palette,
+	.fade_out_palette = sdl2_fade_out_palette,
+	.update_screen = sdl2_update_screen,
 	.transition_screen = sdl2_transition_screen,
-	.process_events	= sdl2_process_events,
-	.sleep	= sdl2_sleep,
+	.process_events = sdl2_process_events,
+	.sleep = sdl2_sleep,
 	.get_timestamp = sdl2_get_timestamp,
 	.start_audio = sdl2_start_audio,
 	.stop_audio = sdl2_stop_audio,
