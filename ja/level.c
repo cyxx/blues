@@ -1184,9 +1184,9 @@ static void level_update_object82_type0(struct object_t *obj) {
 		const int state = object82_state(obj);
 		if (state == 0) {
 			const int angle = object82_counter(obj);
-			const int16_t r1 = (60 * (int16_t)rot_tbl[angle + 65]) >> 8;
+			const int16_t r1 = (60 * (int16_t)rotation_table[angle + 65]) >> 8;
 			object82_hflip(obj) = r1 >> 8;
-			const int16_t r2 = (60 * (int16_t)rot_tbl[angle]) >> 8;
+			const int16_t r2 = (60 * (int16_t)rotation_table[angle]) >> 8;
 			object82_counter(obj) += 2;
 			const uint8_t *p = object82_type0_init_data(obj);
 			obj->x_pos = r1 + READ_LE_UINT16(p);
@@ -1686,7 +1686,7 @@ static void level_update_triggers() {
 			const int angle = obj[0].data[2].b[1];
 			const int radius = obj[0].data[4].b[1];
 
-			ax = (radius * (int16_t)rot_tbl[angle + 65]) >> 8;
+			ax = (radius * (int16_t)rotation_table[angle + 65]) >> 8;
 			obj[0].x_pos += ax;
 			ax >>= 1;
 			dx = ax;
@@ -1696,7 +1696,7 @@ static void level_update_triggers() {
 			obj[3].x_pos += ax;
 			obj[1].x_pos += dx;
 
-			ax = (radius * (int16_t)rot_tbl[angle]) >> 8;
+			ax = (radius * (int16_t)rotation_table[angle]) >> 8;
 			obj[0].y_pos += ax;
 			ax >>= 1;
 			dx = ax;
@@ -2132,13 +2132,20 @@ static void init_panel(int x_offset) {
 	}
 }
 
-static void draw_panel_helper(int a) {
+static void draw_panel_vinyl(int offset, int spr, int x_offset) {
+	const uint8_t *src = g_res.board + 0x1E00 + spr * 16;
+	const int y_dst = (GAME_SCREEN_H - PANEL_H) + offset / 80;
+	const int x_dst = (offset % 80) * 4 + 2 + x_offset;
+	for (int y = 0; y < 16; ++y) {
+		memcpy(g_res.vga + (y_dst + y) * GAME_SCREEN_W + x_dst, src, 16);
+		src += 320;
+	}
 }
 
-static void draw_panel_energy(int di, int count, int x_offset) {
+static void draw_panel_energy(int offset, int count, int x_offset) {
 	const uint8_t *src = g_res.board + 0x2840 + count * 40;
-	const int y_dst = (GAME_SCREEN_H - PANEL_H) + di / 80;
-	const int x_dst = (di % 80) * 4 + x_offset;
+	const int y_dst = (GAME_SCREEN_H - PANEL_H) + offset / 80;
+	const int x_dst = (offset % 80) * 4 + x_offset;
 	for (int y = 0; y < 6; ++y) {
 		memcpy(g_res.vga + (y_dst + y) * GAME_SCREEN_W + x_dst, src, 40);
 		src += 320;
@@ -2185,7 +2192,7 @@ static void draw_panel() {
 					++cl;
 				}
 			}
-			draw_panel_helper((g_vars.level_loop_counter >> cl) & 3);
+			draw_panel_vinyl(0x141, (g_vars.level_loop_counter >> cl) & 3, x_offset);
 		}
 	}
 	if (g_vars.player != 0) {
@@ -2205,7 +2212,7 @@ static void draw_panel() {
 					++cl;
 				}
 			}
-			draw_panel_helper((g_vars.level_loop_counter >> cl) & 3);
+			draw_panel_vinyl(0x16D, (g_vars.level_loop_counter >> cl) & 3, x_offset);
 		}
 	}
 }
@@ -2965,16 +2972,10 @@ static void init_level(uint16_t level) {
 	g_vars.reset_palette_flag = 0;
 }
 
-static bool start_level() {
+static uint16_t get_level() {
 	const uint8_t *data = (g_vars.player == 2) ? level_data2p : level_data1p;
 	const uint16_t level = READ_BE_UINT16(data + (g_vars.level - 1) * 2);
-	if (level == 0xFFFF) {
-		do_game_win_screen();
-		return false;
-	} else {
-		init_level(level);
-		return true;
-	}
+	return level;
 }
 
 static bool change_level(bool first_level) {
@@ -2984,10 +2985,17 @@ static bool change_level(bool first_level) {
 	if ((g_vars.level & 3) == 0 && g_vars.level < LEVELS_COUNT) {
 		// do_level_password_screen();
 	}
-	do_level_number_screen();
-	const int num = ((g_vars.level >> 3) & 3) + 1;
-	play_music(num);
-	return start_level();
+	const uint16_t level = get_level();
+	if (level == 0xFFFF) {
+		do_game_win_screen();
+		return false;
+	} else {
+		do_level_number_screen();
+		const int num = ((g_vars.level >> 3) & 3) + 1;
+		play_music(num);
+		init_level(level);
+		return true;
+	}
 }
 
 void do_level() {
@@ -3021,7 +3029,7 @@ void do_level() {
 		fade_out_palette();
 		assert(g_vars.player != 2);
 		if (g_vars.players_table[0].lifes_count != 0) {
-			start_level();
+			init_level(get_level()); // restart
 			continue;
 		}
 		do_game_over_screen();

@@ -44,13 +44,13 @@ static void do_splash_screen() {
 }
 
 static void scroll_screen_palette() {
-	g_vars.level_time += 3;
-	if (g_vars.level_time >= 90) {
+	++g_vars.level_time;
+	if (g_vars.level_time >= 30) {
 		g_vars.level_time = 0;
 	}
-	const int count = 90 - g_vars.level_time;
-	for (int i = 0; i < count; i += 3) {
-		g_sys.set_palette_color(225 + i / 3, g_res.tmp + 225 * 3 + g_vars.level_time + i);
+	const int count = 30 - g_vars.level_time;
+	for (int i = 0; i < count; ++i) {
+		g_sys.set_palette_color(225 + i, g_res.tmp + (225 + g_vars.level_time + i) * 3);
 	}
 	g_sys.update_screen(g_res.vga, 1);
 }
@@ -99,17 +99,15 @@ static void do_select_screen() {
 		if (g_sys.input.direction & INPUT_DIRECTION_RIGHT) {
 			g_sys.input.direction &= ~INPUT_DIRECTION_RIGHT;
 			++bl;
-			bl &= 3;
-			if (bl == 0) {
-				bl = 1;
+			if (bl > 2) {
+				bl = 2;
 			}
 		}
 		if (g_sys.input.direction & INPUT_DIRECTION_LEFT) {
 			g_sys.input.direction &= ~INPUT_DIRECTION_LEFT;
 			--bl;
-			bl &= 3;
-			if (bl == 0) {
-				bl = 3;
+			if (bl < 1) {
+				bl = 1;
 			}
 		}
 		bh ^= bl;
@@ -160,11 +158,14 @@ void do_level_number_screen() {
 	fade_out_palette();
 }
 
-static uint16_t get_password(uint16_t ax) {
-	// ax = read(0xF000:0xFFFF, 16) // bios
-	ax ^= 0xAA31;
-	// rol ax, cpu_speed
-	return ax;
+static uint16_t rol16(uint16_t x, int c) {
+	return (x << c) | (x >> (16 - c));
+}
+
+static uint16_t get_password(uint16_t x) {
+	x ^= 0xaa31;
+	x *= 0xb297;
+	return rol16(x, 3);
 }
 
 void do_level_password_screen() {
@@ -172,10 +173,7 @@ void do_level_password_screen() {
 	uint16_t ax = get_password(g_vars.player * 50 + g_vars.level - 1);
 	char str[5];
 	for (int i = 0; i < 4; ++i, ax <<= 4) {
-		static const uint8_t rev_bits[] = {
-			0x0, 0x8, 0x4, 0xC, 0x2, 0xA, 0x6, 0xE, 0x1, 0x9, 0x5, 0xD, 0x3, 0xB, 0x7, 0xF
-		};
-		const uint8_t dx = rev_bits[(ax >> 15) & 15] + '0';
+		const uint8_t dx = (ax >> 12) + '0';
 		str[i] = (dx <= '9') ? dx : (dx + 7);
 	}
 	str[4] = 0;

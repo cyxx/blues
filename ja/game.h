@@ -169,7 +169,7 @@ extern const uint8_t level_data1p[];
 extern const uint8_t level_data2p[];
 extern const uint8_t level_data3[];
 extern const uint8_t vscroll_offsets_table[];
-extern const uint16_t rot_tbl[];
+extern const uint16_t rotation_table[];
 extern const uint8_t bonus_spr_table[];
 extern const uint8_t tiles_5dc9_lut[];
 extern const uint8_t tiles_yoffset_table[];
