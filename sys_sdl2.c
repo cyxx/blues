@@ -39,6 +39,7 @@ static struct input_t *_input = &g_sys.input;
 static int _copper_color;
 static uint32_t _copper_palette[COPPER_BARS_H];
 static SDL_GameController *_controller;
+static SDL_Joystick *_joystick;
 
 static int sdl2_init() {
 	SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_JOYSTICK | SDL_INIT_GAMECONTROLLER);
@@ -62,6 +63,12 @@ static int sdl2_init() {
 					fprintf(stdout, "Using controller '%s'\n", SDL_GameControllerName(_controller));
 					break;
 				}
+			}
+		}
+		if (!_controller) {
+			_joystick = SDL_JoystickOpen(0);
+			if (_joystick) {
+				fprintf(stdout, "Using joystick '%s'\n", SDL_JoystickName(_joystick));
 			}
 		}
 	}
@@ -89,6 +96,10 @@ static void sdl2_fini() {
 	if (_controller) {
 		SDL_GameControllerClose(_controller);
 		_controller = 0;
+	}
+	if (_joystick) {
+		SDL_JoystickClose(_joystick);
+		_joystick = 0;
 	}
 	SDL_Quit();
 }
@@ -420,6 +431,50 @@ static void handle_controllerbutton(int button, bool pressed) {
 	}
 }
 
+static void handle_joystickhatmotion(int value) {
+	_input->direction = 0;
+	if (value & SDL_HAT_UP) {
+		_input->direction |= INPUT_DIRECTION_UP;
+	}
+	if (value & SDL_HAT_DOWN) {
+		_input->direction |= INPUT_DIRECTION_DOWN;
+	}
+	if (value & SDL_HAT_LEFT) {
+		_input->direction |= INPUT_DIRECTION_LEFT;
+	}
+	if (value & SDL_HAT_RIGHT) {
+		_input->direction |= INPUT_DIRECTION_RIGHT;
+	}
+}
+
+static void handle_joystickaxismotion(int axis, int value) {
+	static const int THRESHOLD = 3200;
+	switch (axis) {
+	case 0:
+		_input->direction &= ~(INPUT_DIRECTION_RIGHT | INPUT_DIRECTION_LEFT);
+		if (value > THRESHOLD) {
+			_input->direction |= INPUT_DIRECTION_RIGHT;
+		} else if (value < -THRESHOLD) {
+			_input->direction |= INPUT_DIRECTION_LEFT;
+		}
+		break;
+	case 1:
+		_input->direction &= ~(INPUT_DIRECTION_UP | INPUT_DIRECTION_DOWN);
+		if (value > THRESHOLD) {
+			_input->direction |= INPUT_DIRECTION_DOWN;
+		} else if (value < -THRESHOLD) {
+			_input->direction |= INPUT_DIRECTION_UP;
+		}
+		break;
+	}
+}
+
+static void handle_joystickbutton(int button, int pressed) {
+	if (button == 0) {
+		_input->space = pressed;
+	}
+}
+
 static int handle_event(const SDL_Event *ev) {
 	switch (ev->type) {
 	case SDL_QUIT:
@@ -459,6 +514,26 @@ static int handle_event(const SDL_Event *ev) {
 	case SDL_CONTROLLERAXISMOTION:
 		if (_controller) {
 			handle_controlleraxis(ev->caxis.axis, ev->caxis.value);
+		}
+		break;
+	case SDL_JOYHATMOTION:
+		if (_joystick) {
+			handle_joystickhatmotion(ev->jhat.value);
+		}
+		break;
+	case SDL_JOYAXISMOTION:
+		if (_joystick) {
+			handle_joystickaxismotion(ev->jaxis.axis, ev->jaxis.value);
+		}
+		break;
+	case SDL_JOYBUTTONUP:
+		if (_joystick) {
+			handle_joystickbutton(ev->jbutton.button, 0);
+		}
+		break;
+	case SDL_JOYBUTTONDOWN:
+		if (_joystick) {
+			handle_joystickbutton(ev->jbutton.button, 1);
 		}
 		break;
 	default:

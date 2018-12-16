@@ -60,6 +60,14 @@ void video_copy_vga(int size) {
 	}
 }
 
+void video_copy_backbuffer(int h) {
+	for (int y = 0; y < MIN(200, GAME_SCREEN_H) - h; ++y) {
+		for (int x = 0; x < GAME_SCREEN_W; x += 320) {
+			memcpy(g_res.vga + y * GAME_SCREEN_W + x, g_res.background + y * 320, MIN(320, GAME_SCREEN_W - x));
+		}
+	}
+}
+
 void fade_in_palette() {
 	if (!g_sys.input.quit) {
 		g_sys.fade_in_palette();
@@ -164,7 +172,7 @@ void ja_decode_tile(const uint8_t *buffer, uint8_t pal_mask, uint8_t *dst, int d
 	}
 }
 
-static void decode_motif(const uint8_t *src, uint8_t *dst, uint8_t color) {
+static void decode_motif_scanline(const uint8_t *src, uint8_t *dst, uint8_t color) {
 	for (int x = 0; x < 40; ++x) {
 		for (int b = 0; b < 8; ++b) {
 			const uint8_t mask = 1 << (7 - b);
@@ -180,7 +188,7 @@ void ja_decode_motif(int num, uint8_t color) {
 	int y = 0;
 	for (int j = 0; j < 25; ++j) {
 		for (int i = 0; i < 8; ++i) {
-			decode_motif(src + i * 40 + j * 320, g_res.vga + y * GAME_SCREEN_W, color);
+			decode_motif_scanline(src + i * 40 + j * 320, g_res.vga + y * GAME_SCREEN_W, color);
 			++y;
 		}
 	}

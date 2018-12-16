@@ -111,7 +111,7 @@ struct object_t {
 	// int16_t unk4E;
 	int16_t unk50;
 	uint8_t data51; // health for obj39/40, horizontal direction for other objects
-	uint8_t unk53;
+	uint8_t scrolling_lock_flag;
 	uint8_t unk54;
 	uint8_t unk55;
 	uint8_t unk56;

@@ -262,7 +262,7 @@ void do_game_win_screen() {
 	fade_in_palette();
 	fade_out_palette();
 	load_file("end.eat");
-	video_copy_vga(0x7D00);
+	video_copy_vga(0xB500);
 	static const int count = 5;
 	static const struct {
 		uint16_t offset;
@@ -304,7 +304,7 @@ void do_game_win_screen() {
 		fade_in_palette();
 		wait_input(64000);
 		fade_out_palette();
-		video_copy_vga(0x7D00);
+		memcpy(g_res.tmp + 768, g_res.background, 64000);
 	}
 }
 
@@ -327,7 +327,6 @@ void game_main() {
 			break;
 		} else if (ret == 1) {
 			do_select_screen();
-			do_difficulty_screen();
 		} else if (ret == 2) {
 			g_vars.level = -1;
 			do_password_screen();
@@ -335,7 +334,6 @@ void game_main() {
 				continue;
 			}
 			++g_vars.level;
-			do_difficulty_screen();
 		} else {
 			do_options_screen();
 			continue;

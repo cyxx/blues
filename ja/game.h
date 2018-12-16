@@ -8,6 +8,7 @@
 #define CHEATS_ONE_HIT_VINYL    (1 << 1)
 #define CHEATS_DECOR_NO_HIT     (1 << 2)
 #define CHEATS_UNLIMITED_VINYLS (1 << 3)
+#define CHEATS_UNLIMITED_TIME   (1 << 4)
 
 extern struct options_t g_options;
 
@@ -142,7 +143,7 @@ struct vars_t {
 	uint8_t triggers_table[19 + TRIGGERS_COUNT * 16];
 	int tilemap_x, tilemap_y, tilemap_w, tilemap_h;
 	int tilemap_end_x, tilemap_end_y;
-	int tilemap_scroll_dx, tilemap_scroll_dy, tilemap_scroll_xoffset, tilemap_scroll_yoffset;
+	int tilemap_scroll_dx, tilemap_scroll_dy;
 	uint8_t *tilemap_data;
 	uint16_t level_pos_num;
 	uint8_t tilemap_type, tilemap_flags;
@@ -167,7 +168,11 @@ extern const uint8_t sprite_palettes[];
 extern const uint8_t level_data1p[];
 extern const uint8_t level_data2p[];
 extern const uint8_t level_data3[];
-extern const uint8_t level_data4[];
+extern const uint8_t vscroll_offsets_table[];
+extern const uint16_t rot_tbl[];
+extern const uint8_t bonus_spr_table[];
+extern const uint8_t tiles_5dc9_lut[];
+extern const uint8_t tiles_yoffset_table[];
 extern const uint8_t monster_spr_anim_data0[];
 extern const uint8_t monster_spr_anim_data1[];
 extern const uint8_t monster_spr_anim_data2[];
@@ -207,6 +212,7 @@ extern void	video_draw_dot_pattern(int offset);
 extern void	video_draw_sprite(int num, int x, int y, int flag);
 extern void	video_draw_string(const char *s, int offset, int hspace);
 extern void	video_copy_vga(int size);
+extern void	video_copy_backbuffer(int h);
 extern void	fade_in_palette();
 extern void	fade_out_palette();
 extern void	ja_decode_spr(const uint8_t *src, int w, int h, uint8_t *dst, int dst_pitch, uint8_t pal_mask);

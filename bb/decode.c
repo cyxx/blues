@@ -1,7 +1,7 @@
 
 #include "decode.h"
 
-void decode_spr(const uint8_t *src, int src_pitch, int w, int h, int depth, uint8_t *dst, int dst_pitch, int dst_x, int dst_y, bool amiga) {
+void decode_spr(const uint8_t *src, int src_pitch, int w, int h, int depth, uint8_t *dst, int dst_pitch, int dst_x, int dst_y, bool reverse_bitplanes) {
 	assert((src_pitch & 7) == 0);
 	src_pitch /= 8;
 	assert((w & 7) == 0);
@@ -15,7 +15,7 @@ void decode_spr(const uint8_t *src, int src_pitch, int w, int h, int depth, uint
 				const int mask = 1 << (7 - i);
 				for (int bit = 0; bit < depth; ++bit) {
 					if (src[bit * bitplane_size] & mask) {
-						color |= 1 << (amiga ? bit : (3 - bit));
+						color |= 1 << (reverse_bitplanes ? bit : (3 - bit));
 					}
 				}
 				dst[x * 8 + i] = color;

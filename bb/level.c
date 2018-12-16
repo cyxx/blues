@@ -248,7 +248,7 @@ static void init_level() {
 		}
 		obj->restart_level_flag = 0;
 		obj->level_complete_flag = 0;
-		obj->unk53 = 0;
+		obj->scrolling_lock_flag = 0;
 		obj->unk54 = 0;
 		obj->unk55 = 0;
 		obj->unk56 = 0;
@@ -257,7 +257,7 @@ static void init_level() {
 		// obj->unk5C = 1;
 		obj->unk5D = 0;
 		if (obj->ypos > g_vars.screen_tilemap_h) {
-			obj->unk53 = 1;
+			obj->scrolling_lock_flag = 1;
 		}
 		obj->blinking_counter = 0;
 	}
@@ -344,10 +344,10 @@ static void do_level_update_scrolling2() {
 			g_vars.screen_tilemap_yorigin += 16;
 		}
 	}
-	if (!g_options.dos_scrolling) {
+	const struct object_t *obj = &g_vars.objects[OBJECT_NUM_PLAYER1];
+	if (!g_options.dos_scrolling && !obj->scrolling_lock_flag) {
 		const int x1 = TILEMAP_SCROLL_W * 2;
 		const int x2 = TILEMAP_SCREEN_W - TILEMAP_SCROLL_W * 2;
-		const struct object_t *obj = &g_vars.objects[OBJECT_NUM_PLAYER1];
 		if (obj->screen_xpos > x2) {
 			const int dx = obj->screen_xpos - x2;
 			g_vars.screen_tilemap_xorigin += dx;
@@ -1137,7 +1137,7 @@ void do_level_enter_door(struct object_t *obj) {
 			obj->xpos = g_vars.doors[i].dst_x16 << 4;
 			obj->ypos = g_vars.doors[i].dst_y16 << 4;
 			if (obj->ypos > g_vars.screen_tilemap_h) {
-				obj->unk53 = 1;
+				obj->scrolling_lock_flag = 1;
 				g_vars.screen_tilemap_yorigin = pos[g_vars.level] << 4;
 				const int w = TILEMAP_SCREEN_W / 16;
 				g_vars.screen_tilemap_xorigin = (((obj->xpos >> 4) / w) * w) << 4;
@@ -1149,7 +1149,7 @@ void do_level_enter_door(struct object_t *obj) {
 				} else {
 					g_vars.screen_tilemap_yorigin += 16;
 				}
-				obj->unk53 = 0;
+				obj->scrolling_lock_flag = 0;
 			}
 			obj->screen_xpos = obj->xpos - g_vars.screen_tilemap_xorigin;
 			obj->screen_ypos = obj->ypos - g_vars.screen_tilemap_yorigin;
@@ -1285,7 +1285,7 @@ static void do_level_update_input(struct object_t *obj) {
 }
 
 static void do_level_update_scrolling(struct object_t *obj) {
-	if (obj->unk53 != 0) {
+	if (obj->scrolling_lock_flag) {
 		g_vars.screen_scrolling_dirmask = 0;
 		return;
 	}
@@ -1538,7 +1538,7 @@ static void do_level_fixup_object_ypos16(struct object_t *obj) {
 			obj->ypos = 32;
 			obj->screen_ypos = 32 - g_vars.screen_tilemap_yorigin;
 			obj->yvelocity = 0;
-		} else if (obj->ypos > g_vars.screen_tilemap_h && obj->unk53 == 0) {
+		} else if (obj->ypos > g_vars.screen_tilemap_h && !obj->scrolling_lock_flag) {
 			obj->ypos = g_vars.screen_tilemap_h - 16;
 			obj->screen_ypos = obj->ypos - g_vars.screen_tilemap_yorigin;
 			obj->yvelocity = 0;
@@ -1871,10 +1871,10 @@ static void do_level_update_objects() {
 		if (obj->type < 2) {
 			if (g_vars.inp_keyboard[0xC1] != 0) { // F7, change player
 				if (!g_vars.switch_player_scrolling_flag && g_vars.two_players_flag) {
-					if (!g_vars.player2_scrolling_flag && g_vars.objects[OBJECT_NUM_PLAYER1].unk53 == 0) {
+					if (!g_vars.player2_scrolling_flag && !g_vars.objects[OBJECT_NUM_PLAYER1].scrolling_lock_flag) {
 						g_vars.player2_scrolling_flag = 1;
 						g_vars.switch_player_scrolling_flag = 1;
-					} else if (g_vars.player2_scrolling_flag && g_vars.objects[OBJECT_NUM_PLAYER2].unk53 == 0) {
+					} else if (g_vars.player2_scrolling_flag && !g_vars.objects[OBJECT_NUM_PLAYER2].scrolling_lock_flag) {
 						g_vars.player2_scrolling_flag = 1;
 						g_vars.switch_player_scrolling_flag = 1;
 					}
