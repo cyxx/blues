@@ -29,9 +29,11 @@ static struct game_t *detect_game(const char *data_path) {
 #if 0
 	extern struct game_t bb_game;
 	extern struct game_t ja_game;
+	extern struct game_t p2_game;
 	static struct game_t *games[] = {
 		&bb_game,
 		&ja_game,
+		&p2_game,
 		0
 	};
 	for (int i = 0; games[i]; ++i) {
