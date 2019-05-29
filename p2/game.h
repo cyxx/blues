@@ -42,9 +42,9 @@ struct monster_t {
 	int16_t x_velocity; // 0x8
 	int16_t y_velocity; // 0xA
 	const uint8_t *anim; // 0xC
-	uint8_t unkE; // 0xE
-	uint8_t unkF; // 0xF
-	uint8_t unk10;
+	uint8_t state; // 0xE
+	uint8_t energy; // 0xF
+	uint8_t unk10; // 0x10
 };
 
 struct thing_t {
@@ -67,6 +67,7 @@ struct object_t {
 	uint8_t hit_counter; // 0x11
 }; // sizeof == 18
 
+#define MONSTERS_COUNT 12
 #define OBJECTS_COUNT 108
 // offset count
 //      0     1 : club

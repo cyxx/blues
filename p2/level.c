@@ -1,4 +1,6 @@
 
+/* level main loop */
+
 #include "game.h"
 #include "resource.h"
 #include "sys.h"
@@ -93,10 +95,12 @@ static void load_level_data_init_animated_tiles() {
 }
 
 static void load_level_data_init_transparent_tiles() {
+	const int tiles_offset = g_vars.tilemap_size + 512;
+	const int tiles_count = (g_res.levellen - tiles_offset) / 128;
 	int count = 1;
-	for (int i = 0; i < 256; ++i) {
+	for (int i = 0; i < tiles_count; ++i) {
 		const uint8_t num = i;
-		const uint8_t *tiledat = g_res.leveldat + g_vars.tilemap_size + 512 + num * 128;
+		const uint8_t *tiledat = g_res.leveldat + tiles_offset + num * 128;
 		uint8_t mask_opaque = 0xFF;
 		uint8_t mask_transparent = 0;
 		for (int j = 0; j < 128; ++j) {
@@ -892,8 +896,8 @@ static void level_reset_objects() {
 		obj->spr_num = 0xFFFF;
 		obj->hit_counter = 0;
 	}
-	g_vars.objects_tbl[1].x_pos = g_res.level.start_x_pos;
-	g_vars.objects_tbl[1].y_pos = g_res.level.start_y_pos;
+	g_vars.objects_tbl[1].x_pos = (g_options.start_xpos16 < 0) ? g_res.level.start_x_pos : g_options.start_xpos16;
+	g_vars.objects_tbl[1].y_pos = (g_options.start_ypos16 < 0) ? g_res.level.start_y_pos : g_options.start_ypos16;
 }
 
 static void level_reset() {
@@ -932,7 +936,7 @@ static uint16_t level_get_player_tile_pos() {
 	return (y << 8) | x;
 }
 
-static void level_add_object75_score(struct object_t *ref_obj, int num) {
+static struct object_t *level_add_object75_score(struct object_t *ref_obj, int num) {
 	const int score_index = num - 74;
 	if (score_index >= 0 && score_index <= 16) {
 		g_vars.score += score_tbl[score_index];
@@ -951,9 +955,10 @@ static void level_add_object75_score(struct object_t *ref_obj, int num) {
 					item->spr_num = 0xFFFF;
 				}
 			}
-			break;
+			return obj;
 		}
 	}
+	return 0;
 }
 
 static void level_update_object_anim(const uint8_t *anim) {
@@ -1054,13 +1059,57 @@ static bool level_objects_collide(const struct object_t *si, const struct object
 	return (a + b > d);
 }
 
-static bool level_collide_axe_monsters(struct object_t *obj) {
-	for (int i = 0; i < 12; ++i) {
+static void level_monster_die(struct object_t *obj, struct level_monster_t *m) {
+	const int num = m->unk8 + 74;
+	static const uint8_t data[] = { 1, 2, 3, 4, 6, 8 };
+	int count = data[obj->data.m.unk10 & 7];
+	const int x_pos = obj->x_pos;
+	const int y_pos = obj->y_pos;
+	do {
+		struct object_t *score_obj = level_add_object75_score(obj, num);
+		if (score_obj) {
+			score_obj->data.t.counter = count << 2;
+		}
+		obj->y_pos += 7;
+		obj->x_pos += 9;
+	} while (--count != 0);
+	obj->x_pos = x_pos;
+	obj->y_pos = y_pos;
+	obj->data.m.state = 0xFF;
+	if ((m->flags & 1) == 0) {
+		g_vars.current_bonus.x_pos = obj->x_pos;
+		g_vars.current_bonus.y_pos = obj->y_pos;
+		g_vars.current_bonus.spr_num = 0x2046;
+		level_add_object23_bonus(48, -128, 6);
+	} else {
+	}
+}
+
+static bool level_collide_axe_monsters(struct object_t *axe_obj) {
+	for (int i = 0; i < MONSTERS_COUNT; ++i) {
 		struct object_t *obj = &g_vars.objects_tbl[11 + i];
 		if (obj->spr_num == 0xFFFF) {
 			continue;
 		}
-		print_warning("Unhandled level_collide_axe_monsters object %d", 11 + i);
+		if (obj->data.m.state == 0xFF) {
+			continue;
+		}
+		struct level_monster_t *m = obj->data.m.ref;
+		if (m->flags & 0x10) {
+			continue;
+		}
+		if (!level_objects_collide(axe_obj, obj)) {
+			continue;
+		}
+		obj->data.m.unk5 |= 0x40;
+		if (obj->data.m.energy < g_vars.player_club_power) {
+			level_monster_die(obj, m);
+		} else {
+			obj->data.m.energy -= g_vars.player_club_power;
+			obj->x_pos -= obj->data.m.x_velocity >> 2;
+		}
+		obj->spr_num = 0xFFFF;
+		return true;
 	}
 	return false;
 }
@@ -1235,12 +1284,16 @@ extern void monster_func1(int type, struct object_t *obj); /* update */
 extern bool monster_func2(int type, struct level_monster_t *m); /* init */
 
 static void level_update_objects_monsters() {
+	if (!g_res.dos_demo) {
+		/* different monsters logic/tables */
+		return;
+	}
 	if (g_res.level.monsters_state != 0xFF) {
 		level_update_monsters_state();
 	}
 	if (g_vars.level_num == 5 && (g_res.level.scrolling_mask & ~1) == 0) {
 	}
-	for (int i = 0; i < 12; ++i) {
+	for (int i = 0; i < MONSTERS_COUNT; ++i) {
 		struct object_t *obj = &g_vars.objects_tbl[11 + i];
 		if (obj->spr_num == 0xFFFF) {
 			continue;
@@ -2213,7 +2266,7 @@ static void level_update_player_collision() {
 	struct object_t *obj_player = &g_vars.objects_tbl[1];
 	/* monsters */
 	if (g_vars.objects_tbl[1].hit_counter == 0) {
-		for (int i = 0; i < 12; ++i) {
+		for (int i = 0; i < MONSTERS_COUNT; ++i) {
 			struct object_t *obj = &g_vars.objects_tbl[11 + i];
 			if (obj->spr_num == 0xFFFF || (obj->spr_num & 0x2000) == 0) {
 				continue;
@@ -2222,7 +2275,7 @@ static void level_update_player_collision() {
 			if (m->flags & 0x10) {
 				continue;
 			}
-			if (obj->data.m.unkE == 0xFF) {
+			if (obj->data.m.state == 0xFF) {
 				continue;
 			}
 			if (!level_objects_collide(obj_player, obj)) {
@@ -2372,7 +2425,7 @@ static void level_update_player_collision() {
 			}
 		} else if (num == 169) {
 			play_sound(0);
-			for (int i = 0; i < 12; ++i) {
+			for (int i = 0; i < MONSTERS_COUNT; ++i) {
 				struct object_t *obj = &g_vars.objects_tbl[11 + i];
 				if (obj->spr_num == 0xFFFF) {
 					continue;
@@ -2387,7 +2440,7 @@ static void level_update_player_collision() {
 			level_add_object75_score(obj, 230);
 		} else if (num == 170) { /* bomb */
 			play_sound(0);
-			for (int i = 0; i < 12; ++i) {
+			for (int i = 0; i < MONSTERS_COUNT; ++i) {
 				struct object_t *obj = &g_vars.objects_tbl[11 + i];
 				if (obj->spr_num == 0xFFFF) {
 					continue;
@@ -2397,7 +2450,7 @@ static void level_update_player_collision() {
 				}
 				g_vars.current_bonus.x_pos = obj->x_pos;
 				g_vars.current_bonus.y_pos = obj->y_pos;
-				obj->data.m.unkE = 0xFF;
+				obj->data.m.state = 0xFF;
 				obj->spr_num = 0xFFFF;
 				int x_vel = 32;
 				int y_vel = -160;
@@ -3054,6 +3107,7 @@ void do_level() {
 	set_level_palette();
 	video_load_sprites();
 	video_load_front_tiles();
+	video_clear();
 	level_reset();
 	level_reset_objects();
 	level_init_tilemap();

@@ -123,7 +123,7 @@ void load_leveldat(const uint8_t *p, struct level_t *level) {
 		m->len = len;
 		m->type = p[1];
 		m->spr_num = spr_num;
-		m->unk5 = p[5];
+		m->energy = p[5];
 		m->total_ticks = p[6];
 		m->current_tick = p[7];
 		m->unk8 = p[8];
@@ -133,12 +133,23 @@ void load_leveldat(const uint8_t *p, struct level_t *level) {
 		case 2:
 			m->type2.y_range = p[0xD];
 			m->type2.unkE = p[0xE];
+		case 4:
+			m->type4.unkD = p[0xD];
+			m->type4.unkE = p[0xE];
+			m->type4.angle = p[0xF];
+			m->type4.unk10 = p[0x10];
+			break;
 		case 8:
 			m->type8.x_range = p[0xD];
 			m->type8.unkE = p[0xE];
 			m->type8.unkF = p[0xF];
 			m->type8.y_range = p[0x10];
 			break;
+		case 9:
+			m->type9.unkD = READ_LE_UINT16(p + 0xD);
+			m->type9.unkF = READ_LE_UINT16(p + 0xF);
+			m->type9.unk11 = p[0x11];
+			m->type9.unk12 = p[0x12];
 		default:
 			break;
 		}

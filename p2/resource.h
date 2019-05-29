@@ -63,7 +63,7 @@ struct level_monster_t {
 	uint8_t type;
 	uint16_t spr_num; // 0x2
 	uint8_t flags; // 0x4
-	uint8_t unk5;
+	uint8_t energy; // 0x5
 	uint8_t total_ticks;
 	uint8_t current_tick;
 	uint8_t unk8;
@@ -75,11 +75,23 @@ struct level_monster_t {
 			int8_t unkE; // 0xE, cbw
 		} type2;
 		struct {
+			uint8_t unkD;
+			uint8_t unkE;
+			uint8_t angle;
+			uint8_t unk10;
+		} type4;
+		struct {
 			uint8_t x_range; // 0xD
 			int8_t unkE; // 0xE, cbw
 			int8_t unkF; // 0xF, cbw
 			uint8_t y_range; // 0x10
 		} type8;
+		struct {
+			int16_t unkD; // 0xD
+			int16_t unkF; // 0xF
+			int8_t unk11; // 0x11
+			uint8_t unk12; // 0x12
+		} type9;
 	};
 };
 
