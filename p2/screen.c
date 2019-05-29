@@ -98,6 +98,17 @@ void video_draw_panel(const uint8_t *src) {
 
 void video_draw_tile(const uint8_t *src, int x_offset, int y_offset) {
 	int tile_w = 16;
+	if (x_offset < 0) {
+		tile_w += x_offset;
+		src -= x_offset / 2;
+		x_offset = 0;
+	}
+	if (x_offset + tile_w > TILEMAP_SCREEN_W) {
+		tile_w = TILEMAP_SCREEN_W - x_offset;
+	}
+	if (tile_w <= 0) {
+		return;
+	}
 	int tile_h = 16;
 	if (y_offset < 0) {
 		tile_h += y_offset;
@@ -113,7 +124,7 @@ void video_draw_tile(const uint8_t *src, int x_offset, int y_offset) {
 	uint8_t *dst = g_res.vga + y_offset * TILEMAP_SCREEN_W + x_offset;
 	for (int y = 0; y < tile_h; ++y) {
 		for (int x = 0; x < tile_w / 2; ++x) {
-			const uint8_t color = *src++;
+			const uint8_t color = src[x];
 			const uint8_t c1 = color >> 4;
 			if (c1 != 0) {
 				dst[x * 2] = c1;
@@ -123,6 +134,7 @@ void video_draw_tile(const uint8_t *src, int x_offset, int y_offset) {
 				dst[x * 2 + 1] = c2;
 			}
 		}
+		src += 8;
 		dst += TILEMAP_SCREEN_W;
 	}
 }

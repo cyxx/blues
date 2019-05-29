@@ -37,7 +37,7 @@ static void do_programmed_in_1992_screen() {
 	time_t now;
 	time(&now);
 	struct tm *t = localtime(&now);
-	if (t->tm_year + 1900 < 1996) {
+	if (t->tm_year + 1900 < 1996) { /* || t->tm_year + 1900 >= 2067 */
 		return;
 	}
 	g_sys.set_screen_palette(credits_palette_data, 0, 16, 6);
@@ -125,9 +125,6 @@ static void do_menu() {
 			}
 			if (g_vars.input.keystate[3] || g_vars.input.keystate[0x50]) {
 				fade_out_palette();
-				break;
-			}
-			if (g_vars.input.keystate[4] || g_vars.input.keystate[0x51]) {
 				break;
 			}
 			g_sys.sleep(30);

@@ -475,10 +475,19 @@ static void handle_joystickbutton(int button, int pressed) {
 	}
 }
 
-static int handle_event(const SDL_Event *ev) {
+static int handle_event(const SDL_Event *ev, bool *paused) {
 	switch (ev->type) {
 	case SDL_QUIT:
-		_input->quit = 1;
+		_input->quit = true;
+		break;
+	case SDL_WINDOWEVENT:
+		switch (ev->window.event) {
+		case SDL_WINDOWEVENT_FOCUS_GAINED:
+		case SDL_WINDOWEVENT_FOCUS_LOST:
+			*paused = (ev->window.event == SDL_WINDOWEVENT_FOCUS_LOST);
+			SDL_PauseAudio(*paused);
+			break;
+		}
 		break;
 	case SDL_KEYUP:
 		handle_keyevent(ev->key.keysym.sym, 0);
@@ -543,12 +552,19 @@ static int handle_event(const SDL_Event *ev) {
 }
 
 static void sdl2_process_events() {
-	SDL_Event ev;
-	while (SDL_PollEvent(&ev)) {
-		handle_event(&ev);
-		if (_input->quit) {
+	bool paused = false;
+	while (1) {
+		SDL_Event ev;
+		while (SDL_PollEvent(&ev)) {
+			handle_event(&ev, &paused);
+			if (_input->quit) {
+				break;
+			}
+		}
+		if (!paused) {
 			break;
 		}
+		SDL_Delay(100);
 	}
 }
 

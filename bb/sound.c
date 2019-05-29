@@ -3,6 +3,7 @@
 #include "game.h"
 #include "resource.h"
 #include "sys.h"
+#include "util.h"
 
 #include <libmodplug/modplug.h>
 
@@ -34,10 +35,10 @@ static const struct {
 
 // Amiga, ExoticA
 static const char *_modules[] = {
-	"ALMOST", "mod.almost",
-	"GUNN",   "mod.bluesgunnbest",
-	"EVERY",  "mod.every",
-	"SHOT",   "mod.shot"
+	"almost", "mod.almost",
+	"gunn",   "mod.bluesgunnbest",
+	"every",  "mod.every",
+	"shot",   "mod.shot"
 };
 
 struct mixerchannel_t {
@@ -119,29 +120,35 @@ void play_music(int num) {
 			// append samples to the end of the buffer
 			static const int SONG_INFO_LEN = 20;
 			static const int NUM_SAMPLES = 8;
+			struct {
+				char *name;
+				int size;
+			} samples[8];
 
 			int samples_size = 0;
 			int offset = SONG_INFO_LEN;
 			for (int i = 0; i < NUM_SAMPLES; ++i, offset += 30) {
-				const char *sample_name = (const char *)&buf[offset];
-				if (sample_name[0]) {
-					samples_size += READ_BE_UINT16(&buf[offset + 22]) * 2;
-				}
+				samples[i].name = (char *)&buf[offset];
+				samples[i].size = READ_BE_UINT16(&buf[offset + 22]) * 2;
+				string_lower(samples[i].name);
+				samples_size += samples[i].size;
 			}
 
 			buf = (uint8_t *)realloc(buf, size + samples_size);
 			if (buf) {
-				offset = SONG_INFO_LEN;
-				for (int i = 0; i < NUM_SAMPLES; ++i, offset += 30) {
-					const char *sample_name = (const char *)&buf[offset];
-					const int sample_size = READ_BE_UINT16(&buf[offset + 22]) * 2;
-					if (sample_name[0]) {
-						int sample_slot = fio_open(sample_name, 0);
-						if (!(sample_slot < 0)) {
-							fio_read(sample_slot, buf + size, sample_size);
-							size += sample_size;
+				memset(buf + size, 0, samples_size);
+				for (int i = 0; i < NUM_SAMPLES; ++i) {
+					if (samples[i].size != 0) {
+						if (samples[i].name[0]) {
+							const int sample_slot = fio_open(samples[i].name, 0);
+							if (sample_slot < 0) {
+								print_warning("Unable to open instrument '%s'", samples[i].name);
+							} else {
+								fio_read(sample_slot, buf + size, samples[i].size);
+								fio_close(sample_slot);
+							}
 						}
-						fio_close(sample_slot);
+						size += samples[i].size;
 					}
 				}
 				_mpf = ModPlug_Load(buf, size);

@@ -75,7 +75,9 @@ static void do_select_player() {
 	const int color_rgb = 2;
 	const int colors_count = 25;
 	load_img(g_res.amiga_data ? "choix.lbm" : "choix.sqz", GAME_SCREEN_W, g_options.cga_colors ? 1 : -1);
-	screen_load_graphics(g_options.cga_colors ? g_res.cga_lut_sqv : 0, 0);
+	if (g_res.spr_count <= SPRITES_COUNT) {
+		screen_load_graphics(g_options.cga_colors ? g_res.cga_lut_sqv : 0, 0);
+	}
 	screen_clear_sprites();
 	do {
 		update_input();

@@ -64,6 +64,9 @@ void decode_amiga_gfx(uint8_t *dst, int dst_pitch, int w, int h, int depth, cons
 							color |= 1 << bit;
 						}
 					}
+					if (palette_mask == 0 && color == 0) {
+						continue;
+					}
 					dst[x * 16 + i] = palette_mask | color;
 				}
 			}

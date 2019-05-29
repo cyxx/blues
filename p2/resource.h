@@ -39,12 +39,22 @@ struct level_trigger_t {
 	uint16_t y_pos;
 	uint16_t spr_num;
 	uint8_t flags;
-	uint8_t unk7;
-	uint8_t unk8;
-	uint8_t unk9;
-	uint8_t state;
-	uint16_t unkB;
-	uint8_t counter;
+	union {
+		struct {
+			int8_t unk7;
+			uint8_t unk8;
+			uint8_t unk9;
+			uint8_t state; // 0xA
+			uint16_t y_delta; // 0xB
+			uint8_t counter; // 0xD
+		} type8;
+		struct {
+			int16_t unk7;
+			uint8_t unk9;
+			int16_t unkA;
+			int16_t unkC;
+		} other;
+	};
 	uint8_t unkE;
 }; // sizeof == 15
 

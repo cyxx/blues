@@ -262,7 +262,7 @@ static void level_update_tilemap() {
 	g_vars.animated_tiles_flag = 0;
 	uint16_t offset = (g_vars.tilemap_y << 8) | g_vars.tilemap_x;
 	for (int y = 0; y < (TILEMAP_SCREEN_H / 16) + 1; ++y) {
-		for (int x = 0; x < TILEMAP_SCREEN_W / 16; ++x) {
+		for (int x = 0; x < (TILEMAP_SCREEN_W / 16) + 1; ++x) {
 			const uint8_t tile_num = level_get_tile(offset + x);
 			g_vars.tile_attr2_flags |= g_res.level.tile_attributes2[tile_num];
 			if (_redraw_tilemap || g_vars.animated_tile_flag_tbl[tile_num] != 0) {
@@ -305,18 +305,6 @@ static void level_draw_tilemap() {
 }
 
 static bool level_adjust_hscroll_left() {
-	if (!g_options.dos_scrolling && 0) {
-		if (g_vars.tilemap_scroll_dx >= 0) {
-			return false;
-		}
-		g_vars.tilemap_scroll_dx += 4;
-		--g_vars.tilemap_x;
-		if (g_vars.tilemap_x < 0) {
-			g_vars.tilemap_x = 0;
-			g_vars.tilemap_scroll_dx = 0;
-		}
-		return true;
-	}
 	if (g_vars.tilemap_x == 0) {
 		return true;
 	}
@@ -324,22 +312,18 @@ static bool level_adjust_hscroll_left() {
 	return false;
 }
 
-static bool level_adjust_hscroll_right() {
-	if (!g_options.dos_scrolling && 0) {
-		if (g_vars.tilemap_scroll_dx < 4) {
-			return false;
-		}
-		g_vars.tilemap_scroll_dx -= 4;
-		++g_vars.tilemap_x;
-		return true;
-	}
+static uint16_t tilemap_end_xpos() {
 	int end_x = (g_vars.objects_tbl[1].x_pos >> 4) - (TILEMAP_SCREEN_W / 16);
 	if (g_res.level.tilemap_w < end_x) {
 		end_x = 256 - (TILEMAP_SCREEN_W / 16);
 	} else {
 		end_x = g_res.level.tilemap_w;
 	}
-	if (g_vars.tilemap_x >= end_x) {
+	return end_x;
+}
+
+static bool level_adjust_hscroll_right() {
+	if (g_vars.tilemap_x >= tilemap_end_xpos()) {
 		return true;
 	}
 	++g_vars.tilemap_x;
@@ -347,6 +331,30 @@ static bool level_adjust_hscroll_right() {
 }
 
 static void level_adjust_x_scroll() {
+	if (!g_options.dos_scrolling && g_vars.level_noscroll_flag == 0) {
+		const int x1 = TILEMAP_SCROLL_W * 2;
+		const int x2 = TILEMAP_SCREEN_W - TILEMAP_SCROLL_W * 2;
+		int tilemap_xpos = (g_vars.tilemap_x << 4) + g_vars.tilemap_scroll_dx;
+		const int player_xpos = g_vars.objects_tbl[1].x_pos - tilemap_xpos;
+		if (player_xpos > x2) {
+			tilemap_xpos += (player_xpos - x2);
+			const int tilemap_xend = tilemap_end_xpos() << 4;
+			if (tilemap_xpos > tilemap_xend) {
+				tilemap_xpos = tilemap_xend;
+			}
+		} else if (player_xpos < x1) {
+			tilemap_xpos += (player_xpos - x1);
+			if (tilemap_xpos < 0) {
+				tilemap_xpos = 0;
+			}
+		}
+		g_vars.tilemap_x = (tilemap_xpos >> 4);
+		g_vars.tilemap_scroll_dx = (tilemap_xpos & 15);
+		g_vars.tilemap_scroll_dx &= ~1;
+		g_vars.level_xscroll_center_flag = 0;
+		return;
+	}
+
 	const int x_pos = (g_vars.objects_tbl[1].x_pos >> 4) - g_vars.tilemap_x;
 	if (x_pos >= (TILEMAP_SCREEN_W / 16) || g_vars.level_force_x_scroll_flag != 0 || g_vars.objects_tbl[1].x_velocity != 0) {
 		if (g_vars.level_xscroll_center_flag != 0) {
@@ -645,7 +653,7 @@ static void level_update_tile_attr1_helper(uint16_t offset) {
 		if (dy >= 32 && g_vars.objects_tbl[1].data.p.y_velocity >= 80) {
 			g_vars.player_prev_y_pos = g_vars.objects_tbl[1].y_pos;
 			if (g_vars.player_jumping_counter >= 20 && g_vars.objects_tbl[1].data.p.y_velocity > 160) {
-				g_vars.player_platform_counter = 8;
+				g_vars.shake_screen_counter = 8;
 			}
 			if (g_vars.player_jumping_counter > 10) {
 				if ((g_res.level.scrolling_mask & 1) == 0) {
@@ -978,11 +986,11 @@ static void level_add_object23_bonus(int x_vel, int y_vel, int count) {
 	for (int i = 0; i < 32; ++i) {
 		struct object_t *obj = &g_vars.objects_tbl[23 + i];
 		if (obj->spr_num == 0xFFFF) {
-			obj->spr_num = g_vars.level_current_bonus_spr_num;
+			obj->spr_num = g_vars.current_bonus.spr_num;
 			obj->hit_counter = 0;
 			obj->data.t.counter = 198;
-			obj->x_pos = g_vars.level_current_bonus_x_pos;
-			obj->y_pos = g_vars.level_current_bonus_y_pos;
+			obj->x_pos = g_vars.current_bonus.x_pos;
+			obj->y_pos = g_vars.current_bonus.y_pos;
 			obj->x_velocity = x_vel;
 			obj->data.p.y_velocity = y_vel;
 			x_vel = -x_vel;
@@ -1090,8 +1098,8 @@ static bool level_handle_bonuses_found(struct object_t *obj, struct level_bonus_
 		if (bonus->count & 0x80) {
 			return false;
 		}
-		g_vars.level_current_bonus_x_pos = (pos & 0xFF) << 4;
-		g_vars.level_current_bonus_y_pos = (pos >> 8)   << 4;
+		g_vars.current_bonus.x_pos = (pos & 0xFF) << 4;
+		g_vars.current_bonus.y_pos = (pos >> 8)   << 4;
 		int num = 0;
 		while (1) {
 			num = random_get_number() & 7;
@@ -1099,8 +1107,8 @@ static bool level_handle_bonuses_found(struct object_t *obj, struct level_bonus_
 				break;
 			}
 		}
-		g_vars.level_current_bonus_spr_num = 110 + num;
-		g_vars.level_current_bonus_y_pos -= 112;
+		g_vars.current_bonus.spr_num = 110 + num;
+		g_vars.current_bonus.y_pos -= 112;
 		level_add_object23_bonus(0, 0, 1);
 	} else {
 		static uint8_t draw_counter = 0;
@@ -1109,30 +1117,30 @@ static bool level_handle_bonuses_found(struct object_t *obj, struct level_bonus_
 		if (diff < 6) {
 			return true;
 		}
-		g_vars.level_current_bonus_x_pos = (pos & 0xFF) << 4;
-		g_vars.level_current_bonus_y_pos = (pos >> 8)   << 4;
+		g_vars.current_bonus.x_pos = (pos & 0xFF) << 4;
+		g_vars.current_bonus.y_pos = (pos >> 8)   << 4;
 		int ax, count = 1;
 		if (bonus->count & 0x40) {
 			if (bonus->count == 64) {
 				bonus->count = 0;
 				if (g_vars.level_num == 7 || g_vars.level_num == 6) {
-					g_vars.level_current_bonus_spr_num = 300;
+					g_vars.current_bonus.spr_num = 300;
 					level_add_object23_bonus(32, -48, 2);
-					g_vars.level_current_bonus_spr_num = 229;
+					g_vars.current_bonus.spr_num = 229;
 					count = 4;
 				} else {
-					g_vars.level_current_bonus_spr_num = 229;
+					g_vars.current_bonus.spr_num = 229;
 					count = 1;
 				}
 			} else {
 				if (g_vars.level_num == 7 || g_vars.level_num == 6) {
-					g_vars.level_current_bonus_spr_num = 300;
+					g_vars.current_bonus.spr_num = 300;
 					level_add_object23_bonus(48, -96, 4);
 				}
 				goto decrement_bonus;
 			}
 		} else {
-			g_vars.level_current_bonus_spr_num = level_get_random_bonus_spr_num();
+			g_vars.current_bonus.spr_num = level_get_random_bonus_spr_num();
 		}
 		ax = 48;
 		if (obj < &g_vars.objects_tbl[1]) {
@@ -1408,61 +1416,60 @@ static void level_update_objects_decors() {
 		}
 		if ((trigger->flags & 15) == 8) {
 			g_vars.level_current_object_decor_x_pos = 0;
-			trigger->y_pos -= trigger->unkB;
-			if (trigger->state == 0) {
-				int a = trigger->unkB - 8;
+			trigger->y_pos -= trigger->type8.y_delta;
+			if (trigger->type8.state == 0) {
+				int a = trigger->type8.y_delta - 8;
 				if (a < 0) {
 					a = 0;
-					trigger->unk7 = 0;
+					trigger->type8.unk7 = 0;
 				}
-				trigger->unkB = a;
+				trigger->type8.y_delta = a;
 			}
 			if (trigger->flags & 0x40) {
-				if (trigger->unk7 != 0 && --trigger->counter == 0) {
-					trigger->state = 1;
-					trigger->unk7 = 0;
+				if (trigger->type8.unk7 != 0 && --trigger->type8.counter == 0) {
+					trigger->type8.state = 1;
+					trigger->type8.unk7 = 0;
 				}
 			} else {
-				if (trigger->state == 1) {
-					int y = trigger->unk7;
+				if (trigger->type8.state == 1) {
+					int y = trigger->type8.unk7;
 					if (y < 192) {
-						trigger->unk7 += 8;
+						trigger->type8.unk7 += 8;
 					}
 					y >>= 4;
 					g_vars.level_current_object_decor_y_pos = y;
-					trigger->unkB += y;
-					int bx = trigger->x_pos >> 4;
-					int dx = (trigger->y_pos + trigger->unkB) >> 4;
-					int ax = g_vars.tilemap_h - 1 - dx;
-					if (ax < 0) {
-						ax = -ax;
-						if (ax >= 3) {
-							trigger->state = 2;
-							trigger->counter = 22;
+					trigger->type8.y_delta += y;
+					const int tile_x =  trigger->x_pos >> 4;
+					const int tile_y = (trigger->y_pos + trigger->type8.y_delta) >> 4;
+					const int y2 = g_vars.tilemap_h - 1 - tile_y;
+					if (y2 < 0) {
+						if ((-y2) >= 3) {
+							trigger->type8.state = 2;
+							trigger->type8.counter = 22;
 						}
 					} else {
-						const uint8_t tile_num = level_get_tile((dx << 8) | bx);
+						const uint8_t tile_num = level_get_tile((tile_y << 8) | tile_x);
 						const uint8_t tile_attr1 = g_res.level.tile_attributes1[tile_num];
 						if (tile_attr1 != 0 && tile_attr1 != 6) {
-							trigger->state = 2;
-							trigger->counter = 22;
+							trigger->type8.state = 2;
+							trigger->type8.counter = 22;
 						}
 					}
 				} else {
-					if (trigger->state == 2 && (trigger->flags & 0x40) == 0 && --trigger->counter == 0) {
-						trigger->state = 0;
-						trigger->counter = trigger->unk9;
+					if (trigger->type8.state == 2 && (trigger->flags & 0x40) == 0 && --trigger->type8.counter == 0) {
+						trigger->type8.state = 0;
+						trigger->type8.counter = trigger->type8.unk9;
 					}
 				}
 			}
-			trigger->y_pos += trigger->unkB;
+			trigger->y_pos += trigger->type8.y_delta;
 		} else {
 			g_vars.level_current_object_decor_x_pos = 0;
 			g_vars.level_current_object_decor_y_pos = 0;
-			if (trigger->unkE != 0 || trigger->unk7 < 0 || (trigger->flags & 0xC0) != 0) {
-				if (trigger->unk7 > trigger->unkE) {
+			if (trigger->unkE != 0 || trigger->other.unk7 < 0 || (trigger->flags & 0xC0) != 0) {
+				if (trigger->other.unk7 > trigger->unkE) {
 					++trigger->unkE;
-				} else if (trigger->unk7 < trigger->unkE) {
+				} else if (trigger->other.unk7 < trigger->unkE) {
 					--trigger->unkE;
 				}
 				int al = trigger->unkE;
@@ -1494,7 +1501,13 @@ static void level_update_objects_decors() {
 				trigger->x_pos += al;
 				g_vars.level_current_object_decor_y_pos = (int8_t)dl;
 				trigger->y_pos += dl;
-				if (trigger->unk7 == trigger->unkE) {
+				if (trigger->other.unk7 == trigger->unkE) {
+					int16_t ax = trigger->other.unkC + 1;
+					if (trigger->other.unkA == ax) {
+						trigger->other.unk7 = -trigger->other.unk7;
+						ax = 0;
+					}
+					trigger->other.unkC = ax;
 				}
 			}
 		}
@@ -2109,8 +2122,8 @@ update_pos:
 	if (g_vars.player_club_anim_duration > 0) {
 		--g_vars.player_club_anim_duration;
 	}
-	if (g_vars.player_platform_counter > 0) {
-		--g_vars.player_platform_counter;
+	if (g_vars.shake_screen_counter > 0) {
+		--g_vars.shake_screen_counter;
 	}
 	if (g_vars.restart_level_flag > 0) {
 		--g_vars.restart_level_flag;
@@ -2159,7 +2172,7 @@ static void level_update_player_collision() {
 		if (!level_objects_collide(obj, obj_player)) {
 			continue;
 		}
-		g_vars.level_current_bonus_spr_num = obj->spr_num;
+		g_vars.current_bonus.spr_num = obj->spr_num;
 		const int num = (obj->spr_num & 0x1FFF) - 53;
 		obj->spr_num = 0xFFFF;
 		if (num == 226) {
@@ -2235,10 +2248,10 @@ static void level_update_player_collision() {
 				int x = 32;
 				if ((random_get_number() & 1) != 0) {
 					x = -x;
-					g_vars.player_platform_counter = 7;
+					g_vars.shake_screen_counter = 7;
 				}
 				obj->x_velocity = x;
-				obj->spr_num = g_vars.level_current_bonus_spr_num;
+				obj->spr_num = g_vars.current_bonus.spr_num;
 			} else {
 				const int index = num - 57;
 				++g_vars.level_items_count_tbl[index];
@@ -2268,16 +2281,16 @@ static void level_update_player_collision() {
 			g_vars.objects_tbl[1].hit_counter = 44;
 			g_vars.objects_tbl[1].data.p.special_anim_num = 0;
 			g_vars.objects_tbl[1].data.p.current_anim_num = 8;
-			g_vars.level_current_bonus_x_pos = g_vars.objects_tbl[1].x_pos;
-			g_vars.level_current_bonus_y_pos = g_vars.objects_tbl[1].y_pos - 48;
+			g_vars.current_bonus.x_pos = g_vars.objects_tbl[1].x_pos;
+			g_vars.current_bonus.y_pos = g_vars.objects_tbl[1].y_pos - 48;
 			const int count = g_vars.player_energy * 6 + g_vars.bonus_energy_counter;
 			if (count != 0) {
 				g_vars.player_energy = 0;
 				g_vars.bonus_energy_counter = 0;
-				g_vars.level_current_bonus_spr_num = 0x2046;
+				g_vars.current_bonus.spr_num = 0x2046;
 				level_add_object23_bonus(48, -128, count);
 			}
-			g_vars.player_platform_counter = 7;
+			g_vars.shake_screen_counter = 7;
 			level_clear_item(obj);
 			level_add_object75_score(obj, 228);
 		} else if (num == 173) {
@@ -2288,10 +2301,46 @@ static void level_update_player_collision() {
 			}
 		} else if (num == 169) {
 			play_sound(0);
-			print_warning("Unhandled bonus num 169");
+			for (int i = 0; i < 12; ++i) {
+				struct object_t *obj = &g_vars.objects_tbl[11 + i];
+				if (obj->spr_num == 0xFFFF) {
+					continue;
+				}
+				if ((obj->spr_num & 0x2000) == 0) {
+					continue;
+				}
+				print_warning("Unhandled bonus num 169");
+			}
+			g_vars.shake_screen_counter = 9;
+			level_clear_item(obj);
+			level_add_object75_score(obj, 230);
 		} else if (num == 170) { /* bomb */
 			play_sound(0);
-			print_warning("Unhandled bonus num 170");
+			for (int i = 0; i < 12; ++i) {
+				struct object_t *obj = &g_vars.objects_tbl[11 + i];
+				if (obj->spr_num == 0xFFFF) {
+					continue;
+				}
+				if ((obj->spr_num & 0x2000) == 0) {
+					continue;
+				}
+				g_vars.current_bonus.x_pos = obj->x_pos;
+				g_vars.current_bonus.y_pos = obj->y_pos;
+				obj->data.m.unkE = 0xFF;
+				obj->spr_num = 0xFFFF;
+				int x_vel = 32;
+				int y_vel = -160;
+				for (int i = 0; i < 4; ++i) {
+					g_vars.current_bonus.spr_num = level_get_random_bonus_spr_num();
+					level_add_object23_bonus(x_vel, y_vel, 4);
+					x_vel = -x_vel;
+					if (x_vel >= 0) {
+						x_vel -= 16;
+						y_vel -= 16;
+					}
+				}
+			}
+			level_clear_item(obj);
 		} else if (num == 181) { /* light off */
 			if (g_vars.light.state != 1) {
 				play_sound(1);
@@ -2303,8 +2352,8 @@ static void level_update_player_collision() {
 			level_clear_item(obj);
 		} else if (num == 180) { /* light on */
 			if (g_vars.light.state != 0) {
-				g_vars.light.palette_flag2 = 0;
-				g_vars.light.palette_flag1 = 1;
+				g_vars.light.palette_flag1 = 0;
+				g_vars.light.palette_flag2 = 1;
 				g_vars.light.palette_counter = 0;
 				g_vars.light.state = 0;
 			}
@@ -2607,8 +2656,10 @@ static void level_draw_objects() {
 		}
 		const int spr_num = obj->spr_num & 0x1FFF;
 		const int spr_hflip = ((obj->spr_num & 0x8000) != 0) ? 1 : 0;
-		const int spr_y_pos = obj->y_pos - ((g_vars.tilemap_y << 4) + g_vars.tilemap_scroll_dy) - spr_size_tbl[2 * spr_num + 1];
-		int spr_x_pos = obj->x_pos - ((g_vars.tilemap_x << 4) + (g_vars.tilemap_scroll_dx << 2));
+		int spr_y_pos = obj->y_pos - ((g_vars.tilemap_y << 4) + g_vars.tilemap_scroll_dy);
+		int spr_h = spr_size_tbl[2 * spr_num + 1];
+		spr_y_pos -= spr_h;
+		int spr_x_pos = obj->x_pos - ((g_vars.tilemap_x << 4) + g_vars.tilemap_scroll_dx);
 		int spr_w = spr_offs_tbl[2 * spr_num];
 		if (spr_hflip) {
 			spr_w = spr_size_tbl[2 * spr_num] - spr_w;
@@ -2659,9 +2710,9 @@ static void level_draw_snow() {
 
 static void level_update_player_bonuses() {
 	if (g_vars.player_bonus_letters_mask == 0x1F) { /* found the 5 bonuses */
-		g_vars.level_current_bonus_x_pos = g_vars.objects_tbl[1].x_pos;
-		g_vars.level_current_bonus_y_pos = g_vars.objects_tbl[1].y_pos - 112;
-		g_vars.level_current_bonus_spr_num = 110;
+		g_vars.current_bonus.x_pos = g_vars.objects_tbl[1].x_pos;
+		g_vars.current_bonus.y_pos = g_vars.objects_tbl[1].y_pos - 112;
+		g_vars.current_bonus.spr_num = 110;
 		level_add_object23_bonus(0, 0, 1);
 		g_vars.player_bonus_letters_mask = 0;
 		g_vars.player_bonus_letters_blinking_counter = 44; /* blink the letters in the panel */
@@ -2671,16 +2722,19 @@ static void level_update_player_bonuses() {
 	}
 }
 
-static void level_fixup_player_y_pos() {
-	if (g_vars.player_platform_counter < 1) {
+static void level_shake_screen() {
+	if (g_vars.shake_screen_counter < 1) {
 		return;
-	} else if (g_vars.player_platform_counter == 1) {
+	} else if (g_vars.shake_screen_counter == 1) {
+		g_vars.shake_screen_voffset = 0;
 	} else if ((g_vars.level_draw_counter & 1) == 0) {
+		g_vars.shake_screen_voffset = 0;
 	} else {
 		if (g_vars.objects_tbl[1].data.p.current_anim_num != 5 && g_vars.objects_tbl[1].data.p.current_anim_num != 32) {
 			g_vars.objects_tbl[1].y_pos -= 12;
 		}
-		++g_vars.player_platform_counter;
+		++g_vars.shake_screen_counter;
+		g_vars.shake_screen_voffset = g_vars.shake_screen_counter;
 	}
 }
 
@@ -2964,6 +3018,6 @@ void do_level() {
 		level_sync();
 		level_update_light_palette();
 		level_update_player_bonuses();
-		level_fixup_player_y_pos();
+		level_shake_screen();
 	}
 }

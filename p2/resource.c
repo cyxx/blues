@@ -3,6 +3,8 @@
 #include "unpack.h"
 #include "util.h"
 
+static const bool _dump_data = true;
+
 static const int BACKGROUND_SIZE = 320 * 200;
 
 static const char *_datapath;
@@ -112,6 +114,16 @@ void load_leveldat(const uint8_t *p, struct level_t *level) {
 		platform->unk9 = *p++;
 	}
 	memcpy(g_res.level.monsters_attributes, p, 0x800); p += 0x800;
+	if (_dump_data) {
+		const uint8_t *p = g_res.level.monsters_attributes;
+		for (int i = 0; *p < 50; ++i) {
+			const uint8_t len = p[0];
+			const uint8_t type = p[1] & 0x7F;
+			const uint16_t spr_num = READ_LE_UINT16(p + 2);
+			print_debug(DBG_RESOURCE, "monster %d len %d type %d spr %d", i, len, type, spr_num);
+			p += len;
+		}
+	}
 	g_res.level.items_spr_num_offset = READ_LE_UINT16(p); p += 2;
 	g_res.level.monsters_spr_num_offset = READ_LE_UINT16(p); p += 2;
 	for (int i = 0; i < MAX_LEVEL_BONUSES; ++i) {
@@ -135,12 +147,20 @@ void load_leveldat(const uint8_t *p, struct level_t *level) {
 		trigger->y_pos = READ_LE_UINT16(p); p += 2;
 		trigger->spr_num = READ_LE_UINT16(p); p += 2;
 		trigger->flags = *p++;
-		trigger->unk7 = *p++;
-		trigger->unk8 = *p++;
-		trigger->unk9 = *p++;
-		trigger->state = *p++;
-		trigger->unkB = READ_LE_UINT16(p); p += 2;
-		trigger->counter = *p++;
+		const int type = trigger->flags & 15;
+		if (type == 8) {
+			trigger->type8.unk7 = *p++;
+			trigger->type8.unk8 = *p++;
+			trigger->type8.unk9 = *p++;
+			trigger->type8.state = *p++;
+			trigger->type8.y_delta = READ_LE_UINT16(p); p += 2;
+			trigger->type8.counter = *p++;
+		} else {
+			trigger->other.unk7 = READ_LE_UINT16(p); p += 2;
+			trigger->other.unk9 = *p++;
+			trigger->other.unkA = READ_LE_UINT16(p); p += 2;
+			trigger->other.unkC = READ_LE_UINT16(p); p += 2;
+		}
 		trigger->unkE = *p++;
 	}
 	g_res.level.monsters_xmin = READ_LE_UINT16(p); p += 2;

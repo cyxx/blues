@@ -10,6 +10,7 @@ extern struct options_t g_options;
 
 #define TILEMAP_SCREEN_W  GAME_SCREEN_W
 #define TILEMAP_SCREEN_H (GAME_SCREEN_H - PANEL_H)
+#define TILEMAP_SCROLL_W  64
 
 #define CHEATS_NO_HIT           (1 << 0)
 #define CHEATS_UNLIMITED_LIFES  (1 << 1)
@@ -35,6 +36,11 @@ struct club_projectile_t {
 	int16_t y_velocity; // 0xE
 };
 
+struct monster_t {
+	void *ref; // 0x6
+	uint8_t unkE; // 0xE
+};
+
 struct thing_t {
 	void *ref; // 0x9
 	int16_t counter; // 0xC
@@ -49,6 +55,7 @@ struct object_t {
 	union { // 0x9 - 0x10
 		struct player_t p; /* objects[1] */
 		struct club_projectile_t c; /* objects[2..5] */
+		struct monster_t m; /* objects[11..22] */
 		struct thing_t t;
 	} data;
 	uint8_t hit_counter; // 0x11
@@ -104,6 +111,9 @@ struct vars_t {
 
 	uint16_t level_draw_counter;
 
+	uint8_t shake_screen_counter;
+	uint16_t shake_screen_voffset;
+
 	uint8_t player_lifes;
 	uint8_t player_energy;
 	uint8_t player_death_flag;
@@ -129,11 +139,9 @@ struct vars_t {
 	uint8_t player_club_anim_duration;
 	bool player_using_club_flag;
 	uint16_t player_update_counter;
-	uint8_t player_platform_counter;
 	uint8_t player_current_anim_type;
 	uint8_t player_tile_flags;
 
-	int16_t level_current_bonus_x_pos, level_current_bonus_y_pos, level_current_bonus_spr_num;
 	uint8_t level_items_count_tbl[140]; /* bonuses and items collected in the level */
 	uint8_t level_items_total_count;
 	uint8_t level_bonuses_count_tbl[80];
@@ -152,8 +160,8 @@ struct vars_t {
 	bool tilemap_adjust_player_pos_flag;
 	uint8_t level_noscroll_flag;
 	int16_t tilemap_yscroll_diff;
-	uint16_t tilemap_x, tilemap_y;
-	uint16_t tilemap_prev_x, tilemap_prev_y;
+	int16_t tilemap_x, tilemap_y;
+	int16_t tilemap_prev_x, tilemap_prev_y;
 	int8_t tilemap_scroll_dx, tilemap_scroll_dy;
 	uint8_t tilemap_h;
 	uint16_t tilemap_size; /* tilemap size h*256 */
@@ -169,6 +177,10 @@ struct vars_t {
 	uint8_t tilemap_redraw_flag2; /* tilemap needs redraw */
 	uint8_t tilemap_redraw_flag1; /* force redraw even if tilemap origin did not change */
 
+	struct {
+		int16_t x_pos, y_pos;
+		uint16_t spr_num;
+	} current_bonus; /* bonus added */
 	struct {
 		uint16_t value;
 		uint16_t counter;

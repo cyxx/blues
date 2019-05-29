@@ -42,6 +42,24 @@ static void add_game_sprite(int x, int y, int frame, int xflip) {
 }
 
 void screen_add_sprite(int x, int y, int frame) {
+	if (g_res.amiga_data) {
+		switch (frame) {
+		case 125: {
+				extern const uint8_t spr71a6_amiga[];
+				static const int w = 16;
+				static const int h = 6;
+				decode_amiga_gfx(g_res.vga + (y - h) * GAME_SCREEN_W + (x - w / 2), GAME_SCREEN_W, w, h, 4, spr71a6_amiga, w, 0x0, 0xFFFF);
+			}
+			return;
+		case 126: {
+				extern const uint8_t spr71da_amiga[];
+				static const int w = 48;
+				static const int h = 34;
+				decode_amiga_gfx(g_res.vga + (y - h) * GAME_SCREEN_W + (x - w / 2), GAME_SCREEN_W, w, h, 4, spr71da_amiga, w, 0x0, 0xFFFF);
+			}
+			return;
+		}
+	}
 	add_game_sprite(x, y, frame, 0);
 }
 
