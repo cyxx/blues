@@ -3,8 +3,6 @@
 #include "unpack.h"
 #include "util.h"
 
-static const bool _dump_data = true;
-
 static const int BACKGROUND_SIZE = 320 * 200;
 
 static const char *_datapath;
@@ -113,17 +111,41 @@ void load_leveldat(const uint8_t *p, struct level_t *level) {
 		platform->unk8 = *p++;
 		platform->unk9 = *p++;
 	}
-	memcpy(g_res.level.monsters_attributes, p, 0x800); p += 0x800;
-	if (_dump_data) {
-		const uint8_t *p = g_res.level.monsters_attributes;
-		for (int i = 0; *p < 50; ++i) {
-			const uint8_t len = p[0];
-			const uint8_t type = p[1] & 0x7F;
-			const uint16_t spr_num = READ_LE_UINT16(p + 2);
-			print_debug(DBG_RESOURCE, "monster %d len %d type %d spr %d", i, len, type, spr_num);
-			p += len;
+	const uint8_t *monster_attr = p;
+	int monsters_count = 0;
+	while (*p < 50) {
+		const uint8_t len = p[0];
+		const uint8_t type = p[1] & 0x7F;
+		const uint16_t spr_num = READ_LE_UINT16(p + 2);
+		print_debug(DBG_RESOURCE, "monster %d len %d type %d spr %d", monsters_count, len, type, spr_num);
+		assert(monsters_count < MAX_LEVEL_MONSTERS);
+		struct level_monster_t *m = &g_res.level.monsters_tbl[monsters_count++];
+		m->len = len;
+		m->type = p[1];
+		m->spr_num = spr_num;
+		m->unk5 = p[5];
+		m->total_ticks = p[6];
+		m->current_tick = p[7];
+		m->unk8 = p[8];
+		m->x_pos = READ_LE_UINT16(p + 0x9);
+		m->y_pos = READ_LE_UINT16(p + 0xB);
+		switch (type) {
+		case 2:
+			m->type2.y_range = p[0xD];
+			m->type2.unkE = p[0xE];
+		case 8:
+			m->type8.x_range = p[0xD];
+			m->type8.unkE = p[0xE];
+			m->type8.unkF = p[0xF];
+			m->type8.y_range = p[0x10];
+			break;
+		default:
+			break;
 		}
+		p += len;
 	}
+	g_res.level.monsters_count = monsters_count;
+	p = monster_attr + 0x800;
 	g_res.level.items_spr_num_offset = READ_LE_UINT16(p); p += 2;
 	g_res.level.monsters_spr_num_offset = READ_LE_UINT16(p); p += 2;
 	for (int i = 0; i < MAX_LEVEL_BONUSES; ++i) {

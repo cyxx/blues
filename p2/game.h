@@ -37,8 +37,14 @@ struct club_projectile_t {
 };
 
 struct monster_t {
+	uint8_t unk5;
 	void *ref; // 0x6
+	int16_t x_velocity; // 0x8
+	int16_t y_velocity; // 0xA
+	const uint8_t *anim; // 0xC
 	uint8_t unkE; // 0xE
+	uint8_t unkF; // 0xF
+	uint8_t unk10;
 };
 
 struct thing_t {
@@ -178,6 +184,9 @@ struct vars_t {
 	uint8_t tilemap_redraw_flag1; /* force redraw even if tilemap origin did not change */
 
 	struct {
+		struct object_t *current_object;
+	} monster;
+	struct {
 		int16_t x_pos, y_pos;
 		uint16_t spr_num;
 	} current_bonus; /* bonus added */
@@ -217,6 +226,8 @@ extern const uint8_t player_anim_data[100];
 extern const uint8_t vscroll_offsets_data[132];
 extern const uint8_t cos_tbl[256];
 extern const uint8_t sin_tbl[256];
+extern const uint16_t monster_spr_tbl[48];
+extern const uint8_t monster_anim_tbl[];
 
 /* game.c */
 extern void	update_input();

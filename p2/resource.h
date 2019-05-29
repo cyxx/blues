@@ -58,11 +58,37 @@ struct level_trigger_t {
 	uint8_t unkE;
 }; // sizeof == 15
 
+struct level_monster_t {
+	uint8_t len;
+	uint8_t type;
+	uint16_t spr_num; // 0x2
+	uint8_t flags; // 0x4
+	uint8_t unk5;
+	uint8_t total_ticks;
+	uint8_t current_tick;
+	uint8_t unk8;
+	uint16_t x_pos; // 0x9
+	uint16_t y_pos; // 0xB
+	union {
+		struct {
+			uint8_t y_range; // 0xD
+			int8_t unkE; // 0xE, cbw
+		} type2;
+		struct {
+			uint8_t x_range; // 0xD
+			int8_t unkE; // 0xE, cbw
+			int8_t unkF; // 0xF, cbw
+			uint8_t y_range; // 0x10
+		} type8;
+	};
+};
+
 #define MAX_LEVEL_GATES     20
 #define MAX_LEVEL_PLATFORMS 15
 #define MAX_LEVEL_BONUSES   80
 #define MAX_LEVEL_ITEMS     70
 #define MAX_LEVEL_TRIGGERS  16
+#define MAX_LEVEL_MONSTERS 150
 
 struct level_t {
 	uint8_t tile_attributes0[256];
@@ -76,7 +102,8 @@ struct level_t {
 	uint16_t front_tiles_lut[256];
 	struct level_gate_t gates_tbl[MAX_LEVEL_GATES];
 	struct level_platform_t platforms_tbl[MAX_LEVEL_PLATFORMS];
-	uint8_t monsters_attributes[0x800];
+	struct level_monster_t monsters_tbl[MAX_LEVEL_MONSTERS];
+	uint8_t monsters_count;
 	uint16_t items_spr_num_offset;
 	uint16_t monsters_spr_num_offset;
 	struct level_bonus_t bonuses_tbl[MAX_LEVEL_BONUSES];

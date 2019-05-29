@@ -131,22 +131,19 @@ static void load_level_data_fix_items_spr_num() {
 
 static void load_level_data_fix_monsters_spr_num() {
 	if (g_res.level.items_spr_num_offset != 0xFFFF) {
-		uint8_t *p = g_res.level.monsters_attributes;
-		while (*p <= 50) {
-			int16_t num = READ_LE_UINT16(p + 2);
-			if (num != -1) {
+		for (int i = 0; i < g_res.level.monsters_count; ++i) {
+			uint16_t num = g_res.level.monsters_tbl[i].spr_num;
+			if (num != 0xFFFF) {
 				if (num >= g_res.level.monsters_spr_num_offset) {
 					num -= g_res.level.monsters_spr_num_offset;
 					num += 305;
-					WRITE_LE_UINT16(p + 2, num);
+					g_res.level.monsters_tbl[i].spr_num = num;
 				} else if (num >= g_res.level.items_spr_num_offset) {
 					num -= g_res.level.items_spr_num_offset;
 					num += 53;
-					WRITE_LE_UINT16(p + 2, num);
+					g_res.level.monsters_tbl[i].spr_num = num;
 				}
 			}
-			const int8_t len = *p;
-			p += len;
 		}
 	}
 	g_res.level.items_spr_num_offset = 53;
@@ -900,6 +897,12 @@ static void level_reset_objects() {
 }
 
 static void level_reset() {
+	g_vars.player_nojump_counter = 0;
+	g_vars.player_action_counter = 0;
+	g_vars.restart_level_flag = 0;
+	g_vars.player_death_flag = 0;
+	g_vars.level_completed_flag = 0;
+
 	g_vars.objects_tbl[1].data.p.special_anim_num = 0;
 	g_vars.tilemap_prev_x = _undefined;
 	g_vars.current_hit_object = &g_vars.objects_tbl[6];
@@ -1228,6 +1231,9 @@ static void level_update_objects_axe() {
 static void level_update_monsters_state() {
 }
 
+extern void monster_func1(int type, struct object_t *obj); /* update */
+extern bool monster_func2(int type, struct level_monster_t *m); /* init */
+
 static void level_update_objects_monsters() {
 	if (g_res.level.monsters_state != 0xFF) {
 		level_update_monsters_state();
@@ -1239,14 +1245,70 @@ static void level_update_objects_monsters() {
 		if (obj->spr_num == 0xFFFF) {
 			continue;
 		}
-		print_warning("Unhandled level_update_objects_monsters object %d", 11 + i);
-	}
-	const uint8_t *p = g_res.level.monsters_attributes;
-	while (*p < 50) {
-		if (READ_LE_UINT16(p + 2) != 0xFFFF && (p[4] & 4) == 0) {
+		obj->y_pos += obj->data.m.y_velocity >> 4;
+		if (obj->data.m.x_velocity != -1) {
+			obj->x_pos += obj->data.m.x_velocity >> 4;
 		}
-		const uint8_t len = p[0];
-		p += len;
+		struct level_monster_t *m = obj->data.m.ref;
+		if (m->flags & 8) {
+		}
+		const uint8_t *p = obj->data.m.anim;
+		int16_t num;
+		while (1) {
+			num = READ_LE_UINT16(p);
+			if (num >= 0) {
+				break;
+			}
+			p += num;
+		}
+		uint16_t dx = 305 + (num & 0x1FFF);
+		if (g_vars.player_monsters_unk_counter == 0) {
+			obj->data.m.anim = p + 2;
+		} else {
+			if (g_vars.player_monsters_unk_counter == 7) {
+				g_vars.shake_screen_counter = 9;
+			}
+			const uint16_t *q = monster_spr_tbl;
+			dx &= 0x1FFF;
+			while (1) {
+				if (dx < q[0]) {
+					obj->data.m.anim = p + 2;
+					break;
+				}
+				if (dx <= q[1]) {
+					dx = q[2] + 53;
+					break;
+				}
+				q += 3;
+			}
+		}
+		dx &= 0x1FFF;
+		if (obj->data.m.x_velocity < 0) {
+			dx |= 0x8000;
+		}
+		obj->spr_num &= 0x6000;
+		obj->spr_num |= dx;
+		const int type = (m->type & 0x7F);
+		monster_func1(type, obj);
+	}
+	for (int i = 0; i < g_res.level.monsters_count; ++i) {
+		struct level_monster_t *m = &g_res.level.monsters_tbl[i];
+		if (m->spr_num != 0xFFFF && (m->flags & 4) == 0) {
+			const int type = m->type & 0x7F;
+			if (!monster_func2(type, m)) {
+				continue;
+			}
+			const uint8_t *p = monster_anim_tbl;
+			const int spr_num = m->spr_num - 305;
+			do {
+				p += 2;
+			} while (READ_LE_UINT16(p) != 0x7D01 || READ_LE_UINT16(p + 2) != m->type);
+			p += 4;
+			while (READ_LE_UINT16(p) != spr_num) {
+				p += 2;
+			}
+			g_vars.monster.current_object->data.m.anim = p;
+		}
 	}
 }
 
@@ -2149,24 +2211,33 @@ static void level_clear_item(struct object_t *obj) {
 
 static void level_update_player_collision() {
 	struct object_t *obj_player = &g_vars.objects_tbl[1];
+	/* monsters */
 	if (g_vars.objects_tbl[1].hit_counter == 0) {
 		for (int i = 0; i < 12; ++i) {
 			struct object_t *obj = &g_vars.objects_tbl[11 + i];
 			if (obj->spr_num == 0xFFFF || (obj->spr_num & 0x2000) == 0) {
 				continue;
 			}
-			print_warning("Unhandled level_update_player_collision 6A2F");
+			struct level_monster_t *m = obj->data.m.ref;
+			if (m->flags & 0x10) {
+				continue;
+			}
+			if (obj->data.m.unkE == 0xFF) {
+				continue;
+			}
+			if (!level_objects_collide(obj_player, obj)) {
+				continue;
+			}
+			print_warning("Unhandled level_update_player_collision 6A43");
 		}
 	}
+	/* bonuses */
 	for (int i = 0; i < 52; ++i) {
 		struct object_t *obj = &g_vars.objects_tbl[23 + i];
-		if (obj->spr_num == 0xFFFF) {
+		if (obj->spr_num == 0xFFFF || (obj->spr_num & 0x2000) == 0) {
 			continue;
 		}
 		if (obj->data.t.counter > 188) {
-			continue;
-		}
-		if ((obj->spr_num & 0x2000) == 0) {
 			continue;
 		}
 		if (!level_objects_collide(obj, obj_player)) {
