@@ -2130,7 +2130,6 @@ void do_level() {
 		// demo
 		do_level_update_scrolling2();
 		do_level_update_objects();
-		screen_redraw_sprites();
 		if (!g_res.amiga_data) {
 			draw_foreground_tiles();
 		}

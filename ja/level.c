@@ -29,7 +29,7 @@ static void do_end_of_level() {
 	g_sys.set_palette_color(color_index, white);
 	g_sys.update_screen(g_res.vga, 1);
 	g_sys.sleep(1000);
-	fade_out_palette();
+	g_sys.fade_out_palette();
 }
 
 static void level_player_die(struct player_t *player) {
@@ -3026,7 +3026,7 @@ void do_level() {
 			continue;
 		}
 		// player fell or no energy left
-		fade_out_palette();
+		g_sys.fade_out_palette();
 		assert(g_vars.player != 2);
 		if (g_vars.players_table[0].lifes_count != 0) {
 			init_level(get_level()); // restart

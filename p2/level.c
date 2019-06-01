@@ -228,6 +228,19 @@ static void load_level_data(int num) {
 	load_level_data_init_secret_bonus_tiles();
 	load_level_data_init_password_items();
 	g_res.restart = g_res.level;
+	int count = 0;
+	for (int i = 0; i < MAX_LEVEL_ITEMS; ++i) {
+		struct level_item_t *item = &g_res.level.items_tbl[i];
+		const uint16_t spr_num = item->spr_num;
+		if (spr_num >= 110 && spr_num <= 219) {
+			if (spr_num >= 128 || spr_num <= 117) {
+				++count;
+			}
+		}
+	}
+	static const uint8_t type_tbl[] = { 0xFF, 0x0C, 0x0B, 0x0A, 0xFF, 0xFF, 0x00, 0xFF, 0xFF, 0x0E };
+	if (g_vars.level_num < 10 && type_tbl[g_vars.level_num] != 0xFF) {
+	}
 }
 
 static void level_draw_tile(int tile_num, int x, int y) {
@@ -935,6 +948,7 @@ static void level_reset() {
 	}
 	memset(g_vars.boss_level5.proj_tbl, 0xFF, sizeof(g_vars.boss_level5.proj_tbl));
 	g_vars.player_energy = 3;
+	memset(&g_vars.boss_level9, 0, sizeof(g_vars.boss_level9));
 
 	g_vars.decor_tile0_offset = _undefined;
 	g_vars.tilemap_yscroll_diff = 0;
@@ -1208,20 +1222,30 @@ static bool level_handle_bonuses_found(struct object_t *obj, struct level_bonus_
 		if (bonus->count & 0x40) {
 			if (bonus->count == 64) {
 				bonus->count = 0;
-				if (g_vars.level_num == 7 || g_vars.level_num == 6) {
+				if (g_vars.level_num == 3) {
+					g_vars.current_bonus.spr_num = 306;
+				} else if (g_vars.level_num == 7 || g_vars.level_num == 6) {
 					g_vars.current_bonus.spr_num = 300;
-					level_add_object23_bonus(32, -48, 2);
-					g_vars.current_bonus.spr_num = 229;
-					count = 4;
+				} else {
+					g_vars.current_bonus.spr_num = 308;
+				}
+				level_add_object23_bonus(32, -48, 2);
+				if (g_vars.level_num == 8) {
+					g_vars.current_bonus.spr_num = 310;
+					count = 2;
 				} else {
 					g_vars.current_bonus.spr_num = 229;
-					count = 1;
+					count = 4;
 				}
 			} else {
-				if (g_vars.level_num == 7 || g_vars.level_num == 6) {
+				if (g_vars.level_num == 3) {
+					g_vars.current_bonus.spr_num = 306;
+				} else if (g_vars.level_num == 7 || g_vars.level_num == 6) {
 					g_vars.current_bonus.spr_num = 300;
-					level_add_object23_bonus(48, -96, 4);
+				} else {
+					g_vars.current_bonus.spr_num = 308;
 				}
+				level_add_object23_bonus(48, -96, 4);
 				goto decrement_bonus;
 			}
 		} else {
@@ -1310,6 +1334,25 @@ static void level_update_objects_axe() {
 	}
 }
 
+static void level_clear_boss_objects(int count) {
+	if (count > 8) {
+		count = 8;
+	}
+	if (count != 0 && 0) {
+		play_music(13);
+		for (int i = 0; i < count; ++i) {
+			struct object_t *obj = &g_vars.objects_tbl[108 + i];
+			obj->spr_num = 0x135;
+			obj->x_pos = 8 + i * 5;
+			obj->y_pos = 170;
+		}
+	}
+	for (int i = count; i < 8; ++i) {
+		struct object_t *obj = &g_vars.objects_tbl[108 + i];
+		obj->spr_num = 0xFFFF;
+	}
+}
+
 static void level_update_objects_boss_level5_helper() {
 	--g_vars.bonus_energy_counter;
 	if (g_vars.bonus_energy_counter < 0) {
@@ -1329,7 +1372,7 @@ static void level_update_objects_boss_level5_helper() {
 	level_add_object23_bonus(x_vel, y_vel, 1);
 }
 
-static void level_update_boss() {
+static void level_update_boss_gorilla() {
 	const int x = (g_vars.boss.x_pos >> 4) + g_res.level.end_x_pos;
 	if (x >= 0) {
 		if (g_res.level.boss_xmin <= x && g_res.level.boss_xmax >= x) {
@@ -1369,7 +1412,8 @@ static void level_update_boss() {
 	print_warning("level_update_boss unimplemented end_pos %d,%d", g_res.level.end_x_pos, g_res.level.end_y_pos);
 }
 
-static void level_update_objects_boss_level5() {
+static void level_update_boss_tree() {
+	level_clear_boss_objects((2 - g_vars.boss_level5.state) << 1);
 	struct object_t *obj_player = &g_vars.objects_tbl[1];
 	for (int i = 0; i < 5; ++i) {
 		struct boss_level5_proj_t *prj = &g_vars.boss_level5.proj_tbl[i];
@@ -1413,9 +1457,9 @@ static void level_update_objects_boss_level5() {
 	g_vars.objects_tbl[104].spr_num = 0xFFFF;
 	if (g_vars.boss_level5.state < 2) {
 		static const uint16_t pos2_data[] = {
-			0x3D5, 0x7C1, 0x1A3, 0x3FA, 0x7B6, 0x1A4, 0x3E8, 0x7A8, 0x1A5,
-			0x3FF, 0x788, 0x1A6, 0x3D9, 0x79B, 0x1A7, 0x3FF, 0x7A8, 0x1A8,
-			0x405, 0x7A9, 0x1B0, 0, 0, 0xFFFF
+			0x3D5, 0x7C1, 0x1AA, 0x3FA, 0x7B6, 0x1AB, 0x3E8, 0x7A8, 0x1AC,
+			0x3FF, 0x788, 0x1AD, 0x3D9, 0x79B, 0x1AE, 0x3FF, 0x7A8, 0x1AF,
+			0x405, 0x7A9, 0x1B7, 0, 0, 0xFFFF
 		};
 		const uint16_t *p = &pos2_data[g_vars.boss_level5.state * 6];
 		g_vars.objects_tbl[105].x_pos = p[0];
@@ -1426,9 +1470,9 @@ static void level_update_objects_boss_level5() {
 		g_vars.objects_tbl[104].spr_num = p[5];
 	}
 	static const uint16_t pos1_data[] = {
-		0x3A9, 0x7D4, 0x19D, 0x3D1, 0x7B9, 0x19E, 0x3A2, 0x7A6, 0x19F,
-		0x3B4, 0x79F, 0x1A0, 0x396, 0x78A, 0x1A1, 0x3B6, 0x79C, 0x1A2,
-		0x3E0, 0x795, 0x1AF, 0, 0, 0xFFFF
+		0x3A9, 0x7D4, 0x1A4, 0x3D1, 0x7B9, 0x1A5, 0x3A2, 0x7A6, 0x1A6,
+		0x3B4, 0x79F, 0x1A7, 0x396, 0x78A, 0x1A8, 0x3B6, 0x79C, 0x1A9,
+		0x3E0, 0x795, 0x1B6, 0, 0, 0xFFFF
 	};
 	const uint16_t *p = &pos1_data[g_vars.boss_level5.unk5 * 6];
 	g_vars.objects_tbl[107].x_pos = p[0];
@@ -1438,7 +1482,7 @@ static void level_update_objects_boss_level5() {
 	g_vars.objects_tbl[106].y_pos = p[4];
 	g_vars.objects_tbl[106].spr_num = p[5];
 	static const uint16_t pos3_data[] = {
-		0x3E3, 0x773, 0x1A9, 0x3E4, 0x771, 0x1AA, 0x3E4, 0x773, 0x1AB
+		0x3E3, 0x773, 0x1B0, 0x3E4, 0x771, 0x1B1, 0x3E4, 0x773, 0x1B2
 	};
 	const uint16_t *q = &pos3_data[g_vars.boss_level5.unk4 * 3];
 	g_vars.objects_tbl[103].x_pos = q[0];
@@ -1560,6 +1604,132 @@ static void level_update_objects_boss_level5() {
 	}
 }
 
+static void level_update_boss_minotaur_update_tiles(int count) {
+}
+
+static void level_update_boss_minotaur_helper() {
+	g_vars.current_bonus.x_pos = 185;
+	g_vars.current_bonus.y_pos = 30;
+	g_vars.current_bonus.spr_num = 0x2137;
+	int x_vel = 32;
+	int y_vel = -160;
+	for (int i = 0; i < 4; ++i) {
+		level_add_object23_bonus(x_vel, y_vel, 1);
+		x_vel = -x_vel;
+		if (x_vel >= 0) {
+			x_vel -= 16;
+			y_vel -= 16;
+		}
+	}
+}
+
+static void level_update_boss_minotaur_add_spr_0x1CA() {
+	for (int i = 0; i < 32; ++i) {
+		struct object_t *obj = &g_vars.objects_tbl[23 + i];
+		if (obj->spr_num == 0xFFFF) {
+			continue;
+		}
+		obj->spr_num = 0x1CA;
+		obj->x_pos = 200;
+		obj->y_pos = 88;
+		obj->data.t.counter = 132;
+		obj->data.t.ref = 0;
+		obj->x_velocity = -((random_get_number() & 15) << 3);
+		obj->data.t.unkE = 0;
+		break;
+	}
+}
+
+static void level_update_boss_minotaur_add_spr_0x1CB() {
+	for (int i = 0; i < 32; ++i) {
+		struct object_t *obj = &g_vars.objects_tbl[23 + i];
+		if (obj->spr_num == 0xFFFF) {
+			continue;
+		}
+		obj->spr_num = 0x1CB;
+		obj->x_pos = (random_get_number() & 0x7F) - 16;
+		obj->y_pos = 0;
+		obj->data.t.counter = 66;
+		obj->data.t.ref = 0;
+		obj->x_velocity = 0;
+		obj->data.t.unkE = 0;
+		break;
+	}
+}
+
+static void level_update_boss_minotaur() {
+	static const uint16_t data[] = {
+		0xA70F, 5, 0xA74E, 1, 0xA70F, 3, 0xA74E, 2, 0xA70F, 2, 0xA734, 1, 0xFFFF, 0xFFE8
+	};
+	if (!g_vars.boss_level9.seq) {
+		g_vars.boss_level9.anim = data;
+		g_vars.boss_level9.unk1 = 24;
+		g_vars.boss_level9.unk2 = 0;
+		g_vars.boss_level9.unk3 = 3;
+	}
+	level_clear_boss_objects(g_vars.boss_level9.unk1 >> 2);
+	if (g_vars.boss_level9.unk1 == 0) {
+		level_update_boss_minotaur_update_tiles(2);
+		return;
+	}
+	if (g_vars.boss_level9.unk2 == 0) {
+		const uint16_t *p = g_vars.boss_level9.anim;
+		if (p[0] == 0xFFFF) {
+			p += (int16_t)p[1] / 2;
+			assert(p == data);
+		}
+		assert(p[0] >= 0xA70F);
+		g_vars.boss_level9.seq = &boss_minotaur_seq_data[p[0] - 0xA70F];
+		g_vars.boss_level9.unk2 = p[1];
+		g_vars.boss_level9.anim = p + 2;
+	}
+	for (int i = 0; i < 4; ++i) {
+		struct object_t *obj = &g_vars.objects_tbl[2 + i];
+		if (obj->spr_num == 0xFFFF) {
+			continue;
+		}
+		if ((obj->x_pos >= 235) || obj->y_pos >= 80) {
+			continue;
+		}
+		g_vars.boss_level9.seq = &boss_minotaur_seq_data[0x19];
+		if (g_vars.boss_level9.unk1 > 0) {
+			--g_vars.boss_level9.unk1;
+		}
+		if (g_vars.boss_level9.unk1 == 0) {
+			level_update_boss_minotaur_helper();
+		}
+		++g_vars.boss_level9.unk3;
+		g_vars.boss_level9.unk3 &= 3;
+		if (g_vars.boss_level9.unk3 == 0) {
+			g_vars.boss_level9.seq = &boss_minotaur_seq_data[0x25];
+		}
+		break;
+	}
+	const uint8_t *p = g_vars.boss_level9.seq;
+	while (1) {
+		if (*p == 0xFF) {
+			level_update_boss_minotaur_add_spr_0x1CA();
+			++p;
+		} else if (*p == 0xFE) {
+			level_update_boss_minotaur_add_spr_0x1CB();
+			++p;
+		} else if (*p == 0xFD) {
+			play_sound(2);
+			++p;
+		} else if ((*p & 0x80) == 0) {
+			++g_vars.boss_level9.seq;
+			level_update_boss_minotaur_update_tiles(*p);
+			break;
+		} else {
+			if (g_vars.boss_level9.unk2 > 0) {
+				--g_vars.boss_level9.unk2;
+			}
+			p += (int8_t)*p;
+			g_vars.boss_level9.seq = p;
+		}
+	}
+}
+
 static int level_get_tile_monster_offset(uint8_t tile_num, struct object_t *obj) {
 	const uint8_t attr = g_res.level.tile_attributes1[tile_num];
 	if ((attr & 0x30) == 0) {
@@ -1610,7 +1780,8 @@ static void level_update_monster_pos(struct object_t *obj, struct level_monster_
 		al = g_res.level.tile_attributes1[dl];
 		if (al == 0) {
 			obj->y_pos += 16;
-			al = g_res.level.tile_attributes1[dh];
+			dl = dh;
+			al = g_res.level.tile_attributes1[dl];
 			if (al == 0) {
 				if (obj->data.m.y_velocity < 256) {
 					obj->data.m.y_velocity += 16;
@@ -1627,6 +1798,8 @@ static void level_update_monster_pos(struct object_t *obj, struct level_monster_
 				y_vel = 0;
 			}
 			obj->data.m.y_velocity = y_vel;
+		} else {
+			obj->data.m.y_velocity = 0;
 		}
 	}
 }
@@ -1636,10 +1809,13 @@ extern bool monster_func2(int type, struct level_monster_t *m); /* init */
 
 static void level_update_objects_monsters() {
 	if (g_res.level.boss_flag != 0xFF) {
-		level_update_boss();
+		level_update_boss_gorilla();
 	}
 	if (g_vars.level_num == 5 && (g_res.level.scrolling_mask & ~1) == 0) {
-		level_update_objects_boss_level5();
+		level_update_boss_tree();
+	}
+	if (g_vars.level_num == 9) {
+		level_update_boss_minotaur();
 	}
 	for (int i = 0; i < MONSTERS_COUNT; ++i) {
 		struct object_t *obj = &g_vars.objects_tbl[11 + i];

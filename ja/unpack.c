@@ -4,6 +4,8 @@
 #include "unpack.h"
 #include "util.h"
 
+static const bool _crc = false;
+
 struct unpack_eat_t {
 	FILE *fp;
 	uint8_t len;
@@ -63,6 +65,33 @@ static int unpack_eat(struct unpack_eat_t *u, uint8_t *output_buffer, int output
 	if (output_size > output_buffer_size) {
 		print_error("Invalid output buffer size %d, need %d", output_buffer_size, output_size);
 		return 0;
+	}
+	if (_crc) { /* CCITT */
+		uint16_t tbl[256];
+		for (int i = 0; i < 256; ++i) {
+			uint16_t b = i;
+			for (int j = 0; j < 8; ++j) {
+				if (b & 1) {
+					b = (b >> 1) ^ 0xA001;
+				} else {
+					b >>= 1;
+				}
+			}
+			tbl[i] = b;
+		}
+		uint16_t ax = 0;
+		while (1) {
+			const uint8_t b = fgetc(u->fp);
+			if (feof(u->fp)) {
+				break;
+			}
+			ax = (ax >> 8) ^ tbl[(ax ^ b) & 0xFF];
+		}
+		if (ax != crc) {
+			print_error("Invalid CRC 0x%x, expected 0x%x", ax, crc);
+			return 0;
+		}
+		fseek(u->fp, 17, SEEK_SET);
 	}
 
 	u->dst = output_buffer;

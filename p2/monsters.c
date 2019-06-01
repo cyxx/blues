@@ -723,6 +723,7 @@ static bool monster_func2_type5_6_7_8(struct level_monster_t *m) {
 }
 
 static bool monster_func2_type9(struct level_monster_t *m) {
+	m->type9.x_step = 0;
 	uint8_t flags = m->flags;
 	if (!monster_func2_type1(m)) {
 		return false;

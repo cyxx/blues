@@ -100,9 +100,9 @@ static void do_titus_screen() {
 	if (data) {
 		g_sys.set_screen_palette(data, 0, 256, 6);
 		update_screen_img(data + 768);
-		fade_in_palette();
+		g_sys.fade_in_palette();
 		wait_input(70);
-		fade_out_palette();
+		g_sys.fade_out_palette();
 		free(data);
 	}
 }
@@ -112,7 +112,7 @@ static void do_present_screen() {
 	if (data) {
 		g_sys.set_screen_palette(data, 0, 256, 6);
 		update_screen_img(data + 768);
-		fade_in_palette();
+		g_sys.fade_in_palette();
 		free(data);
 	}
 }
@@ -125,18 +125,18 @@ static void do_menu() {
 	if (data) {
 		g_sys.set_screen_palette(data, 0, 256, 6);
 		update_screen_img(data + 768);
-		fade_in_palette();
+		g_sys.fade_in_palette();
 		free(data);
 		memset(g_vars.input.keystate, 0, sizeof(g_vars.input.keystate));
 		while (!g_sys.input.quit) {
 			update_input();
 			if (g_vars.input.keystate[2] || g_vars.input.keystate[0x4F] || g_sys.input.space) {
 				g_sys.input.space = 0;
-				fade_out_palette();
+				g_sys.fade_out_palette();
 				break;
 			}
 			if (g_vars.input.keystate[3] || g_vars.input.keystate[0x50]) {
-				fade_out_palette();
+				g_sys.fade_out_palette();
 				break;
 			}
 			g_sys.sleep(30);

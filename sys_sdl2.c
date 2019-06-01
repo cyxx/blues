@@ -215,11 +215,15 @@ static void fade_palette_helper(int in) {
 }
 
 static void sdl2_fade_in_palette() {
-	fade_palette_helper(1);
+	if (!g_sys.input.quit) {
+		fade_palette_helper(1);
+	}
 }
 
 static void sdl2_fade_out_palette() {
-	fade_palette_helper(0);
+	if (!g_sys.input.quit) {
+		fade_palette_helper(0);
+	}
 }
 
 static void sdl2_transition_screen(enum sys_transition_e type, bool open) {

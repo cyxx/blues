@@ -34,7 +34,7 @@ void update_input() {
 static void do_title_screen() {
 	const uint32_t timestamp = g_sys.get_timestamp() + 20 * 1000;
 	load_img(g_res.amiga_data ? "blues.lbm" : "pres.sqz", GAME_SCREEN_W, g_options.cga_colors ? 0 : -1);
-	fade_in_palette();
+	g_sys.fade_in_palette();
 	do {
 		update_input();
 		if (g_sys.input.space || g_sys.input.quit) {
@@ -51,7 +51,7 @@ static void do_demo_screens() {
 	static const char *filenames[] = { "text1.sqz", "maq1.sqz", "maq2.sqz", "maq3.sqz", "maq4.sqz", "maq5.sqz", 0 };
 	for (int i = 0; filenames[i]; ++i) {
 		load_img(filenames[i], GAME_SCREEN_W, -1);
-		fade_in_palette();
+		g_sys.fade_in_palette();
 		while (1) {
 			update_input();
 			if (g_sys.input.space) {
@@ -197,7 +197,7 @@ static void do_select_player() {
 			break;
 		}
 		if (!fade) {
-			fade_in_palette();
+			g_sys.fade_in_palette();
 			fade = 1;
 			for (int i = 0; i < colors_count; ++i) {
 				screen_adjust_palette_color( 3, color_rgb, 1);
@@ -205,7 +205,6 @@ static void do_select_player() {
 			}
 			continue;
 		}
-		screen_redraw_sprites();
 		screen_flip();
 		screen_vsync();
 		const int diff = (timestamp + (1000 / 30)) - g_sys.get_timestamp();
@@ -220,7 +219,6 @@ static void do_select_player() {
 static void do_inter_screen_helper(int xpos, int ypos, int c) {
 	for (int i = 0; i < 40; ++i) {
 		screen_add_sprite(xpos + 20 - 1 - i, ypos - 20 + 1 + i, 125);
-		screen_redraw_sprites();
 		if (c != 0) {
 			screen_vsync();
 		}
@@ -228,7 +226,6 @@ static void do_inter_screen_helper(int xpos, int ypos, int c) {
 	}
 	for (int i = 0; i < 40; ++i) {
 		screen_add_sprite(xpos - 20 + 1 + i, ypos - 20 + 1 + i, 125);
-		screen_redraw_sprites();
 		if (c != 0) {
 			screen_vsync();
 		}
@@ -249,7 +246,7 @@ static void do_inter_screen() {
 	if (g_vars.level == MAX_LEVELS - 1) {
 		do_inter_screen_helper(xpos[g_vars.level], ypos[g_vars.level], 0);
 	}
-	fade_in_palette();
+	g_sys.fade_in_palette();
 	if (g_vars.level > 0 && g_vars.level < MAX_LEVELS - 1) {
 		do_inter_screen_helper(xpos[g_vars.level - 1], ypos[g_vars.level - 1], 1);
 	}
@@ -258,7 +255,6 @@ static void do_inter_screen() {
 	if (g_vars.level < MAX_LEVELS - 1) {
 		play_sound(SOUND_2);
 		screen_add_sprite(xpos[g_vars.level], ypos[g_vars.level], 126);
-		screen_redraw_sprites();
 	}
 	screen_flip();
 	const uint32_t timestamp = g_sys.get_timestamp() + 4 * 1000;

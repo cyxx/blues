@@ -221,8 +221,6 @@ extern void	level_call_object_func(struct object_t *);
 extern void	screen_init();
 extern void	screen_clear_sprites();
 extern void	screen_add_sprite(int x, int y, int frame);
-extern void	screen_redraw_sprites();
-extern void	fade_in_palette();
 extern void	fade_out_palette();
 extern void	screen_adjust_palette_color(int color, int b, int c);
 extern void	screen_vsync();

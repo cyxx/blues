@@ -66,10 +66,6 @@ void screen_add_sprite(int x, int y, int frame) {
 void screen_redraw_sprites() {
 }
 
-void fade_in_palette() {
-	g_sys.fade_in_palette();
-}
-
 void fade_out_palette() {
 	// g_sys.fade_out_palette();
 }

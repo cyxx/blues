@@ -179,18 +179,6 @@ void video_load_front_tiles() {
 	}
 }
 
-void fade_in_palette() {
-	if (!g_sys.input.quit) {
-		g_sys.fade_in_palette();
-	}
-}
-
-void fade_out_palette() {
-	if (!g_sys.input.quit) {
-		g_sys.fade_out_palette();
-	}
-}
-
 void video_wait_vbl() {
 }
 

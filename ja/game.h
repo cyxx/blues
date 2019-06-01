@@ -215,8 +215,6 @@ extern void	video_draw_sprite(int num, int x, int y, int flag);
 extern void	video_draw_string(const char *s, int offset, int hspace);
 extern void	video_copy_vga(int size);
 extern void	video_copy_backbuffer(int h);
-extern void	fade_in_palette();
-extern void	fade_out_palette();
 extern void	ja_decode_spr(const uint8_t *src, int w, int h, uint8_t *dst, int dst_pitch, uint8_t pal_mask);
 extern void	ja_decode_chr(const uint8_t *buffer, const int size, uint8_t *dst, int dst_pitch);
 extern void	ja_decode_tile(const uint8_t *buffer, uint8_t pal_mask, uint8_t *dst, int dst_pitch, int x, int y);

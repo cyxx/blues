@@ -35,12 +35,12 @@ static void wait_input(int timeout) {
 static void do_splash_screen() {
 	load_file("titus.eat");
 	video_copy_vga(0x7D00);
-	fade_in_palette();
-	fade_out_palette();
+	g_sys.fade_in_palette();
+	g_sys.fade_out_palette();
 	load_file("tiny.eat");
 	video_copy_vga(0x7D00);
-	fade_in_palette();
-	fade_out_palette();
+	g_sys.fade_in_palette();
+	g_sys.fade_out_palette();
 }
 
 static void scroll_screen_palette() {
@@ -90,7 +90,7 @@ static void do_select_screen_scroll_palette_pattern4() {
 static void do_select_screen() {
 	load_file("select.eat");
 	video_copy_vga(0x7D00);
-	fade_in_palette();
+	g_sys.fade_in_palette();
 	memcpy(g_vars.palette_buffer, g_res.tmp, 256 * 3);
 	do_select_screen_scroll_palette_pattern2();
 	int bl = 2;
@@ -129,7 +129,7 @@ static void do_select_screen() {
 			assert(bl == 1 || bl == 2);
 			g_sys.input.space = 0;
 			g_vars.player = 1 - ((bl & 3) - 1);
-			fade_out_palette();
+			g_sys.fade_out_palette();
 			break;
 		}
 		update_input();
@@ -142,9 +142,9 @@ void do_difficulty_screen() {
 	snprintf(name, sizeof(name), "dif%02d.eat", (g_vars.level >> 3) + 1);
 	load_file(name);
 	video_copy_vga(0x7D00);
-	fade_in_palette();
+	g_sys.fade_in_palette();
 	wait_input(560);
-	fade_out_palette();
+	g_sys.fade_out_palette();
 }
 
 void do_level_number_screen() {
@@ -154,8 +154,8 @@ void do_level_number_screen() {
 	snprintf(buf, sizeof(buf), "%02d", g_vars.level);
 	video_draw_string(buf, 0x5E9B, 11);
 	video_copy_vga(0x7D00);
-	fade_in_palette();
-	fade_out_palette();
+	g_sys.fade_in_palette();
+	g_sys.fade_out_palette();
 }
 
 static uint16_t rol16(uint16_t x, int c) {
@@ -180,16 +180,16 @@ void do_level_password_screen() {
 	video_draw_string("STAGE NUMBER", 0x7E96, 11);
 	video_draw_string(str, 0xABB4, 20);
 	video_copy_vga(0x7D00);
-	fade_in_palette();
+	g_sys.fade_in_palette();
 	scroll_screen_palette();
 	wait_input(64000);
-	fade_out_palette();
+	g_sys.fade_out_palette();
 }
 
 static void do_password_screen() {
 	load_file("password.eat");
 	video_draw_string("ENTER PASSWORD", 0x7E96, 11);
-	fade_in_palette();
+	g_sys.fade_in_palette();
 	char str[5] = "0000";
 	video_draw_string(str, 0xABB4, 20);
 }
@@ -197,18 +197,18 @@ static void do_password_screen() {
 static int do_menu_screen() {
 	load_file("menu.eat");
 	video_copy_vga(0x7D00);
-	fade_in_palette();
+	g_sys.fade_in_palette();
 	memset(g_vars.input_keystate, 0, sizeof(g_vars.input_keystate));
 	g_vars.level_time = 0;
 	while (!g_sys.input.quit) {
 		scroll_screen_palette();
 		if (g_vars.input_keystate[2] || g_vars.input_keystate[0x4F] || g_sys.input.space) {
 			g_sys.input.space = 0;
-			fade_out_palette();
+			g_sys.fade_out_palette();
 			return 1;
 		}
 		if (g_vars.input_keystate[3] || g_vars.input_keystate[0x50]) {
-			fade_out_palette();
+			g_sys.fade_out_palette();
 			return 2;
 		}
 		if (g_vars.input_keystate[4] || g_vars.input_keystate[0x51]) {
@@ -221,22 +221,22 @@ static int do_menu_screen() {
 }
 
 static int do_options_screen() {
-	fade_out_palette();
+	g_sys.fade_out_palette();
 	load_file("fond.eat");
 	video_draw_string("GAME SPEED", 0x3EE9, 11);
 	video_draw_string("1 FAST", 0x647E, 11);
 	video_draw_string("2 NORMAL", 0x89FE, 11);
 	video_copy_vga(0x7D00);
-	fade_in_palette();
+	g_sys.fade_in_palette();
 	memset(g_vars.input_keystate, 0, sizeof(g_vars.input_keystate));
 	while (!g_sys.input.quit) {
 		scroll_screen_palette();
 		if (g_vars.input_keystate[2] || g_vars.input_keystate[0x4F]) {
-			fade_out_palette();
+			g_sys.fade_out_palette();
 			return 1;
 		}
 		if (g_vars.input_keystate[3] || g_vars.input_keystate[0x50]) {
-			fade_out_palette();
+			g_sys.fade_out_palette();
 			return 2;
 		}
 		update_input();
@@ -249,16 +249,16 @@ void do_game_over_screen() {
 	load_file("fond.eat");
 	video_draw_string("GAME OVER", 0x5E2E, 11);
 	video_copy_vga(0x7D00);
-	fade_in_palette();
+	g_sys.fade_in_palette();
 	wait_input(64000);
-	fade_out_palette();
+	g_sys.fade_out_palette();
 }
 
 void do_game_win_screen() {
 	load_file("win.eat");
 	video_copy_vga(0x7D00);
-	fade_in_palette();
-	fade_out_palette();
+	g_sys.fade_in_palette();
+	g_sys.fade_out_palette();
 	load_file("end.eat");
 	video_copy_vga(0xB500);
 	static const int count = 5;
@@ -299,9 +299,9 @@ void do_game_win_screen() {
 		}
 		++i;
 		video_copy_vga(0x7D00);
-		fade_in_palette();
+		g_sys.fade_in_palette();
 		wait_input(64000);
-		fade_out_palette();
+		g_sys.fade_out_palette();
 		memcpy(g_res.tmp + 768, g_res.background, 64000);
 	}
 }

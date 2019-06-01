@@ -220,7 +220,14 @@ struct vars_t {
 		uint8_t counter;
 		uint8_t unk8;
 		struct boss_level5_proj_t proj_tbl[5];
-	} boss_level5;
+	} boss_level5; /* tree */
+	struct {
+		int16_t unk1;
+		uint8_t unk2;
+		uint8_t unk3;
+		const uint8_t *seq;
+		const uint16_t *anim;
+	} boss_level9; /* minotaur statue */
 	struct {
 		int16_t x_pos, y_pos;
 		uint16_t spr_num;
@@ -263,6 +270,7 @@ extern const uint8_t cos_tbl[256];
 extern const uint8_t sin_tbl[256];
 extern const uint16_t monster_spr_tbl[48];
 extern const uint8_t monster_anim_tbl[1100];
+extern const uint8_t boss_minotaur_seq_data[742];
 
 /* game.c */
 extern void	update_input();
@@ -291,8 +299,6 @@ extern void	video_draw_number(int offset, int num);
 extern void	video_draw_tile(const uint8_t *src, int x, int y);
 extern void	video_convert_tiles(uint8_t *data, int len);
 extern void	video_load_front_tiles();
-extern void	fade_in_palette();
-extern void	fade_out_palette();
 extern void	video_wait_vbl();
 extern void	video_transition_close();
 extern void	video_transition_open();

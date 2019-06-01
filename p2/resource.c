@@ -126,6 +126,7 @@ void load_leveldat(const uint8_t *p, struct level_t *level) {
 		m->len = len;
 		m->type = p[1];
 		m->spr_num = spr_num;
+		m->flags = p[4];
 		m->energy = p[5];
 		m->respawn_ticks = p[6];
 		m->current_tick = p[7];
