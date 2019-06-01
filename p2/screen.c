@@ -76,12 +76,16 @@ void video_draw_string(int offset, int hspace, const char *s) {
 
 void video_draw_panel_number(int offset, int num) {
 	const uint8_t *fnt = g_res.allfonts + 48 * 41 + 160 * 23;
-	decode_planar(fnt + num * 96, g_res.vga + offset * 8, 320, 16, 12, 0);
+	const int y = (offset * 8) / 320 + (GAME_SCREEN_H - 200);
+	const int x = (offset * 8) % 320 + (GAME_SCREEN_W - 320) / 2;
+	decode_planar(fnt + num * 96, g_res.vga + y * GAME_SCREEN_W + x, GAME_SCREEN_W, 16, 12, 0);
 }
 
 void video_draw_number(int offset, int num) {
 	const uint8_t *fnt = g_res.allfonts + 0x1C70;
-	decode_planar(fnt + num * 88, g_res.vga + offset * 8, 320, 16, 11, 0);
+	const int y = (offset * 8) / 320;
+	const int x = (offset * 8) % 320;
+	decode_planar(fnt + num * 88, g_res.vga + y * GAME_SCREEN_W + x, GAME_SCREEN_W, 16, 11, 0);
 }
 
 void video_clear() {
@@ -93,7 +97,9 @@ void video_copy_img(const uint8_t *src) {
 }
 
 void video_draw_panel(const uint8_t *src) {
-	decode_planar(src, g_res.vga + TILEMAP_SCREEN_H * 320, 320, 320, 23, 0xFF);
+	const int h = GAME_SCREEN_H - PANEL_H;
+	const int x = (GAME_SCREEN_W - 320) / 2;
+	decode_planar(src, g_res.vga + h * GAME_SCREEN_W + x, GAME_SCREEN_W, 320, 23, 0xFF);
 }
 
 void video_draw_tile(const uint8_t *src, int x_offset, int y_offset) {

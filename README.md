@@ -5,13 +5,13 @@ This is a rewrite of the [Blues Brothers](https://www.mobygames.com/game/blues-b
 
 ![Screenshot1](blues1.png) ![Screenshot2](bbja2.png)
 
-There is also early support for [Prehistork 2](https://www.mobygames.com/game/prehistorik-2).
+There is also early support for [Prehistorik 2](https://www.mobygames.com/game/prehistorik-2).
 
 ## Requirements
 
 ### Blues Brothers
 
-The game data files of the DOS or Amiga version are required.
+The data files of the Amiga or DOS version, full game or [demo](https://archive.org/details/TheBluesBrothers_1020), are required.
 
 ```
 *.BIN, *.CK1, *.CK2, *.SQL, *.SQV, *.SQZ
@@ -21,7 +21,7 @@ For sounds and music, the Amiga version files or the [ExoticA](https://www.exoti
 
 ### Jukebox Adventure
 
-The game data files of the DOS version are required.
+The data files of the DOS version are required.
 
 ```
 *.EAT, *.MOD
@@ -29,7 +29,7 @@ The game data files of the DOS version are required.
 
 ### Prehistorik 2
 
-The game data files of the DOS version are required.
+The data files of the DOS version, full game or [demo](http://cd.textfiles.com/ccbcurrsh1/demos/pre2.zip), are required.
 
 ```
 *.SQZ, *.TRK

@@ -24,33 +24,33 @@ struct club_anim_t {
 };
 
 struct player_t {
-	int16_t hdir; /* left:-1 right:1 */ // 0x9
-	uint8_t current_anim_num; // 0xB
-	const uint8_t *anim; // 0xC
-	int16_t y_velocity; // 0xE
-	uint8_t special_anim_num; /* idle, exhausted */ // 0x10
+	int16_t hdir; /* left:-1 right:1 */
+	uint8_t current_anim_num;
+	const uint8_t *anim;
+	int16_t y_velocity;
+	uint8_t special_anim_num; /* idle, exhausted */
 };
 
 struct club_projectile_t {
-	const uint8_t *anim; // 0xC
-	int16_t y_velocity; // 0xE
+	const uint8_t *anim;
+	int16_t y_velocity;
 };
 
 struct monster_t {
 	uint8_t unk5;
-	void *ref; // 0x6
-	int16_t x_velocity; // 0x8
-	int16_t y_velocity; // 0xA
-	const uint8_t *anim; // 0xC
-	uint8_t state; // 0xE
-	uint8_t energy; // 0xF
-	uint8_t unk10; // 0x10
+	void *ref;
+	int16_t x_velocity;
+	int16_t y_velocity;
+	const uint8_t *anim;
+	uint8_t state;
+	uint8_t energy;
+	uint8_t unk10; /* score */
 };
 
 struct thing_t {
-	void *ref; // 0x9
-	int16_t counter; // 0xC
-	int16_t unkE; // 0xE
+	void *ref;
+	int16_t counter;
+	int16_t unkE;
 };
 
 struct object_t {
@@ -58,34 +58,36 @@ struct object_t {
 	uint16_t spr_num;
 	int16_t x_velocity;
 	uint8_t x_friction;
-	union { // 0x9 - 0x10
+	union {
 		struct player_t p; /* objects[1] */
 		struct club_projectile_t c; /* objects[2..5] */
 		struct monster_t m; /* objects[11..22] */
 		struct thing_t t;
 	} data;
-	uint8_t hit_counter; // 0x11
-}; // sizeof == 18
+	uint8_t hit_counter;
+};
 
 #define MONSTERS_COUNT 12
 #define OBJECTS_COUNT 108
-// offset count
-//      0     1 : club
-//      1     1 : player
-//      2     4 : axe
-//      6     5 : club hitting decor frames
-//     11    12 : monsters
-//     23    32 : secret bonuses
-//     55    20 : items
-//     75    16 : bonus scores
-//     91     7 : decor
+/*
+ offset count
+      0     1 : club
+      1     1 : player
+      2     4 : axe
+      6     5 : club hitting decor frames
+     11    12 : monsters
+     23    32 : secret bonuses
+     55    20 : items
+     75    16 : bonus scores
+     91     7 : decor
+*/
 
 struct rotation_t {
 	uint16_t x_pos;
 	uint16_t y_pos;
 	uint8_t index_tbl; /* cos_/sin_tbl */
 	uint8_t radius;
-}; // sizeof == 6
+};
 
 struct collision_t {
 	uint16_t x_pos;
@@ -94,7 +96,7 @@ struct collision_t {
 	uint8_t unk5;
 	uint8_t unk6;
 	uint8_t unk7;
-}; // sizeof == 8
+};
 
 struct vars_t {
 	uint32_t starttime;
@@ -140,6 +142,8 @@ struct vars_t {
 	uint8_t player_nojump_counter;
 	uint8_t player_jumping_counter;
 	uint8_t player_action_counter;
+	int16_t player_hit_monster_counter;
+	uint8_t player_jump_monster_flag;
 	uint8_t player_club_type;
 	uint8_t player_club_power;
 	uint8_t player_club_powerup_duration;
@@ -186,6 +190,8 @@ struct vars_t {
 
 	struct {
 		struct object_t *current_object;
+		uint8_t type10_dist;
+		uint8_t hit_mask;
 	} monster;
 	struct {
 		int16_t x_pos, y_pos;
@@ -242,6 +248,10 @@ extern void	game_main();
 
 /* level.c */
 extern void	do_level();
+
+/* monsters.c */
+extern void	monster_change_next_anim(struct object_t *obj);
+extern void	monster_change_prev_anim(struct object_t *obj);
 
 /* screen.c */
 extern void	video_draw_string(int offset, int hspace, const char *s);

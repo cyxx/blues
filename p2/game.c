@@ -78,11 +78,28 @@ static void do_credits() {
 	g_sys.update_screen(g_res.vga, 1);
 }
 
+static void update_screen_img(const uint8_t *src) {
+	const int size = GAME_SCREEN_W * GAME_SCREEN_H;
+	if (size < 64000) {
+		return;
+	} else if (size == 64000) {
+		g_sys.update_screen(src, 0);
+	} else {
+		memset(g_res.vga, 0, size);
+		const int y_offs = (GAME_SCREEN_H - 200) / 2;
+		const int x_offs = (GAME_SCREEN_W - 320) / 2;
+		for (int y = 0; y < 200; ++y) {
+			memcpy(g_res.vga + (y_offs + y) * GAME_SCREEN_W + x_offs, src + y * 320, 320);
+		}
+		g_sys.update_screen(g_res.vga, 0);
+	}
+}
+
 static void do_titus_screen() {
 	uint8_t *data = load_file("TITUS.SQZ");
 	if (data) {
 		g_sys.set_screen_palette(data, 0, 256, 6);
-		g_sys.update_screen(data + 768, 0);
+		update_screen_img(data + 768);
 		fade_in_palette();
 		wait_input(70);
 		fade_out_palette();
@@ -94,7 +111,7 @@ static void do_present_screen() {
 	uint8_t *data = load_file("PRESENT.SQZ");
 	if (data) {
 		g_sys.set_screen_palette(data, 0, 256, 6);
-		g_sys.update_screen(data + 768, 0);
+		update_screen_img(data + 768);
 		fade_in_palette();
 		free(data);
 	}
@@ -112,7 +129,7 @@ static void do_menu() {
 	uint8_t *data = load_file("MENU.SQZ");
 	if (data) {
 		g_sys.set_screen_palette(data, 0, 256, 6);
-		g_sys.update_screen(data + 768, 0);
+		update_screen_img(data + 768);
 		fade_in_palette();
 		free(data);
 		memset(g_vars.input.keystate, 0, sizeof(g_vars.input.keystate));

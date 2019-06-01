@@ -130,26 +130,36 @@ void load_leveldat(const uint8_t *p, struct level_t *level) {
 		m->x_pos = READ_LE_UINT16(p + 0x9);
 		m->y_pos = READ_LE_UINT16(p + 0xB);
 		switch (type) {
-		case 2:
+		case 2: /* vertical (eg. spider) */
+			assert(len == 15);
 			m->type2.y_range = p[0xD];
 			m->type2.unkE = p[0xE];
-		case 4:
-			m->type4.unkD = p[0xD];
+			break;
+		case 4: /* rotate (eg. spider) */
+			assert(len == 17);
+			m->type4.radius = p[0xD];
 			m->type4.unkE = p[0xE];
 			m->type4.angle = p[0xF];
 			m->type4.unk10 = p[0x10];
 			break;
-		case 8:
+		case 8: /* jumps (eg. leopard) */
+			assert(len == 17);
 			m->type8.x_range = p[0xD];
 			m->type8.unkE = p[0xE];
 			m->type8.unkF = p[0xF];
 			m->type8.y_range = p[0x10];
 			break;
-		case 9:
+		case 9: /* horizontal */
+			assert(len == 19);
 			m->type9.unkD = READ_LE_UINT16(p + 0xD);
 			m->type9.unkF = READ_LE_UINT16(p + 0xF);
 			m->type9.unk11 = p[0x11];
 			m->type9.unk12 = p[0x12];
+			break;
+		case 10: /* come out of the ground */
+			assert(len == 14);
+			m->type10.unkD = p[0xD];
+			break;
 		default:
 			break;
 		}

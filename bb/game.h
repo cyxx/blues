@@ -87,16 +87,16 @@ struct object_t {
 	int16_t unk2E;
 	int8_t unk2F;
 	uint8_t op;
-	uint8_t grab_state; // 1:carry_crate
+	uint8_t grab_state; /* 1:carry_crate */
 	uint8_t grab_type;
-	uint8_t special_anim; // 2:flying
+	uint8_t special_anim; /* 2:flying */
 	// uint8_t unk35;
 	int16_t player_xdist;
 	int16_t player_ydist;
 	uint8_t sprite3_counter;
 	uint8_t visible_flag;
-	uint8_t moving_direction; // 0:right 1:left
-	uint8_t unk3D; // 1:umbrella 2:balloon
+	uint8_t moving_direction; /* 0:right 1:left */
+	uint8_t unk3D; /* 1:umbrella 2:balloon */
 	uint8_t carry_crate_flag;
 	// int16_t unk3F;
 	// uint8_t unk41;
@@ -105,12 +105,12 @@ struct object_t {
 	uint8_t tile1_flags;
 	uint8_t tile2_flags;
 	int16_t tile012_xpos;
-	int8_t elevator_direction; // -1,1
+	int8_t elevator_direction; /* -1,1 */
 	const uint8_t *trigger3;
 	uint8_t trigger3_num;
 	// int16_t unk4E;
 	int16_t unk50;
-	uint8_t data51; // health for obj39/40, horizontal direction for other objects
+	uint8_t data51; /* health for obj39/40, horizontal direction for other objects */
 	uint8_t scrolling_lock_flag;
 	uint8_t unk54;
 	uint8_t unk55;
@@ -121,10 +121,10 @@ struct object_t {
 	// uint8_t unk5C; // never read
 	uint8_t unk5D;
 	uint8_t blinking_counter;
-	uint8_t data5F; // music instrument number for obj39/40, counter for other objects
+	uint8_t data5F; /* music instrument number for obj39/40, counter for other objects */
 	uint8_t unk60;
 	uint8_t lifes_count;
-	uint8_t level_complete_flag; // set if music instrument was found
+	uint8_t level_complete_flag; /* set if music instrument was found */
 	uint8_t restart_level_flag;
 };
 

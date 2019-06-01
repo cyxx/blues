@@ -5,11 +5,11 @@
 #include "intern.h"
 
 struct level_gate_t {
-	uint16_t enter_pos; // (y << 8) | x
+	uint16_t enter_pos;
 	uint16_t tilemap_pos;
 	uint16_t dst_pos;
 	uint8_t scroll_flag;
-}; // sizeof == 7
+};
 
 struct level_platform_t {
 	uint16_t tilemap_pos;
@@ -17,22 +17,22 @@ struct level_platform_t {
 	uint8_t h;
 	uint16_t unk4;
 	uint16_t unk6;
-	uint8_t unk8; // y_offs
+	uint8_t unk8;
 	uint8_t unk9;
-}; // sizeof == 10
+};
 
 struct level_bonus_t {
 	uint8_t tile_num0; /* new tile */
 	uint8_t tile_num1; /* original tile */
 	uint8_t count;
-	uint16_t pos; // (y << 8) | x
-}; // sizeof == 5
+	uint16_t pos;
+};
 
 struct level_item_t {
 	int16_t x_pos, y_pos;
 	uint16_t spr_num;
 	int8_t y_delta;
-}; // sizeof == 7
+};
 
 struct level_trigger_t {
 	uint16_t x_pos;
@@ -44,9 +44,9 @@ struct level_trigger_t {
 			int8_t unk7;
 			uint8_t unk8;
 			uint8_t unk9;
-			uint8_t state; // 0xA
-			uint16_t y_delta; // 0xB
-			uint8_t counter; // 0xD
+			uint8_t state;
+			uint16_t y_delta;
+			uint8_t counter;
 		} type8;
 		struct {
 			int16_t unk7;
@@ -56,42 +56,45 @@ struct level_trigger_t {
 		} other;
 	};
 	uint8_t unkE;
-}; // sizeof == 15
+};
 
 struct level_monster_t {
 	uint8_t len;
 	uint8_t type;
-	uint16_t spr_num; // 0x2
-	uint8_t flags; // 0x4
-	uint8_t energy; // 0x5
+	uint16_t spr_num;
+	uint8_t flags;
+	uint8_t energy;
 	uint8_t total_ticks;
 	uint8_t current_tick;
 	uint8_t unk8;
-	uint16_t x_pos; // 0x9
-	uint16_t y_pos; // 0xB
+	uint16_t x_pos;
+	uint16_t y_pos;
 	union {
 		struct {
-			uint8_t y_range; // 0xD
-			int8_t unkE; // 0xE, cbw
+			uint8_t y_range;
+			int8_t unkE;
 		} type2;
 		struct {
-			uint8_t unkD;
+			uint8_t radius;
 			uint8_t unkE;
 			uint8_t angle;
 			uint8_t unk10;
 		} type4;
 		struct {
-			uint8_t x_range; // 0xD
-			int8_t unkE; // 0xE, cbw
-			int8_t unkF; // 0xF, cbw
-			uint8_t y_range; // 0x10
+			uint8_t x_range;
+			int8_t unkE;
+			int8_t unkF;
+			uint8_t y_range;
 		} type8;
 		struct {
-			int16_t unkD; // 0xD
-			int16_t unkF; // 0xF
-			int8_t unk11; // 0x11
-			uint8_t unk12; // 0x12
+			int16_t unkD;
+			int16_t unkF;
+			int8_t unk11;
+			uint8_t unk12;
 		} type9;
+		struct {
+			uint8_t unkD;
+		} type10;
 	};
 };
 

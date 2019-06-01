@@ -18,17 +18,17 @@ extern struct options_t g_options;
 #define PANEL_H 24
 
 #define SOUND_0 0
-#define SOUND_1 1 // monster knocked out
-#define SOUND_2 2 // bouncing mushroom
-#define SOUND_3 3 // decor hit
-#define SOUND_4 4 // player hit
-#define SOUND_5 5 // grab vinyl
-#define SOUND_8 8 // no vinyl
-#define SOUND_9 9 // throw vinyl
-#define SOUND_10 10 // "rock,rock,rock and roll"
+#define SOUND_1 1 /* monster knocked out */
+#define SOUND_2 2 /* bouncing mushroom */
+#define SOUND_3 3 /* decor hit */
+#define SOUND_4 4 /* player hit */
+#define SOUND_5 5 /* grab vinyl */
+#define SOUND_8 8 /* no vinyl */
+#define SOUND_9 9 /* throw vinyl */
+#define SOUND_10 10 /* "rock,rock,rock and roll" */
 #define SOUND_11 11
-#define SOUND_14 14 // player lost life
-#define SOUND_15 15 // running out time
+#define SOUND_14 14 /* player lost life */
+#define SOUND_15 15 /* running out time */
 
 struct object_t {
 	int16_t x_pos;
@@ -66,20 +66,20 @@ enum {
 
 #define object_blinking_counter(obj) (obj)->data[6].b[1]  // 0x13, shield, jump
 
-// star
+/* star */
 #define object2_spr_count(obj)   (obj)->data[0].b[0]
 #define object2_spr_tick(obj)    (obj)->data[0].b[1]
 
-// vinyl
+/* vinyl */
 #define object22_xvelocity(obj)  (obj)->data[0].w
 #define object22_damage(obj)     (obj)->data[1].w
 #define object22_player_num(obj) (obj)->data[2].w
 
-// crate
+/* crate */
 #define object64_counter(obj)    (obj)->data[1].w
 #define object64_yvelocity(obj)  (obj)->data[2].w
 
-// monster
+/* monster */
 #define object82_state(obj)      (obj)->data[0].b[0]
 #define object82_type(obj)       (obj)->data[0].b[1]
 #define object82_anim_data(obj)  (obj)->data[1].p
@@ -111,16 +111,18 @@ struct player_t {
 #define TRIGGERS_COUNT  36
 #define LEVELS_COUNT    30
 #define OBJECTS_COUNT  165
-// offset | count | comment
-//   2      20      animated tiles/vinyls
-//  22      10      vinyls
-//  32      8 * 4   (rotating) platforms
-//  64      8       crates
-//  72      10      bonuses spr_num:190
-//  82      20      monsters
-// 102      10
-// 112      9       vertical bars
-// 121      8       dragon monster (level 26)
+/*
+ offset count
+     2     20 : animated tiles/vinyls
+    22     10 : vinyls
+    32    8*4 : (rotating) platforms
+    64      8 : crates
+    72     10 : bonuses spr_num:190
+    82     20 : monsters
+   102     10
+   112      9 : vertical bars
+   121      8 : dragon monster (level 26)
+*/
 
 struct vars_t {
 	int level;
@@ -128,7 +130,7 @@ struct vars_t {
 	bool input_keystate[128];
 	uint32_t timestamp;
 	uint8_t input_key_left, input_key_right, input_key_down, input_key_up, input_key_space;
-	uint16_t buffer[128 * 2]; // level objects state 0xFFFF, 0xFF20 or g_vars.objects_table index
+	uint16_t buffer[128 * 2]; /* level objects state 0xFFFF, 0xFF20 or g_vars.objects_table index */
 	int16_t dragon_coords[1 + 128];
 	struct player_t players_table[2];
 	int16_t player_xscroll, player_map_offset;
@@ -147,7 +149,7 @@ struct vars_t {
 	uint8_t *tilemap_data;
 	uint16_t level_pos_num;
 	uint8_t tilemap_type, tilemap_flags;
-	uint8_t tilemap_lut_type[0x100]; // type:0,1,2
+	uint8_t tilemap_lut_type[0x100]; /* type:0,1,2 */
 	uint8_t tilemap_lut_init[6 * 0x100];
 	uint8_t tilemap_lut_init2[0x100];
 	const uint8_t *tilemap_current_lut;
