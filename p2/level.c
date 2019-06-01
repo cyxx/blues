@@ -70,7 +70,6 @@ static void load_level_data_init_animated_tiles() {
 			g_vars.tile_tbl3[i] = i;
 			g_vars.animated_tile_flag_tbl[i] = 0;
 		} else {
-			g_vars.animated_tiles_flag = 1;
 			int j = i;
 			g_vars.tile_tbl1[i] = j;
 			g_vars.tile_tbl2[i + 2] = j;
@@ -240,9 +239,6 @@ static void level_draw_tile(int tile_num, int x, int y) {
 }
 
 static void level_update_tilemap() {
-	if (!_redraw_tilemap && g_vars.animated_tiles_flag == 0) {
-		return;
-	}
 	const uint8_t mask = (g_vars.snow.value >= 20) ? 1 : 3;
 	++g_vars.level_animated_tiles_counter;
 	if ((g_vars.level_animated_tiles_counter & mask) == 0) {
@@ -269,14 +265,12 @@ static void level_update_tilemap() {
 		}
 	}
 	g_vars.tile_attr2_flags = 0;
-	g_vars.animated_tiles_flag = 0;
 	uint16_t offset = (g_vars.tilemap_y << 8) | g_vars.tilemap_x;
 	for (int y = 0; y < (TILEMAP_SCREEN_H / 16) + 1; ++y) {
 		for (int x = 0; x < (TILEMAP_SCREEN_W / 16) + 1; ++x) {
 			const uint8_t tile_num = level_get_tile(offset + x);
 			g_vars.tile_attr2_flags |= g_res.level.tile_attributes2[tile_num];
 			if (_redraw_tilemap || g_vars.animated_tile_flag_tbl[tile_num] != 0) {
-				g_vars.animated_tiles_flag = 1;
 				const uint8_t num = g_vars.level_animated_tiles_current_tbl[tile_num];
 				level_draw_tile(num, x, y);
 			}
@@ -561,6 +555,7 @@ static void level_init_tilemap() {
 	}
 	g_vars.tilemap_redraw_flag2 = 1;
 	g_vars.tilemap_prev_x = _undefined;
+	g_vars.tilemap_prev_y = _undefined;
 	level_draw_tilemap();
 	video_transition_open();
 }
@@ -1053,6 +1048,8 @@ static bool level_objects_collide(const struct object_t *si, const struct object
 	if (g_vars.player_using_club_flag == 0) {
 		d -= a;
 		if (g_vars.objects_tbl[1].data.p.y_velocity >= 128 || (d <= (b >> 1) && si != &g_vars.objects_tbl[1])) {
+			++g_vars.player_jump_monster_flag;
+			g_vars.monster.collide_y_dist = d;
 		}
 	}
 	d = si->x_pos - spr_offs_tbl[(si->spr_num & 0x1FFF) * 2];
@@ -1077,9 +1074,9 @@ static void level_monster_update_anim(struct object_t *obj) {
 }
 
 static void level_monster_die(struct object_t *obj, struct level_monster_t *m) {
-	const int num = m->unk8 + 74;
+	const int num = m->score + 74;
 	static const uint8_t data[] = { 1, 2, 3, 4, 6, 8 };
-	int count = data[obj->data.m.unk10 & 7];
+	int count = data[(obj->data.m.hit_jump_counter >> 3) & 7];
 	const int x_pos = obj->x_pos;
 	const int y_pos = obj->y_pos;
 	do {
@@ -1132,10 +1129,10 @@ static bool level_collide_axe_monsters(struct object_t *axe_obj) {
 			continue;
 		}
 		obj->data.m.unk5 |= 0x40;
-		if (obj->data.m.energy < g_vars.player_club_power) {
+		obj->data.m.energy -= g_vars.player_club_power;
+		if (obj->data.m.energy < 0) {
 			level_monster_die(obj, m);
 		} else {
-			obj->data.m.energy -= g_vars.player_club_power;
 			obj->x_pos -= obj->data.m.x_velocity >> 2;
 		}
 		obj->spr_num = 0xFFFF;
@@ -1333,7 +1330,7 @@ static void level_update_monster_pos(struct object_t *obj, struct level_monster_
 		x_vel = -x_vel;
 	}
 	uint8_t al = level_get_tile(pos + x_vel - 0x100);
-	al = g_res.level.tile_attributes1[al];
+	al = g_res.level.tile_attributes0[al];
 	if ((m->flags & 0x40) != 0 && (m->flags & 0x80) != 0) {
 		if (al != 0) {
 			obj->x_pos -= obj->data.m.x_velocity >> 4;
@@ -1368,14 +1365,15 @@ static void level_update_monster_pos(struct object_t *obj, struct level_monster_
 				return;
 			}
 		}
+		const int dy = level_get_tile_monster_offset(dl, obj);
 		obj->y_pos &= ~15;
-		obj->y_pos += level_get_tile_monster_offset(dl, obj);
+		obj->y_pos += dy;
 		if ((m->flags & 0x20) == 0) {
-			int dy = (-obj->data.m.y_velocity) >> 1;
-			if (abs(dy) <= 32) {
-				dy = 0;
+			int y_vel = (-obj->data.m.y_velocity) >> 1;
+			if (abs(y_vel) <= 32) {
+				y_vel = 0;
 			}
-			obj->data.m.y_velocity = dy;
+			obj->data.m.y_velocity = y_vel;
 		}
 	}
 }
@@ -1604,11 +1602,12 @@ static bool level_update_objects_decors_helper(struct object_t *obj) {
 	}
 	const int prev_spr_num = g_vars.objects_tbl[1].spr_num;
 	g_vars.objects_tbl[1].spr_num = 7;
-	if (!level_objects_collide(&g_vars.objects_tbl[1], obj)) {
-		return false;
-	}
+	const bool ret = level_objects_collide(&g_vars.objects_tbl[1], obj);
 	g_vars.objects_tbl[1].y_pos = prev_y_pos;
 	g_vars.objects_tbl[1].spr_num = prev_spr_num;
+	if (!ret) {
+		return false;
+	}
 	g_vars.level_force_x_scroll_flag = 1;
 	g_vars.objects_tbl[1].x_friction = 0;
 	g_vars.objects_tbl[1].x_pos += g_vars.level_current_object_decor_x_pos;
@@ -2418,24 +2417,26 @@ static void level_update_player_collision() {
 				}
 				return;
 			}
-			if (g_vars.player_gravity_flag == 0) {
-				int num = obj->data.m.unk10 >> 2;
+			if (!g_vars.player_gravity_flag) {
+				/* jumping on a monster */
+				int num = obj->data.m.hit_jump_counter >> 2;
 				if (num != 11) {
-					obj->data.m.unk10 += 4;
+					obj->data.m.hit_jump_counter += 4;
 					++num;
 					if ((num & 1) == 0) {
 						static const uint16_t data[] = { 0xFF46, 0xE0, 0xE1, 0x12D, 0x12E, 0x12F };
-
-						level_add_object75_score(obj_player, data[num >> 1]);
+						level_add_object75_score(obj_player, (int16_t)data[num >> 1]);
 					}
 				}
 				g_vars.objects_tbl[1].data.p.y_velocity = (g_vars.input.key_up != 0) ? -224 : -64;
 				g_vars.player_jumping_counter = 0;
+				g_vars.objects_tbl[1].y_pos -= g_vars.monster.collide_y_dist;
 			} else if (g_vars.objects_tbl[1].data.p.y_velocity <= 32) {
 				g_vars.objects_tbl[1].data.p.y_velocity = -96;
 				g_vars.player_jumping_counter = 0;
+				g_vars.objects_tbl[1].y_pos -= g_vars.monster.collide_y_dist;
 			} else {
-				int num = (obj->data.m.unk10) & 3;
+				int num = (obj->data.m.hit_jump_counter) & 3;
 				level_add_object75_score(obj_player, 82 + (num << 1));
 				obj->spr_num |= 0x4000;
 				if (num == 2) {
@@ -2449,9 +2450,10 @@ static void level_update_player_collision() {
 					}
 					obj->data.m.x_velocity = delta * 3;
 				} else {
-					++obj->data.m.unk10;
+					++obj->data.m.hit_jump_counter;
 					g_vars.objects_tbl[1].data.p.y_velocity = -96;
 					g_vars.player_jumping_counter = 0;
+					g_vars.objects_tbl[1].y_pos -= g_vars.monster.collide_y_dist;
 				}
 			}
 			return;
@@ -3136,31 +3138,33 @@ static void level_completed_bonuses_animation() {
 	g_vars.objects_tbl[1].data.p.anim = object_anim_tbl[1];
 	while (1) {
 		level_update_object_anim(g_vars.objects_tbl[1].data.p.anim);
-		int _bx, _ax, flag = 0;
+
+		bool flag = false;
 
 		int x_pos = 60;
-		_bx = 2;
-		_ax = g_vars.objects_tbl[1].x_pos - x_pos;
-		if (_ax < 0) {
-			_bx = -_bx;
+		int x_offs = 2;
+		const int dx = g_vars.objects_tbl[1].x_pos - x_pos;
+		if (dx < 0) {
+			x_offs = -x_offs;
 		}
-		if (_ax >= 2) {
-			x_pos = g_vars.objects_tbl[1].x_pos - _bx;
-			++flag;
+		if (dx >= 2) {
+			x_pos = g_vars.objects_tbl[1].x_pos - x_offs;
+			flag = true;
 		}
 		g_vars.objects_tbl[1].x_pos = x_pos;
 
 		int y_pos = 175;
-		_bx = 2;
-		_ax = g_vars.objects_tbl[1].y_pos - y_pos;
-		if (_ax < 0) {
-			_bx = -_bx;
+		int y_offs = 2;
+		const int dy = g_vars.objects_tbl[1].y_pos - y_pos;
+		if (dy < 0) {
+			y_offs = -y_offs;
 		}
-		if (_ax >= 2) {
-			y_pos = g_vars.objects_tbl[1].y_pos - _bx;
-			++flag;
+		if (dy >= 2) {
+			y_pos = g_vars.objects_tbl[1].y_pos - y_offs;
+			flag = true;
 		}
 		g_vars.objects_tbl[1].y_pos = y_pos;
+
 		video_clear();
 		level_completed_bonuses_animation_draw_score();
 		level_draw_objects();

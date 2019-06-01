@@ -27,6 +27,6 @@ pre2: main.o sys_sdl2.o util.o $(P2_SRCS:.c=.o)
 	$(CC) $(LDFLAGS) -o $@ $^ $(SDL_LIBS) -lmodplug
 
 clean:
-	rm -f $(OBJS) $(DEPS) *.o
+	rm -f $(OBJS) $(DEPS) *.o *.d
 
 -include $(DEPS)

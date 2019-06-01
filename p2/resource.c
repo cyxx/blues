@@ -126,10 +126,13 @@ void load_leveldat(const uint8_t *p, struct level_t *level) {
 		m->energy = p[5];
 		m->total_ticks = p[6];
 		m->current_tick = p[7];
-		m->unk8 = p[8];
+		m->score = p[8];
 		m->x_pos = READ_LE_UINT16(p + 0x9);
 		m->y_pos = READ_LE_UINT16(p + 0xB);
-		switch (type) {
+		switch (type) { /* movement */
+		case 1:
+			assert(len == 13);
+			break;
 		case 2: /* vertical (eg. spider) */
 			assert(len == 15);
 			m->type2.y_range = p[0xD];
@@ -145,8 +148,8 @@ void load_leveldat(const uint8_t *p, struct level_t *level) {
 		case 8: /* jumps (eg. leopard) */
 			assert(len == 17);
 			m->type8.x_range = p[0xD];
-			m->type8.unkE = p[0xE];
-			m->type8.unkF = p[0xF];
+			m->type8.y_step = p[0xE];
+			m->type8.x_step = p[0xF];
 			m->type8.y_range = p[0x10];
 			break;
 		case 9: /* horizontal */
@@ -161,6 +164,7 @@ void load_leveldat(const uint8_t *p, struct level_t *level) {
 			m->type10.unkD = p[0xD];
 			break;
 		default:
+			print_warning("Unhandled monster type %d len %d", type, len);
 			break;
 		}
 		p += len;

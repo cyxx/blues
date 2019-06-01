@@ -66,7 +66,7 @@ struct level_monster_t {
 	uint8_t energy;
 	uint8_t total_ticks;
 	uint8_t current_tick;
-	uint8_t unk8;
+	uint8_t score;
 	uint16_t x_pos;
 	uint16_t y_pos;
 	union {
@@ -82,8 +82,8 @@ struct level_monster_t {
 		} type4;
 		struct {
 			uint8_t x_range;
-			int8_t unkE;
-			int8_t unkF;
+			int8_t y_step;
+			int8_t x_step;
 			uint8_t y_range;
 		} type8;
 		struct {

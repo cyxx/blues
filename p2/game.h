@@ -43,8 +43,8 @@ struct monster_t {
 	int16_t y_velocity;
 	const uint8_t *anim;
 	uint8_t state;
-	uint8_t energy;
-	uint8_t unk10; /* score */
+	int8_t energy;
+	uint8_t hit_jump_counter;
 };
 
 struct thing_t {
@@ -178,7 +178,6 @@ struct vars_t {
 	uint16_t tilemap_size; /* tilemap size h*256 */
 	uint16_t tilemap_start_x_pos, tilemap_start_y_pos; /* tilemap restart position */
 	uint8_t tile_attr2_flags; /* current tilemap tile types (eg. front) */
-	uint8_t animated_tiles_flag; /* current tilemap has animated tiles */
 	uint8_t level_animated_tiles_counter; /* animated tiles update counter */
 	uint8_t *level_animated_tiles_current_tbl; /* pointer to current tile_tbl */
 	uint8_t tile_tbl1[256]; /* animated tile state 1 */
@@ -192,6 +191,7 @@ struct vars_t {
 		struct object_t *current_object;
 		uint8_t type10_dist;
 		uint8_t hit_mask;
+		int16_t collide_y_dist;
 	} monster;
 	struct {
 		int16_t x_pos, y_pos;

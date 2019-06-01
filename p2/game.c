@@ -4,8 +4,6 @@
 #include "resource.h"
 #include "sys.h"
 
-static const bool _logos = false;
-
 struct vars_t g_vars;
 
 void update_input() {
@@ -40,6 +38,7 @@ static void do_programmed_in_1992_screen() {
 	if (t->tm_year + 1900 < 1996) { /* || t->tm_year + 1900 >= 2067 */
 		return;
 	}
+	memset(g_res.vga, 0, GAME_SCREEN_W * GAME_SCREEN_H);
 	g_sys.set_screen_palette(credits_palette_data, 0, 16, 6);
 	int offset = 0x960;
 	video_draw_string(offset, 5, "YEAAA > > >");
@@ -208,8 +207,8 @@ static void game_run(const char *data_path) {
 	sound_init();
 	video_convert_tiles(g_res.uniondat, g_res.unionlen);
 	g_vars.level_num = g_options.start_level;
-	if (_logos) {
-		do_programmed_in_1992_screen();
+	do_programmed_in_1992_screen();
+	if (!g_sys.input.space) {
 		do_titus_screen();
 		play_music(3);
 		do_present_screen();
