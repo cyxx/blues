@@ -335,7 +335,7 @@ static bool level_adjust_hscroll_right() {
 }
 
 static void level_adjust_x_scroll() {
-	if (!g_options.dos_scrolling && g_vars.level_noscroll_flag == 0) {
+	if (!g_options.dos_scrolling && g_vars.tilemap_noscroll_flag == 0) {
 		const int x1 = TILEMAP_SCROLL_W * 2;
 		const int x2 = TILEMAP_SCREEN_W - TILEMAP_SCROLL_W * 2;
 		int tilemap_xpos = (g_vars.tilemap_x << 4) + g_vars.tilemap_scroll_dx;
@@ -523,7 +523,7 @@ static void level_adjust_y_scroll() {
 }
 
 static void level_update_scrolling() {
-	if (g_vars.level_noscroll_flag != 0) {
+	if (g_vars.tilemap_noscroll_flag != 0) {
 		return;
 	}
 	if ((g_res.level.scrolling_mask & 2) == 0) {
@@ -1105,7 +1105,7 @@ static void level_monster_die(struct object_t *obj, struct level_monster_t *m) {
 		dy = (-dy) << 3;
 		obj->data.m.y_velocity = dy;
 		int dx = dy >> 1;
-		if ((obj->data.m.unk5 & 0x80) == 0) {
+		if ((obj->data.m.flags & 0x80) == 0) {
 			dx = -dx;
 		}
 		obj->data.m.x_velocity = dx;
@@ -1128,7 +1128,7 @@ static bool level_collide_axe_monsters(struct object_t *axe_obj) {
 		if (!level_objects_collide(axe_obj, obj)) {
 			continue;
 		}
-		obj->data.m.unk5 |= 0x40;
+		obj->data.m.flags |= 0x40;
 		obj->data.m.energy -= g_vars.player_club_power;
 		if (obj->data.m.energy < 0) {
 			level_monster_die(obj, m);
@@ -1453,10 +1453,15 @@ static void level_update_objects_monsters() {
 				continue;
 			}
 			const uint8_t *p = monster_anim_tbl;
+			const uint8_t *end = &monster_anim_tbl[1018];
 			const int spr_num = m->spr_num - 305;
 			do {
 				p += 2;
-			} while (READ_LE_UINT16(p) != 0x7D01 || READ_LE_UINT16(p + 2) != m->type);
+				if (p >= end) {
+					print_warning("level_update_objects_monsters type %d spr %d not found", m->type, spr_num);
+					continue;
+				}
+			} while (READ_LE_UINT16(p) != 0x7D01 || READ_LE_UINT16(p + 2) != type);
 			p += 4;
 			while (READ_LE_UINT16(p) != spr_num) {
 				p += 2;
@@ -1997,7 +2002,7 @@ static void level_update_player_anim_0(uint8_t al) {
 			if ((g_vars.input.key_right & g_vars.input.key_left) != 0) {
 				const uint8_t *anim = level_update_player_anim1_num(19, 38);
 				level_update_object_anim(anim);
-				if ((g_res.level.scrolling_mask & 2) == 0 && g_vars.level_noscroll_flag == 0) {
+				if ((g_res.level.scrolling_mask & 2) == 0 && g_vars.tilemap_noscroll_flag == 0) {
 					const int dx = (g_vars.objects_tbl[1].x_pos >> 4) - g_vars.tilemap_x;
 					if ((g_vars.objects_tbl[1].spr_num & 0x8000) == 0) {
 						if (dx > 2) {
@@ -2743,7 +2748,7 @@ static void level_update_gates() {
 				}
 			}
 			g_res.level.tilemap_w = tmp;
-			g_vars.level_noscroll_flag = gate->scroll_flag;
+			g_vars.tilemap_noscroll_flag = gate->scroll_flag;
 			g_vars.player_action_counter = 0;
 			if (g_vars.level_num == 5) {
 			}

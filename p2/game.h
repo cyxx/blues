@@ -37,7 +37,7 @@ struct club_projectile_t {
 };
 
 struct monster_t {
-	uint8_t unk5;
+	uint8_t flags;
 	void *ref;
 	int16_t x_velocity;
 	int16_t y_velocity;
@@ -169,7 +169,7 @@ struct vars_t {
 	uint8_t level_xscroll_center_flag, level_yscroll_center_flag;
 	uint8_t level_force_x_scroll_flag;
 	bool tilemap_adjust_player_pos_flag;
-	uint8_t level_noscroll_flag;
+	uint8_t tilemap_noscroll_flag;
 	int16_t tilemap_yscroll_diff;
 	int16_t tilemap_x, tilemap_y;
 	int16_t tilemap_prev_x, tilemap_prev_y;
@@ -234,7 +234,7 @@ extern const uint8_t vscroll_offsets_data[132];
 extern const uint8_t cos_tbl[256];
 extern const uint8_t sin_tbl[256];
 extern const uint16_t monster_spr_tbl[48];
-extern const uint8_t monster_anim_tbl[];
+extern const uint8_t monster_anim_tbl[1018];
 
 /* game.c */
 extern void	update_input();

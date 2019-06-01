@@ -124,7 +124,7 @@ void load_leveldat(const uint8_t *p, struct level_t *level) {
 		m->type = p[1];
 		m->spr_num = spr_num;
 		m->energy = p[5];
-		m->total_ticks = p[6];
+		m->respawn_ticks = p[6];
 		m->current_tick = p[7];
 		m->score = p[8];
 		m->x_pos = READ_LE_UINT16(p + 0x9);
@@ -138,6 +138,9 @@ void load_leveldat(const uint8_t *p, struct level_t *level) {
 			m->type2.y_range = p[0xD];
 			m->type2.unkE = p[0xE];
 			break;
+		case 3:
+			m->type3.unkD = p[0xD];
+			break;
 		case 4: /* rotate (eg. spider) */
 			assert(len == 17);
 			m->type4.radius = p[0xD];
@@ -145,7 +148,11 @@ void load_leveldat(const uint8_t *p, struct level_t *level) {
 			m->type4.angle = p[0xF];
 			m->type4.unk10 = p[0x10];
 			break;
-		case 8: /* jumps (eg. leopard) */
+		case 7:
+			m->type7.unkD = p[0xD];
+			m->type7.unkE = p[0xE];
+			break;
+		case 8: /* jump */
 			assert(len == 17);
 			m->type8.x_range = p[0xD];
 			m->type8.y_step = p[0xE];
@@ -156,12 +163,21 @@ void load_leveldat(const uint8_t *p, struct level_t *level) {
 			assert(len == 19);
 			m->type9.unkD = READ_LE_UINT16(p + 0xD);
 			m->type9.unkF = READ_LE_UINT16(p + 0xF);
-			m->type9.unk11 = p[0x11];
-			m->type9.unk12 = p[0x12];
+			m->type9.x_step = p[0x11];
+			m->type9.x_dist = p[0x12];
 			break;
 		case 10: /* come out of the ground */
 			assert(len == 14);
 			m->type10.unkD = p[0xD];
+			break;
+		case 11:
+			m->type11.unkD = p[0xD];
+			m->type11.unkE = p[0xE];
+			m->type11.unkF = p[0xF];
+			break;
+		case 12:
+			assert(len == 14);
+			m->type12.unkD = p[0xD];
 			break;
 		default:
 			print_warning("Unhandled monster type %d len %d", type, len);

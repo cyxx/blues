@@ -38,7 +38,7 @@ static void do_programmed_in_1992_screen() {
 	if (t->tm_year + 1900 < 1996) { /* || t->tm_year + 1900 >= 2067 */
 		return;
 	}
-	memset(g_res.vga, 0, GAME_SCREEN_W * GAME_SCREEN_H);
+	video_clear();
 	g_sys.set_screen_palette(credits_palette_data, 0, 16, 6);
 	int offset = 0x960;
 	video_draw_string(offset, 5, "YEAAA > > >");

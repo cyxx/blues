@@ -64,7 +64,7 @@ struct level_monster_t {
 	uint16_t spr_num;
 	uint8_t flags;
 	uint8_t energy;
-	uint8_t total_ticks;
+	uint8_t respawn_ticks;
 	uint8_t current_tick;
 	uint8_t score;
 	uint16_t x_pos;
@@ -75,11 +75,18 @@ struct level_monster_t {
 			int8_t unkE;
 		} type2;
 		struct {
+			uint8_t unkD;
+		} type3;
+		struct {
 			uint8_t radius;
 			uint8_t unkE;
 			uint8_t angle;
 			uint8_t unk10;
 		} type4;
+		struct {
+			uint8_t unkD;
+			uint8_t unkE;
+		} type7;
 		struct {
 			uint8_t x_range;
 			int8_t y_step;
@@ -89,12 +96,20 @@ struct level_monster_t {
 		struct {
 			int16_t unkD;
 			int16_t unkF;
-			int8_t unk11;
-			uint8_t unk12;
+			int8_t x_step;
+			uint8_t x_dist;
 		} type9;
 		struct {
 			uint8_t unkD;
 		} type10;
+		struct {
+			uint8_t unkD;
+			uint8_t unkE;
+			uint8_t unkF;
+		} type11;
+		struct {
+			uint8_t unkD;
+		} type12;
 	};
 };
 
