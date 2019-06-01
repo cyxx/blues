@@ -138,7 +138,6 @@ struct vars_t {
 	uint8_t player_anim2_counter;
 	int16_t player_prev_y_pos;
 	uint8_t player_bonus_letters_blinking_counter;
-	int16_t player_monsters_unk_counter;
 	uint8_t player_nojump_counter;
 	uint8_t player_jumping_counter;
 	uint8_t player_action_counter;
@@ -192,6 +191,7 @@ struct vars_t {
 		uint8_t type10_dist;
 		uint8_t hit_mask;
 		int16_t collide_y_dist;
+		uint8_t type0_hdir;
 	} monster;
 	struct {
 		int16_t x_pos, y_pos;
@@ -222,8 +222,8 @@ extern struct vars_t g_vars;
 extern const uint8_t *palettes_tbl[16];
 extern const uint8_t credits_palette_data[16 * 3];
 extern const uint8_t light_palette_data[16 * 3];
-extern const uint8_t spr_offs_tbl[892];
-extern const uint8_t spr_size_tbl[892];
+extern const uint8_t spr_offs_tbl[922];
+extern const uint8_t spr_size_tbl[922];
 extern const uint16_t score_tbl[17];
 extern const uint8_t score_spr_lut[110];
 extern const uint8_t *object_anim_tbl[];
@@ -234,7 +234,7 @@ extern const uint8_t vscroll_offsets_data[132];
 extern const uint8_t cos_tbl[256];
 extern const uint8_t sin_tbl[256];
 extern const uint16_t monster_spr_tbl[48];
-extern const uint8_t monster_anim_tbl[1018];
+extern const uint8_t monster_anim_tbl[1100];
 
 /* game.c */
 extern void	update_input();

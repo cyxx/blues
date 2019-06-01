@@ -117,11 +117,6 @@ static void do_present_screen() {
 }
 
 static void do_demo_screen() {
-	uint8_t *data = load_file("JOYSTICK.SQZ");
-	if (data) {
-		video_copy_img(data);
-		free(data);
-	}
 }
 
 static void do_menu() {

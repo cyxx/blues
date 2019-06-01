@@ -4,6 +4,6 @@
 
 #include "intern.h"
 
-extern int	unpack(const char *filename, uint8_t *dst);
+extern int	unpack(FILE *fp, uint8_t *dst);
 
 #endif /* UNPACK_H__ */

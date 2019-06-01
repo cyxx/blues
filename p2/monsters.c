@@ -102,6 +102,33 @@ static void monster_update_y_velocity(struct object_t *obj, struct level_monster
 	}
 }
 
+static void monster_func1_type0(struct object_t *obj) {
+	monster_func1_helper(obj, obj->x_pos, obj->y_pos);
+	struct level_monster_t *m = obj->data.m.ref;
+	const uint8_t state = obj->data.m.state;
+	if (state == 0) {
+		if (monster_next_tick(m)) {
+			return;
+		}
+		if (obj->y_pos - g_vars.objects_tbl[1].y_pos >= TILEMAP_SCREEN_H) {
+			monster_reset(obj, m);
+		} else {
+			m->flags = 8;
+			obj->data.m.state = 1;
+		}
+	} else if (state == 1) {
+		if (obj->data.m.y_velocity != 0) {
+			return;
+		}
+		obj->data.m.state = 2;
+		const int x_vel = (obj->x_pos < g_vars.objects_tbl[1].x_pos) ? 32 : -32;
+		obj->data.m.x_velocity = x_vel;
+		monster_change_next_anim(obj);
+	} else if (state == 0xFF) {
+		monster_update_y_velocity(obj, m);
+	}
+}
+
 static void monster_func1_type2(struct object_t *obj) {
 	monster_func1_helper(obj, obj->x_pos, obj->y_pos);
 	struct level_monster_t *m = obj->data.m.ref;
@@ -204,6 +231,96 @@ static void monster_func1_type4(struct object_t *obj) {
 	}
 }
 
+static void monster_func1_type5(struct object_t *obj) {
+	monster_func1_helper(obj, obj->x_pos, obj->y_pos);
+	struct level_monster_t *m = obj->data.m.ref;
+	const uint8_t state = obj->data.m.state;
+	if (state == 0) {
+		const int x_vel = (obj->x_pos <= g_vars.objects_tbl[1].x_pos) ? 1 : -1;
+		obj->data.m.x_velocity = x_vel;
+		const int dx = abs(g_vars.objects_tbl[1].x_pos - obj->x_pos) >> 4;
+		if (m->type5.x_range < dx) {
+			return;
+		}
+		const int dy = abs(g_vars.objects_tbl[1].y_pos - obj->y_pos) >> 4;
+		if (m->type5.y_range < dy) {
+			return;
+		}
+		obj->data.m.state = 10;
+		int x = m->type5.unkF << 4;
+		obj->data.m.y_velocity = x;
+		if (obj->data.m.x_velocity < 0){
+			x = -x;
+		}
+		obj->data.m.x_velocity = x;
+	} else if (state == 10) {
+		if (abs(obj->y_pos - g_vars.objects_tbl[1].y_pos) <= 8) {
+			obj->data.m.state = 11;
+			obj->data.m.y_velocity = 10;
+		}
+	} else if (state == 0xFF) {
+		monster_update_y_velocity(obj, m);
+	}
+}
+
+static void monster_func1_type6(struct object_t *obj) {
+	static const uint8_t data[] = {
+		0x40, 0x28, 0x50, 0x26, 0x10, 0x30, 0x20, 0x36, 0x10, 0x3C,
+		0x08, 0x32, 0xF8, 0x32, 0xF0, 0x30, 0xE0, 0x28, 0xF0, 0xFF
+	};
+	monster_func1_helper(obj, obj->x_pos, obj->y_pos);
+	struct level_monster_t *m = obj->data.m.ref;
+	const int x_vel = (obj->x_pos <= g_vars.objects_tbl[1].x_pos) ? 1 : -1;
+	obj->data.m.x_velocity = x_vel;
+	const uint8_t state = obj->data.m.state;
+	if (state == 0) {
+		const int dx = abs(g_vars.objects_tbl[1].x_pos - obj->x_pos) >> 4;
+		if (m->type6.x_range < dx) {
+			return;
+		}
+		obj->data.m.state = 1;
+		m->type6.pos = data;
+	} else if (state == 1) {
+		const uint8_t *p = m->type6.pos;
+		bool flag = false;
+		int d = 3;
+		int x = g_vars.objects_tbl[1].x_pos + (int8_t)p[0] - obj->x_pos;
+		if (x <= 0) {
+			x = -x;
+			d = -d;
+		}
+		if (x >= 3) {
+			obj->x_pos += d;
+			flag = true;
+		}
+		int y = (int8_t)p[1];
+		if (g_vars.player_anim_0x40_flag != 0) {
+			y += 5;
+		}
+		y -= g_vars.objects_tbl[1].y_pos;
+		y = -y;
+		d = 3;
+		y -= obj->y_pos;
+		if (y <= 0) {
+			y = -y;
+			d = -d;
+		}
+		if (y >= 3) {
+			obj->y_pos += d;
+			flag = true;
+		}
+		if (flag) {
+			if (p[2] == 0xFF) {
+				m->type6.pos = data;
+			} else {
+				m->type6.pos = p + 2;
+			}
+		}
+	} else if (state == 0xFF) {
+		monster_update_y_velocity(obj, m);
+	}
+}
+
 static void monster_func1_type7(struct object_t *obj) {
 	monster_func1_helper(obj, obj->x_pos, obj->y_pos);
 	struct level_monster_t *m = obj->data.m.ref;
@@ -218,12 +335,11 @@ static void monster_func1_type7(struct object_t *obj) {
 		obj->data.m.state = 10;
 		int x = m->type7.unkE << 4;
 		obj->data.m.y_velocity = x;
-		if (obj->data.m.x_velocity & 0x5000) {
+		if (obj->data.m.x_velocity & 0x5000) { /* typo, should be 0x8000, eg. < 0 ? */
 			x = -x;
 		}
 		obj->data.m.x_velocity = x;
 		monster_change_next_anim(obj);
-	} else if (state == 10) {
 	} else if (state == 0xFF) {
 		monster_update_y_velocity(obj, m);
 	}
@@ -431,6 +547,9 @@ static void monster_func1_type12(struct object_t *obj) {
 
 void monster_func1(int type, struct object_t *obj) {
 	switch (type) {
+	case 0:
+		monster_func1_type0(obj);
+		break;
 	case 1:
 		monster_func1_helper(obj, obj->x_pos, obj->y_pos);
 		break;
@@ -442,6 +561,12 @@ void monster_func1(int type, struct object_t *obj) {
 		break;
 	case 4:
 		monster_func1_type4(obj);
+		break;
+	case 5:
+		monster_func1_type5(obj);
+		break;
+	case 6:
+		monster_func1_type6(obj);
 		break;
 	case 7:
 		monster_func1_type7(obj);
@@ -505,6 +630,42 @@ static bool monster_is_visible(int x_pos, int y_pos) {
 	if (dy < -2 || dy > (TILEMAP_SCREEN_H + 2)) {
 		return false;
 	}
+	return true;
+}
+
+static bool monster_func2_type0(struct level_monster_t *m) {
+	const uint16_t x = m->x_pos;
+	const uint16_t y = m->y_pos;
+	const int dx = (g_vars.objects_tbl[1].x_pos >> 4) - (x & 255);
+	if (dx < 0) {
+		return false;
+	}
+	if ((y & 255) < dx) {
+		return false;
+	}
+	const int dy = (g_vars.objects_tbl[1].y_pos >> 4) - (x >> 8);
+	if (dy < 0) {
+		return false;
+	}
+	if ((y >> 8) < dy) {
+		return false;
+	}
+	struct object_t *obj = find_object_monster();
+	if (!obj) {
+		return false;
+	}
+	obj->data.m.hit_jump_counter = 0;
+	g_vars.monster.current_object = obj;
+	g_vars.monster.type0_hdir ^= 1;
+	obj->x_pos = g_vars.objects_tbl[1].x_pos + ((g_vars.monster.type0_hdir == 0) ? 192 : -192);
+	obj->y_pos = g_vars.objects_tbl[1].y_pos - TILEMAP_SCREEN_H;
+	obj->spr_num = m->spr_num;
+	obj->data.m.ref = m;
+	m->flags = 7;
+	obj->data.m.x_velocity = 0;
+	obj->data.m.y_velocity = 0;
+	obj->data.m.state = 0;
+	obj->data.m.energy = m->energy;
 	return true;
 }
 
@@ -682,6 +843,8 @@ static bool monster_func2_type12(struct level_monster_t *m) {
 
 bool monster_func2(int type, struct level_monster_t *m) {
 	switch (type) {
+	case 0:
+		return monster_func2_type0(m);
 	case 1:
 		return monster_func2_type1(m);
 	case 2:

@@ -1,5 +1,4 @@
 
-#include "fileio.h"
 #include "resource.h"
 #include "sys.h"
 #include "unpack.h"
@@ -7,8 +6,18 @@
 
 struct resource_data_t g_res;
 
+static bool file_exists(const char *filename) {
+	FILE *fp = fopen_nocase(g_res.datapath, filename);
+	if (fp) {
+		fclose(fp);
+		return true;
+	}
+	return false;
+}
+
 void res_init(const char *datapath, int vga_size) {
-	fio_init(datapath);
+	g_res.datapath = datapath;
+
 	static const int SQL_SIZE = 640 * 25;
 	g_res.sql = (uint8_t *)malloc(SQL_SIZE);
 	if (!g_res.sql) {
@@ -40,7 +49,7 @@ void res_init(const char *datapath, int vga_size) {
 		print_error("Failed to allocate tiles buffer, %d bytes", TILES_SIZE);
 	}
 	static const char *filename = "sound";
-	if (fio_exists(filename)) {
+	if (file_exists(filename)) {
 		g_res.snd = (uint8_t *)malloc(SOUND_SIZE);
 		if (!g_res.snd) {
 			print_warning("Failed to allocate sound buffer, %d bytes", SOUND_SIZE);
@@ -48,16 +57,15 @@ void res_init(const char *datapath, int vga_size) {
 			read_file(filename, g_res.snd, SOUND_SIZE);
 		}
 	}
-	if (fio_exists("demomag.sql")) {
+	if (file_exists("demomag.sql")) {
 		g_res.dos_demo = true;
 	}
-	if (fio_exists("mag.tbl")) {
+	if (file_exists("mag.tbl")) {
 		g_res.amiga_data = true;
 	}
 }
 
 void res_fini() {
-	fio_fini();
 	free(g_res.sql);
 	g_res.sql = 0;
 	free(g_res.spr_sqv);
@@ -75,19 +83,32 @@ void res_fini() {
 }
 
 int read_file(const char *filename, uint8_t *dst, int size) {
-	const int f = fio_open(filename, 1);
-	const int filesize = fio_size(f);
+	FILE *fp = fopen_nocase(g_res.datapath, filename);
+	if (!fp) {
+		print_error("Unable to open '%s'", filename);
+		return 0;
+	}
+	fseek(fp, 0, SEEK_END);
+	const int filesize = ftell(fp);
+	fseek(fp, 0, SEEK_SET);
 	if (size > 0 && size != filesize) {
 		print_error("Unexpected '%s' file size %d (%d)", filename, filesize, size);
-	} else if (fio_read(f, dst, filesize) != filesize) {
+	} else if (fread(dst, 1, filesize, fp) != filesize) {
 		print_error("Failed to read %d bytes from file '%s'", filesize, filename);
 	}
-	fio_close(f);
+	fclose(fp);
 	return filesize;
 }
 
 int read_compressed_file(const char *filename, uint8_t *dst) {
-	return unpack(filename, dst);
+	FILE *fp = fopen_nocase(g_res.datapath, filename);
+	if (!fp) {
+		print_error("Unable to open '%s'", filename);
+		return 0;
+	}
+	const int size = unpack(fp, dst);
+	fclose(fp);
+	return size;
 }
 
 extern const uint8_t dither_cga_table[];

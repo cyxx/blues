@@ -84,6 +84,15 @@ struct level_monster_t {
 			uint8_t unk10;
 		} type4;
 		struct {
+			uint8_t x_range;
+			uint8_t y_range;
+			uint8_t unkF;
+		} type5;
+		struct {
+			uint8_t x_range;
+			const uint8_t *pos;
+		} type6;
+		struct {
 			uint8_t unkD;
 			uint8_t unkE;
 		} type7;
@@ -165,6 +174,8 @@ struct resource_t {
 	uint8_t *background;
 	struct level_t level, restart;
 	uint8_t *samples;
+	uint16_t spr_monsters_offset;
+	uint16_t spr_monsters_count;
 };
 
 extern struct resource_t g_res;

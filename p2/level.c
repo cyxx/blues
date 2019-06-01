@@ -139,7 +139,7 @@ static void load_level_data_fix_monsters_spr_num() {
 			if (num != 0xFFFF) {
 				if (num >= g_res.level.monsters_spr_num_offset) {
 					num -= g_res.level.monsters_spr_num_offset;
-					num += 305;
+					num += g_res.spr_monsters_offset;
 					g_res.level.monsters_tbl[i].spr_num = num;
 				} else if (num >= g_res.level.items_spr_num_offset) {
 					num -= g_res.level.items_spr_num_offset;
@@ -150,7 +150,7 @@ static void load_level_data_fix_monsters_spr_num() {
 		}
 	}
 	g_res.level.items_spr_num_offset = 53;
-	g_res.level.monsters_spr_num_offset = 305;
+	g_res.level.monsters_spr_num_offset = g_res.spr_monsters_offset;
 }
 
 static void load_level_data_init_secret_bonus_tiles() {
@@ -1073,7 +1073,7 @@ static void level_monster_update_anim(struct object_t *obj) {
 	obj->data.m.anim = p + 2;
 }
 
-static void level_monster_die(struct object_t *obj, struct level_monster_t *m) {
+static void level_monster_die(struct object_t *obj, struct level_monster_t *m, struct object_t *obj_player) { /* di, bx, si */
 	const int num = m->score + 74;
 	static const uint8_t data[] = { 1, 2, 3, 4, 6, 8 };
 	int count = data[(obj->data.m.hit_jump_counter >> 3) & 7];
@@ -1105,7 +1105,7 @@ static void level_monster_die(struct object_t *obj, struct level_monster_t *m) {
 		dy = (-dy) << 3;
 		obj->data.m.y_velocity = dy;
 		int dx = dy >> 1;
-		if ((obj->data.m.flags & 0x80) == 0) {
+		if ((obj_player->spr_num & 0x8000) == 0) {
 			dx = -dx;
 		}
 		obj->data.m.x_velocity = dx;
@@ -1131,11 +1131,11 @@ static bool level_collide_axe_monsters(struct object_t *axe_obj) {
 		obj->data.m.flags |= 0x40;
 		obj->data.m.energy -= g_vars.player_club_power;
 		if (obj->data.m.energy < 0) {
-			level_monster_die(obj, m);
+			level_monster_die(obj, m, axe_obj);
 		} else {
 			obj->x_pos -= obj->data.m.x_velocity >> 2;
 		}
-		obj->spr_num = 0xFFFF;
+		axe_obj->spr_num = 0xFFFF;
 		return true;
 	}
 	return false;
@@ -1382,10 +1382,6 @@ extern void monster_func1(int type, struct object_t *obj); /* update */
 extern bool monster_func2(int type, struct level_monster_t *m); /* init */
 
 static void level_update_objects_monsters() {
-	if (!g_res.dos_demo) {
-		/* different monsters logic/tables */
-		return;
-	}
 	if (g_res.level.monsters_state != 0xFF) {
 		level_update_monsters_state();
 	}
@@ -1414,17 +1410,18 @@ static void level_update_objects_monsters() {
 			}
 			p += num;
 		}
-		uint16_t dx = 305 + (num & 0x1FFF);
-		g_vars.monster.hit_mask = ((num >> 8) & 0xE0) | g_vars.player_monsters_unk_counter;
-		if (g_vars.player_monsters_unk_counter == 0) {
+		uint16_t dx = g_res.spr_monsters_offset + (num & 0x1FFF);
+		g_vars.monster.hit_mask = ((num >> 8) & 0xE0) | (g_vars.player_hit_monster_counter & 0xFF);
+		if (g_vars.player_hit_monster_counter == 0) {
 			obj->data.m.anim = p + 2;
 		} else {
-			if (g_vars.player_monsters_unk_counter == 7) {
+			if (g_vars.player_hit_monster_counter == 7) {
 				g_vars.shake_screen_counter = 9;
 			}
 			const uint16_t *q = monster_spr_tbl;
+			const uint16_t *end = &monster_spr_tbl[48];
 			dx &= 0x1FFF;
-			while (1) {
+			while (q < end) {
 				if (dx < q[0]) {
 					obj->data.m.anim = p + 2;
 					break;
@@ -1434,6 +1431,10 @@ static void level_update_objects_monsters() {
 					break;
 				}
 				q += 3;
+			}
+			if (q >= end) {
+				print_warning("level_update_objects_monsters spr %d hit %d not found", dx, g_vars.player_hit_monster_counter);
+				continue;
 			}
 		}
 		dx &= 0x1FFF;
@@ -1452,19 +1453,21 @@ static void level_update_objects_monsters() {
 			if (!monster_func2(type, m)) {
 				continue;
 			}
+			/* monster type */
 			const uint8_t *p = monster_anim_tbl;
-			const uint8_t *end = &monster_anim_tbl[1018];
-			const int spr_num = m->spr_num - 305;
+			const uint8_t *end = &monster_anim_tbl[1100];
 			do {
 				p += 2;
-				if (p >= end) {
-					print_warning("level_update_objects_monsters type %d spr %d not found", m->type, spr_num);
-					continue;
-				}
-			} while (READ_LE_UINT16(p) != 0x7D01 || READ_LE_UINT16(p + 2) != type);
+			} while (p < end && (READ_LE_UINT16(p) != 0x7D01 || READ_LE_UINT16(p + 2) != type));
 			p += 4;
-			while (READ_LE_UINT16(p) != spr_num) {
+			/* monster sprite */
+			const int spr_num = m->spr_num - g_res.spr_monsters_offset;
+			while (p < end && READ_LE_UINT16(p) != spr_num) {
 				p += 2;
+			}
+			if (p >= end) {
+				print_warning("level_update_objects_monsters type %d spr %d not found", type, spr_num);
+				continue;
 			}
 			g_vars.monster.current_object->data.m.anim = p;
 		}
@@ -2366,8 +2369,8 @@ update_pos:
 	if (g_vars.player_bonus_letters_blinking_counter > 0) {
 		--g_vars.player_bonus_letters_blinking_counter;
 	}
-	if (g_vars.player_monsters_unk_counter > 0) {
-		--g_vars.player_monsters_unk_counter;
+	if (g_vars.player_hit_monster_counter > 0) {
+		--g_vars.player_hit_monster_counter;
 	}
 }
 
@@ -2402,7 +2405,7 @@ static void level_update_player_collision() {
 				continue;
 			}
 			if (g_vars.player_hit_monster_counter != 0) {
-				level_monster_die(obj, m);
+				level_monster_die(obj, m, &g_vars.objects_tbl[1]);
 				continue;
 			}
 			if (!g_vars.player_jump_monster_flag && g_vars.objects_tbl[1].data.p.y_velocity < 0) {
@@ -2617,7 +2620,7 @@ static void level_update_player_collision() {
 				if ((obj->spr_num & 0x2000) == 0) {
 					continue;
 				}
-				level_monster_die(obj, m);
+				level_monster_die(obj, m, obj_player);
 			}
 			g_vars.shake_screen_counter = 9;
 			level_clear_item(obj);
@@ -2627,6 +2630,10 @@ static void level_update_player_collision() {
 			for (int i = 0; i < MONSTERS_COUNT; ++i) {
 				struct object_t *obj = &g_vars.objects_tbl[11 + i];
 				if (obj->spr_num == 0xFFFF) {
+					continue;
+				}
+				struct level_monster_t *m = obj->data.m.ref;
+				if (m->flags & 0x10) {
 					continue;
 				}
 				if ((obj->spr_num & 0x2000) == 0) {
@@ -3026,7 +3033,7 @@ static void level_update_player_bonuses() {
 		g_vars.player_bonus_letters_blinking_counter = 44; /* blink the letters in the panel */
 	} else if ((g_vars.player_utensils_mask & 0x38) == 0x38) {
 		g_vars.player_utensils_mask &= ~0x38;
-		g_vars.player_monsters_unk_counter = 660;
+		g_vars.player_hit_monster_counter = 660;
 	}
 }
 
@@ -3301,6 +3308,7 @@ void do_level() {
 	level_draw_panel();
 	level_sync();
 	g_vars.monster.type10_dist = 0;
+	g_vars.monster.type0_hdir = 0;
 	random_reset();
 	while (!g_sys.input.quit) {
 		level_update_objects_hit_animation();

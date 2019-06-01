@@ -59,6 +59,9 @@ void res_init(const char *path, int vga_size) {
 	if (!g_res.dos_demo) {
 		g_res.samples = load_file("SAMPLE.SQZ");
 	}
+
+	g_res.spr_monsters_offset = 312;
+	g_res.spr_monsters_count = g_res.dos_demo ? 446 : 461;
 }
 
 void res_fini() {
@@ -130,6 +133,9 @@ void load_leveldat(const uint8_t *p, struct level_t *level) {
 		m->x_pos = READ_LE_UINT16(p + 0x9);
 		m->y_pos = READ_LE_UINT16(p + 0xB);
 		switch (type) { /* movement */
+		case 0:
+			assert(len == 13);
+			break;
 		case 1:
 			assert(len == 13);
 			break;
@@ -139,6 +145,7 @@ void load_leveldat(const uint8_t *p, struct level_t *level) {
 			m->type2.unkE = p[0xE];
 			break;
 		case 3:
+			assert(len == 14);
 			m->type3.unkD = p[0xD];
 			break;
 		case 4: /* rotate (eg. spider) */
@@ -148,7 +155,19 @@ void load_leveldat(const uint8_t *p, struct level_t *level) {
 			m->type4.angle = p[0xF];
 			m->type4.unk10 = p[0x10];
 			break;
+		case 5:
+			assert(len == 16);
+			m->type5.x_range = p[0xD];
+			m->type5.y_range = p[0xE];
+			m->type5.unkF = p[0xF];
+			break;
+		case 6:
+			assert(len == 21);
+			m->type6.x_range = p[0xD];
+			m->type6.pos = 0;
+			break;
 		case 7:
+			assert(len == 15);
 			m->type7.unkD = p[0xD];
 			m->type7.unkE = p[0xE];
 			break;
@@ -171,12 +190,13 @@ void load_leveldat(const uint8_t *p, struct level_t *level) {
 			m->type10.unkD = p[0xD];
 			break;
 		case 11:
+			assert(len == 16);
 			m->type11.unkD = p[0xD];
 			m->type11.unkE = p[0xE];
 			m->type11.unkF = p[0xF];
 			break;
 		case 12:
-			assert(len == 14);
+			assert(len == 15);
 			m->type12.unkD = p[0xD];
 			break;
 		default:

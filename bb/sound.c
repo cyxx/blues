@@ -1,5 +1,4 @@
 
-#include "fileio.h"
 #include "game.h"
 #include "resource.h"
 #include "sys.h"
@@ -51,6 +50,31 @@ struct mixerchannel_t {
 static const int _rate = SYS_AUDIO_FREQ;
 static struct mixerchannel_t _channel;
 static ModPlugFile *_mpf;
+
+static uint8_t *load_file(const char *filename, int *size, uint8_t *buffer) {
+	FILE *fp = fopen_nocase(g_res.datapath, filename);
+	if (!fp) {
+		return 0;
+	}
+	fseek(fp, 0, SEEK_END);
+	const int filesize = ftell(fp);
+	fseek(fp, 0, SEEK_SET);
+	if (!buffer) {
+		buffer = (uint8_t *)malloc(filesize);
+		if (!buffer) {
+			print_warning("Failed to allocate %d bytes", filesize);
+			return 0;
+		}
+	}
+	if (fread(buffer, 1, filesize, fp) != filesize) {
+		print_warning("Failed to read %d bytes from '%s'", filesize, filename);
+		free(buffer);
+		buffer = 0;
+	} else {
+		*size = filesize;
+	}
+	return buffer;
+}
 
 static void mix(void *param, uint8_t *buf, int len) {
 	memset(buf, 0, len);
@@ -109,65 +133,50 @@ void play_music(int num) {
 		ModPlug_Unload(_mpf);
 		_mpf = 0;
 	}
-	const char *filename = _modules[num * 2];
-	if (fio_exists(filename)) { // Amiga
-		int slot = fio_open(filename, 1);
-		int size = fio_size(slot);
-		uint8_t *buf = (uint8_t *)malloc(size);
-		if (buf) {
-			fio_read(slot, buf, size);
+	const char *filename = _modules[num * 2]; // Amiga
+	int size = 0;
+	uint8_t *buf = load_file(filename, &size, 0);
+	if (buf) {
+		// append samples to the end of the buffer
+		static const int SONG_INFO_LEN = 20;
+		static const int NUM_SAMPLES = 8;
+		struct {
+			char name[23];
+			int size;
+		} samples[8];
 
-			// append samples to the end of the buffer
-			static const int SONG_INFO_LEN = 20;
-			static const int NUM_SAMPLES = 8;
-			struct {
-				char *name;
-				int size;
-			} samples[8];
-
-			int samples_size = 0;
-			int offset = SONG_INFO_LEN;
-			for (int i = 0; i < NUM_SAMPLES; ++i, offset += 30) {
-				samples[i].name = (char *)&buf[offset];
-				samples[i].size = READ_BE_UINT16(&buf[offset + 22]) * 2;
-				string_lower(samples[i].name);
-				samples_size += samples[i].size;
-			}
-
-			buf = (uint8_t *)realloc(buf, size + samples_size);
-			if (buf) {
-				memset(buf + size, 0, samples_size);
-				for (int i = 0; i < NUM_SAMPLES; ++i) {
-					if (samples[i].size != 0) {
-						if (samples[i].name[0]) {
-							const int sample_slot = fio_open(samples[i].name, 0);
-							if (sample_slot < 0) {
-								print_warning("Unable to open instrument '%s'", samples[i].name);
-							} else {
-								fio_read(sample_slot, buf + size, samples[i].size);
-								fio_close(sample_slot);
-							}
-						}
-						size += samples[i].size;
-					}
-				}
-				_mpf = ModPlug_Load(buf, size);
-				free(buf);
-			}
+		int samples_size = 0;
+		int offset = SONG_INFO_LEN;
+		for (int i = 0; i < NUM_SAMPLES; ++i, offset += 30) {
+			memcpy(samples[i].name, &buf[offset], 22);
+			samples[i].name[22] = 0;
+			samples[i].size = READ_BE_UINT16(&buf[offset + 22]) * 2;
+			string_lower(samples[i].name);
+			samples_size += samples[i].size;
 		}
-		fio_close(slot);
+		buf = (uint8_t *)realloc(buf, size + samples_size);
+		if (buf) {
+			memset(buf + size, 0, samples_size);
+			for (int i = 0; i < NUM_SAMPLES; ++i) {
+				if (samples[i].size != 0) {
+					if (samples[i].name[0]) {
+						int sample_size = 0;
+						if (!load_file(samples[i].name, &sample_size, buf + size)) {
+							print_warning("Unable to load instrument '%s'", samples[i].name);
+						}
+					}
+					size += samples[i].size;
+				}
+			}
+			_mpf = ModPlug_Load(buf, size);
+			free(buf);
+		}
 	} else { // ExoticA
 		filename = _modules[num * 2 + 1];
-		if (fio_exists(filename)) {
-			int slot = fio_open(filename, 1);
-			int size = fio_size(slot);
-			uint8_t *buf = (uint8_t *)malloc(size);
-			if (buf) {
-				fio_read(slot, buf, size);
-				_mpf = ModPlug_Load(buf, size);
-				free(buf);
-			}
-			fio_close(slot);
+		buf = load_file(filename, &size, 0);
+		if (buf) {
+			_mpf = ModPlug_Load(buf, size);
+			free(buf);
 		}
 	}
 	g_sys.unlock_audio();

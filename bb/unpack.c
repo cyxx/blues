@@ -1,37 +1,33 @@
 
-#include "fileio.h"
 #include "unpack.h"
 #include "util.h"
 
 struct unpack_t {
 	uint8_t dict_buf[0x200 * 2];
 	uint8_t rd[0x1000];
-	int size;
-	int dict_len;
 };
 
 static struct unpack_t g_unpack;
 
-int unpack(const char *filename, uint8_t *dst) {
-	const int f = fio_open(filename, 1);
-
-	fio_read(f, g_unpack.rd, 6);
-	g_unpack.size = (READ_LE_UINT16(g_unpack.rd) << 16) + READ_LE_UINT16(g_unpack.rd + 2);
+int unpack(FILE *in, uint8_t *dst) {
+	fread(g_unpack.rd, 1, 6, in);
+	const int uncompressed_size = (READ_LE_UINT16(g_unpack.rd) << 16) + READ_LE_UINT16(g_unpack.rd + 2);
 	const int dict_len = READ_LE_UINT16(g_unpack.rd + 4);
-	print_debug(DBG_UNPACK, "unpack '%s' size %d dict_len %d", filename, g_unpack.size, dict_len);
-	fio_read(f, g_unpack.dict_buf, dict_len);
+	print_debug(DBG_UNPACK, "SQV uncompressed size %d dict_len %d", uncompressed_size, dict_len);
+	fread(g_unpack.dict_buf, 1, dict_len, in);
 
+	const uint8_t *start = dst;
 	const uint8_t *src = g_unpack.rd;
 	int len = 1;
 	int bytes_count = 2;
 	uint16_t bits = 0;
 	uint16_t val = 0;
-	while (1) {
+	while ((dst - start) < uncompressed_size) {
 		--len;
 		if (len == 0) {
 			bytes_count -= 2;
 			if (bytes_count == 0) {
-				bytes_count = fio_read(f, g_unpack.rd, 0x1000);
+				bytes_count = fread(g_unpack.rd, 1, 0x1000, in);
 				if (bytes_count == 0) {
 					break;
 				}
@@ -55,6 +51,6 @@ int unpack(const char *filename, uint8_t *dst) {
 		*dst++ = val & 255;
 		val = 0;
 	}
-	fio_close(f);
-	return g_unpack.size;
+	assert((dst - start) == uncompressed_size);
+	return uncompressed_size;
 }

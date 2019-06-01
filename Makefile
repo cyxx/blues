@@ -2,7 +2,7 @@
 SDL_CFLAGS := `sdl2-config --cflags`
 SDL_LIBS   := `sdl2-config --libs`
 
-BB := decode.c fileio.c game.c level.c objects.c resource.c screen.c sound.c staticres.c tiles.c unpack.c
+BB := decode.c game.c level.c objects.c resource.c screen.c sound.c staticres.c tiles.c unpack.c
 JA := game.c level.c resource.c screen.c sound.c staticres.c unpack.c
 P2 := game.c level.c monsters.c resource.c screen.c sound.c staticres.c unpack.c
 

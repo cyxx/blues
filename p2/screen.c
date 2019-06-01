@@ -6,7 +6,7 @@
 #include "sys.h"
 #include "util.h"
 
-#define MAX_SPRITES 445
+#define MAX_SPRITES 480
 #define MAX_SPRITESHEET_W 2048
 #define MAX_SPRITESHEET_H 1024
 #define MAX_FRONT_TILES 168
@@ -216,16 +216,23 @@ void video_load_sprites() {
 		int offset = 0;
 		int count = 0;
 		uint8_t value;
-		for (int i = 0; (value = sprite_offsets[i] & 255) != 0; ++i, ++count) {
+		for (int i = 0; count < g_res.spr_monsters_count; ++i) {
 
+			if (g_res.dos_demo && (i >= 305 && i < 312)) {
+				/* demo is missing 7 (monster) sprites compared to full game */
+				continue;
+			}
+			const int j = i;
+
+			value = sprite_offsets[j] & 255;
 			value = (value >> 3) | ((value & 7) << 5);
 			if ((value & 0xE0) != 0) {
 				value &= ~0xE0;
 				++value;
 			}
-			const int h = sprite_offsets[i] >> 8;
+			const int h = sprite_offsets[j] >> 8;
 			const int w = value * 8;
-			assert((sprite_offsets[i] & 255) == w);
+			assert((sprite_offsets[j] & 255) == w);
 			const int size = (h * value) * 4;
 
 			if (current_x + w > MAX_SPRITESHEET_W) {
@@ -248,6 +255,8 @@ void video_load_sprites() {
 			r[i].w = w;
 			r[i].h = h;
 			current_x += w;
+
+			++count;
 		}
 		assert(count <= MAX_SPRITES);
 		assert(max_w <= MAX_SPRITESHEET_W);

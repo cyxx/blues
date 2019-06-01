@@ -223,7 +223,6 @@ static int unpack_sqz(FILE *in, struct unpack_sqz_t *u) {
 struct unpack_sqv_t {
 	uint8_t dict_buf[0x200 * 2];
 	uint8_t rd[0x1000];
-	int dict_len;
 	uint8_t *dst;
 };
 
@@ -243,7 +242,6 @@ static int unpack_sqv(FILE *in, struct unpack_sqv_t *u) {
 		return 0;
 	}
 
-	u->dst = output_buffer;
 	uint8_t *dst = output_buffer;
 
 	const uint8_t *src = u->rd;
@@ -281,6 +279,7 @@ static int unpack_sqv(FILE *in, struct unpack_sqv_t *u) {
 		val = 0;
 	}
 	assert((dst - output_buffer) == uncompressed_size);
+	u->dst = output_buffer;
 	return uncompressed_size;
 }
 

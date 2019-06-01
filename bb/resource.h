@@ -29,6 +29,7 @@ struct trigger_t {
 #define SPRITES_COUNT    146
 
 struct resource_data_t {
+	const char *datapath;
 	uint8_t *sql;
 	uint8_t *spr_sqv;
 	uint8_t *avt_sqv;
