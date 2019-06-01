@@ -41,7 +41,7 @@ struct level_trigger_t {
 	uint8_t flags;
 	union {
 		struct {
-			int8_t unk7;
+			uint8_t y_velocity;
 			uint8_t unk8;
 			uint8_t unk9;
 			uint8_t state;
@@ -81,7 +81,7 @@ struct level_monster_t {
 			uint8_t radius;
 			uint8_t unkE;
 			uint8_t angle;
-			uint8_t unk10;
+			uint8_t angle_step;
 		} type4;
 		struct {
 			uint8_t x_range;
@@ -149,11 +149,11 @@ struct level_t {
 	uint8_t tile_attributes3[256];
 	struct level_item_t items_tbl[MAX_LEVEL_ITEMS];
 	struct level_trigger_t triggers_tbl[MAX_LEVEL_TRIGGERS];
-	uint16_t monsters_xmin;
-	uint16_t monsters_xmax;
-	uint8_t monsters_unk0;
-	uint16_t monsters_unk1;
-	uint8_t monsters_state;
+	uint16_t boss_xmin;
+	uint16_t boss_xmax;
+	uint8_t boss_counter;
+	uint16_t boss_energy;
+	uint8_t boss_flag; /* !=255: has boss */
 	uint16_t end_x_pos;
 	uint16_t end_y_pos;
 };

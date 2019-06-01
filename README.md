@@ -35,6 +35,14 @@ The data files of the DOS version, full game or [demo](http://cd.textfiles.com/c
 *.SQZ, *.TRK
 ```
 
+## Changes
+
+Compared to the original DOS executables, the rewritten engines feature :
+
+- horizontal scrolling
+- configurable screen size
+- game cheats : unlimited lifes and energy, no hit
+
 
 ## Running
 

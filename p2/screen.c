@@ -179,9 +179,6 @@ void video_load_front_tiles() {
 	}
 }
 
-void video_set_palette() {
-}
-
 void fade_in_palette() {
 	if (!g_sys.input.quit) {
 		g_sys.fade_in_palette();

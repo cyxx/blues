@@ -6,6 +6,8 @@
 #include "sys.h"
 #include "util.h"
 
+static const bool _score_8_digits = true; /* maximum score 99.999.999 */
+
 static const bool _redraw_tilemap = true;
 static const bool _redraw_panel = true;
 
@@ -20,9 +22,9 @@ static void set_level_palette() {
 
 static int load_level_data_get_tilemap_size(int num, const uint8_t *lev, const uint8_t *uni) {
 	static const uint8_t level_height_tbl[] = { 0x31, 0x68, 0x31, 0x2D, 0x80, 0x80, 0x80, 0x56, 0x6E, 0x0C, 0x18, 0x33, 0x33, 0x26, 0xAD, 0x54 };
-	g_vars.tilemap_h = level_height_tbl[num];
+	g_vars.tilemap.h = level_height_tbl[num];
 	const int tilemap_size = level_height_tbl[num] << 8;
-	g_vars.tilemap_size = tilemap_size;
+	g_vars.tilemap.size = tilemap_size;
 	int offset = 0;
 	for (int i = 0; i < 512; i += 2) {
 		const uint16_t num = READ_LE_UINT16(lev + tilemap_size + i);
@@ -41,7 +43,7 @@ static int load_level_data_get_tilemap_size(int num, const uint8_t *lev, const u
 static bool level_check_tilemap_offset(uint16_t offset) {
 	const uint8_t x = offset & 255;
 	const uint8_t y = offset >> 8;
-	if (y >= g_vars.tilemap_h) {
+	if (y >= g_vars.tilemap.h) {
 		print_debug(DBG_GAME, "invalid tilemap offset %d (%d,%d)", (int16_t)offset, x, y);
 		return false;
 	}
@@ -94,7 +96,7 @@ static void load_level_data_init_animated_tiles() {
 }
 
 static void load_level_data_init_transparent_tiles() {
-	const int tiles_offset = g_vars.tilemap_size + 512;
+	const int tiles_offset = g_vars.tilemap.size + 512;
 	const int tiles_count = (g_res.levellen - tiles_offset) / 128;
 	int count = 1;
 	for (int i = 0; i < tiles_count; ++i) {
@@ -108,10 +110,10 @@ static void load_level_data_init_transparent_tiles() {
 		}
 		if (mask_transparent == 0) {
 		} else if (mask_opaque == 0xFF) {
-			g_vars.tilemap_redraw_flag2 = 1;
+			g_vars.tilemap.redraw_flag2 = 1;
 		} else {
 			++count;
-			g_vars.tilemap_redraw_flag2 = 1;
+			g_vars.tilemap.redraw_flag2 = 1;
 		}
 	}
 }
@@ -184,6 +186,7 @@ static void load_level_data_init_password_items() {
 		return;
 	}
 	qsort(items_ptr_tbl, count, sizeof(struct level_item_t *), compare_level_item_x_pos);
+	/* level password */
 	const uint16_t r = random_get_number3(g_vars.level_num);
 	for (int j = 0; j < count; j += 4) {
 		for (int i = 0; i < 4; ++i) {
@@ -213,7 +216,7 @@ static void load_level_data(int num) {
 	const int offset = load_level_data_get_tilemap_size(num, g_res.leveldat, data);
 	print_debug(DBG_GAME, "tilemap offset %d", offset);
 	load_leveldat(g_res.leveldat + offset, 0);
-	video_convert_tiles(g_res.leveldat + g_vars.tilemap_size + 512, offset - (g_vars.tilemap_size + 512));
+	video_convert_tiles(g_res.leveldat + g_vars.tilemap.size + 512, offset - (g_vars.tilemap.size + 512));
 	print_debug(DBG_GAME, "start_pos %d,%d end_pos %d,%d", g_res.level.start_x_pos, g_res.level.start_y_pos, g_res.level.end_x_pos, g_res.level.end_y_pos);
 	load_level_data_init_animated_tiles();
 	load_level_data_init_transparent_tiles();
@@ -228,14 +231,14 @@ static void load_level_data(int num) {
 }
 
 static void level_draw_tile(int tile_num, int x, int y) {
-	const int num = READ_LE_UINT16(g_res.leveldat + g_vars.tilemap_size + tile_num * 2);
+	const int num = READ_LE_UINT16(g_res.leveldat + g_vars.tilemap.size + tile_num * 2);
 	const uint8_t *tiledat;
 	if (num < 0x100) {
-		tiledat = g_res.leveldat + g_vars.tilemap_size + 512 + num * 128;
+		tiledat = g_res.leveldat + g_vars.tilemap.size + 512 + num * 128;
 	} else {
 		tiledat = g_res.uniondat + (num - 256) * 128;
 	}
-	video_draw_tile(tiledat, x * 16 - g_vars.tilemap_scroll_dx, y * 16 - g_vars.tilemap_scroll_dy);
+	video_draw_tile(tiledat, x * 16 - g_vars.tilemap.scroll_dx, y * 16 - g_vars.tilemap.scroll_dy);
 }
 
 static void level_update_tilemap() {
@@ -265,7 +268,7 @@ static void level_update_tilemap() {
 		}
 	}
 	g_vars.tile_attr2_flags = 0;
-	uint16_t offset = (g_vars.tilemap_y << 8) | g_vars.tilemap_x;
+	uint16_t offset = (g_vars.tilemap.y << 8) | g_vars.tilemap.x;
 	for (int y = 0; y < (TILEMAP_SCREEN_H / 16) + 1; ++y) {
 		for (int x = 0; x < (TILEMAP_SCREEN_W / 16) + 1; ++x) {
 			const uint8_t tile_num = level_get_tile(offset + x);
@@ -283,21 +286,21 @@ static void level_draw_tilemap() {
 	if (_redraw_tilemap) {
 		return;
 	}
-	if (g_vars.tilemap_redraw_flag1 == 0) {
-		const bool changed = (g_vars.tilemap_x != g_vars.tilemap_prev_x) || (g_vars.tilemap_y != g_vars.tilemap_prev_y);
+	if (g_vars.tilemap.redraw_flag1 == 0) {
+		const bool changed = (g_vars.tilemap.x != g_vars.tilemap.prev_x) || (g_vars.tilemap.y != g_vars.tilemap.prev_y);
 		if (!changed) {
 			return;
 		}
-		g_vars.tilemap_prev_x = g_vars.tilemap_x;
-		g_vars.tilemap_prev_y = g_vars.tilemap_y;
-		if (g_vars.tilemap_redraw_flag2 == 0) {
+		g_vars.tilemap.prev_x = g_vars.tilemap.x;
+		g_vars.tilemap.prev_y = g_vars.tilemap.y;
+		if (g_vars.tilemap.redraw_flag2 == 0) {
 			return;
 		}
 	}
-	g_vars.tilemap_redraw_flag1 = 0;
-	g_vars.tilemap_redraw_flag2 = 0;
+	g_vars.tilemap.redraw_flag1 = 0;
+	g_vars.tilemap.redraw_flag2 = 0;
 	g_vars.tile_attr2_flags = 0;
-	uint16_t offset = (g_vars.tilemap_y << 8) | g_vars.tilemap_x;
+	uint16_t offset = (g_vars.tilemap.y << 8) | g_vars.tilemap.x;
 	for (int y = 0; y < (TILEMAP_SCREEN_H / 16) + 1; ++y) {
 		for (int x = 0; x < TILEMAP_SCREEN_W / 16; ++x) {
 			const uint8_t tile_num = level_get_tile(offset + x);
@@ -309,10 +312,10 @@ static void level_draw_tilemap() {
 }
 
 static bool level_adjust_hscroll_left() {
-	if (g_vars.tilemap_x == 0) {
+	if (g_vars.tilemap.x == 0) {
 		return true;
 	}
-	--g_vars.tilemap_x;
+	--g_vars.tilemap.x;
 	return false;
 }
 
@@ -327,10 +330,10 @@ static uint16_t tilemap_end_xpos() {
 }
 
 static bool level_adjust_hscroll_right() {
-	if (g_vars.tilemap_x >= tilemap_end_xpos()) {
+	if (g_vars.tilemap.x >= tilemap_end_xpos()) {
 		return true;
 	}
-	++g_vars.tilemap_x;
+	++g_vars.tilemap.x;
 	return false;
 }
 
@@ -338,7 +341,7 @@ static void level_adjust_x_scroll() {
 	if (!g_options.dos_scrolling && g_vars.tilemap_noscroll_flag == 0) {
 		const int x1 = TILEMAP_SCROLL_W * 2;
 		const int x2 = TILEMAP_SCREEN_W - TILEMAP_SCROLL_W * 2;
-		int tilemap_xpos = (g_vars.tilemap_x << 4) + g_vars.tilemap_scroll_dx;
+		int tilemap_xpos = (g_vars.tilemap.x << 4) + g_vars.tilemap.scroll_dx;
 		const int player_xpos = g_vars.objects_tbl[1].x_pos - tilemap_xpos;
 		if (player_xpos > x2) {
 			tilemap_xpos += (player_xpos - x2);
@@ -352,14 +355,14 @@ static void level_adjust_x_scroll() {
 				tilemap_xpos = 0;
 			}
 		}
-		g_vars.tilemap_x = (tilemap_xpos >> 4);
-		g_vars.tilemap_scroll_dx = (tilemap_xpos & 15);
-		g_vars.tilemap_scroll_dx &= ~1;
+		g_vars.tilemap.x = (tilemap_xpos >> 4);
+		g_vars.tilemap.scroll_dx = (tilemap_xpos & 15);
+		g_vars.tilemap.scroll_dx &= ~1;
 		g_vars.level_xscroll_center_flag = 0;
 		return;
 	}
 
-	const int x_pos = (g_vars.objects_tbl[1].x_pos >> 4) - g_vars.tilemap_x;
+	const int x_pos = (g_vars.objects_tbl[1].x_pos >> 4) - g_vars.tilemap.x;
 	if (x_pos >= (TILEMAP_SCREEN_W / 16) || g_vars.level_force_x_scroll_flag != 0 || g_vars.objects_tbl[1].x_velocity != 0) {
 		if (g_vars.level_xscroll_center_flag != 0) {
 			if (g_vars.level_xscroll_center_flag != 1) {
@@ -405,34 +408,34 @@ static void level_adjust_x_scroll() {
 }
 
 static bool level_adjust_vscroll_down(int dl) {
-	const int end_y = g_vars.tilemap_h - (TILEMAP_SCREEN_H / 16);
-	if (g_vars.tilemap_y >= end_y) {
+	const int end_y = g_vars.tilemap.h - (TILEMAP_SCREEN_H / 16);
+	if (g_vars.tilemap.y >= end_y) {
 		return false;
 	}
-	++g_vars.tilemap_redraw_flag1;
-	g_vars.tilemap_scroll_dy += dl;
-	if (g_vars.tilemap_scroll_dy < 16) {
+	++g_vars.tilemap.redraw_flag1;
+	g_vars.tilemap.scroll_dy += dl;
+	if (g_vars.tilemap.scroll_dy < 16) {
 		return true;
 	}
-	g_vars.tilemap_scroll_dy -= 16;
-	++g_vars.tilemap_y;
-	if (g_vars.tilemap_y >= end_y) {
-		g_vars.tilemap_scroll_dy = 0;
+	g_vars.tilemap.scroll_dy -= 16;
+	++g_vars.tilemap.y;
+	if (g_vars.tilemap.y >= end_y) {
+		g_vars.tilemap.scroll_dy = 0;
 	}
 	return true;
 }
 
 static bool level_adjust_vscroll_up(int dl) {
-	if (g_vars.tilemap_y == 0) {
+	if (g_vars.tilemap.y == 0) {
 		return false;
 	}
-	++g_vars.tilemap_redraw_flag1;
-	g_vars.tilemap_scroll_dy -= dl;
-	if (g_vars.tilemap_scroll_dy >= 0) {
+	++g_vars.tilemap.redraw_flag1;
+	g_vars.tilemap.scroll_dy -= dl;
+	if (g_vars.tilemap.scroll_dy >= 0) {
 		return true;
 	}
-	g_vars.tilemap_scroll_dy += 16;
-	--g_vars.tilemap_y;
+	g_vars.tilemap.scroll_dy += 16;
+	--g_vars.tilemap.y;
 	return true;
 }
 
@@ -444,7 +447,7 @@ static void level_adjust_y_scroll() {
 	if (g_vars.objects_tbl[1].data.p.y_velocity == 0) {
 		g_vars.level_yscroll_center_flag = 0;
 	}
-	const int player_yorigin_diff = (g_vars.objects_tbl[1].y_pos >> 4) - g_vars.tilemap_y;
+	const int player_yorigin_diff = (g_vars.objects_tbl[1].y_pos >> 4) - g_vars.tilemap.y;
 	if (g_vars.objects_tbl[1].data.p.y_velocity != 0) {
 		if (player_yorigin_diff >= 9) {
 			g_vars.tilemap_yscroll_diff = 3;
@@ -476,7 +479,7 @@ static void level_adjust_y_scroll() {
 		return;
 	}
 	const int bottom = (g_res.level.scrolling_top + (TILEMAP_SCREEN_H / 16)) << 4;
-	if (g_vars.objects_tbl[1].y_pos > bottom || g_res.level.scrolling_top >= g_vars.tilemap_y - 1) {
+	if (g_vars.objects_tbl[1].y_pos > bottom || g_res.level.scrolling_top >= g_vars.tilemap.y - 1) {
 		if (g_vars.level_yscroll_center_flag == 0) {
 			return;
 		}
@@ -485,14 +488,14 @@ static void level_adjust_y_scroll() {
 			return;
 		}
 		if (g_vars.tilemap_yscroll_diff < player_yorigin_diff) {
-			if (g_vars.objects_tbl[1].y_pos <= bottom && g_vars.tilemap_y > g_res.level.scrolling_top) {
+			if (g_vars.objects_tbl[1].y_pos <= bottom && g_vars.tilemap.y > g_res.level.scrolling_top) {
 				g_vars.level_yscroll_center_flag = 0;
 				return;
 			}
 			int dl = 16;
 			if (!g_vars.tilemap_adjust_player_pos_flag) {
-				const int dy = g_vars.objects_tbl[1].y_pos - g_vars.tilemap_scroll_dy;
-				const int index = dy - ((g_vars.tilemap_y + g_vars.tilemap_yscroll_diff) << 4);
+				const int dy = g_vars.objects_tbl[1].y_pos - g_vars.tilemap.scroll_dy;
+				const int index = dy - ((g_vars.tilemap.y + g_vars.tilemap_yscroll_diff) << 4);
 				if (index >= 0 && index < 132) {
 					dl = vscroll_offsets_data[index];
 				} else {
@@ -508,8 +511,8 @@ static void level_adjust_y_scroll() {
 	}
 	int dl = 16;
 	if (!g_vars.tilemap_adjust_player_pos_flag) {
-		const int dy = g_vars.objects_tbl[1].y_pos - g_vars.tilemap_scroll_dy;
-		const int index = ((g_vars.tilemap_y + g_vars.tilemap_yscroll_diff) << 4) - dy;
+		const int dy = g_vars.objects_tbl[1].y_pos - g_vars.tilemap.scroll_dy;
+		const int index = ((g_vars.tilemap.y + g_vars.tilemap_yscroll_diff) << 4) - dy;
 		if (index >= 0 && index < 132) {
 			dl = vscroll_offsets_data[index];
 		} else {
@@ -534,28 +537,28 @@ static void level_update_scrolling() {
 
 static void level_init_tilemap() {
 	video_transition_close();
-	g_vars.tilemap_x = 0;
-	g_vars.tilemap_y = 0;
-	g_vars.tilemap_scroll_dx = 0;
-	g_vars.tilemap_scroll_dy = 0;
+	g_vars.tilemap.x = 0;
+	g_vars.tilemap.y = 0;
+	g_vars.tilemap.scroll_dx = 0;
+	g_vars.tilemap.scroll_dy = 0;
 	g_vars.level_animated_tiles_current_tbl = g_vars.tile_tbl1;
 	do {
 		g_vars.tilemap_adjust_player_pos_flag = true;
 		level_update_scrolling();
 		g_vars.tilemap_adjust_player_pos_flag = false;
 	} while ((g_vars.level_yscroll_center_flag | g_vars.level_xscroll_center_flag) != 0);
-	print_debug(DBG_GAME, "init_tilemap x_pos %d y_pos %d scrolling 0x%x", g_vars.tilemap_x, g_vars.tilemap_y, g_res.level.scrolling_mask);
+	print_debug(DBG_GAME, "init_tilemap x_pos %d y_pos %d scrolling 0x%x", g_vars.tilemap.x, g_vars.tilemap.y, g_res.level.scrolling_mask);
 	if ((g_res.level.scrolling_mask & 2) == 0) {
-		const int x = (g_vars.objects_tbl[1].x_pos >> 4) - g_vars.tilemap_x;
+		const int x = (g_vars.objects_tbl[1].x_pos >> 4) - g_vars.tilemap.x;
 		if (x >= 12) {
 			for (int i = 0; i < 10; ++i) {
 				level_adjust_hscroll_right();
 			}
 		}
 	}
-	g_vars.tilemap_redraw_flag2 = 1;
-	g_vars.tilemap_prev_x = _undefined;
-	g_vars.tilemap_prev_y = _undefined;
+	g_vars.tilemap.redraw_flag2 = 1;
+	g_vars.tilemap.prev_x = _undefined;
+	g_vars.tilemap.prev_y = _undefined;
 	level_draw_tilemap();
 	video_transition_open();
 }
@@ -563,11 +566,10 @@ static void level_init_tilemap() {
 static void level_player_die() {
 	g_vars.restart_level_flag = 2;
 	if (g_vars.player_lifes != 0) {
-		if (g_options.cheats & CHEATS_UNLIMITED_LIFES) {
-			return;
+		if ((g_options.cheats & CHEATS_UNLIMITED_LIFES) == 0) {
+			--g_vars.player_lifes;
+			g_vars.player_energy = 0;
 		}
-		--g_vars.player_lifes;
-		g_vars.player_energy = 0;
 	} else {
 		g_vars.player_death_flag = 1;
 	}
@@ -607,6 +609,9 @@ static void level_init_object_hit_from_xy_pos(int16_t x_pos, int16_t y_pos) {
 }
 
 static void level_update_tile_type_2() {
+	if (g_options.cheats & CHEATS_NO_HIT) {
+		return;
+	}
 	level_player_die();
 	g_vars.restart_level_flag = 2;
 }
@@ -912,7 +917,7 @@ static void level_reset() {
 	g_vars.level_completed_flag = 0;
 
 	g_vars.objects_tbl[1].data.p.special_anim_num = 0;
-	g_vars.tilemap_prev_x = _undefined;
+	g_vars.tilemap.prev_x = _undefined;
 	g_vars.current_hit_object = &g_vars.objects_tbl[6];
 	level_reset_objects();
 	set_level_palette();
@@ -928,6 +933,7 @@ static void level_reset() {
 	for (int i = 0; i < 20; ++i) {
 		g_vars.rotation_tbl[i].x_pos = 0xFFFF;
 	}
+	memset(g_vars.boss_level5.proj_tbl, 0xFF, sizeof(g_vars.boss_level5.proj_tbl));
 	g_vars.player_energy = 3;
 
 	g_vars.decor_tile0_offset = _undefined;
@@ -1073,7 +1079,7 @@ static void level_monster_update_anim(struct object_t *obj) {
 	obj->data.m.anim = p + 2;
 }
 
-static void level_monster_die(struct object_t *obj, struct level_monster_t *m, struct object_t *obj_player) { /* di, bx, si */
+static void level_monster_die(struct object_t *obj, struct level_monster_t *m, struct object_t *obj_player) {
 	const int num = m->score + 74;
 	static const uint8_t data[] = { 1, 2, 3, 4, 6, 8 };
 	int count = data[(obj->data.m.hit_jump_counter >> 3) & 7];
@@ -1156,11 +1162,11 @@ static bool level_update_found_bonus_tile(struct level_bonus_t *bonus) {
 	const uint16_t pos = bonus->pos;
 	bonus->pos = 0xFFFF;
 	level_set_tile(pos, bonus->tile_num1);
-	int8_t al = (pos & 0xFF) - g_vars.tilemap_x;
+	int8_t al = (pos & 0xFF) - g_vars.tilemap.x;
 	if (al < 0 || al >= (TILEMAP_SCREEN_W / 16)) {
 		return false;
 	}
-	int8_t ah = (pos >> 8) - g_vars.tilemap_y;
+	int8_t ah = (pos >> 8) - g_vars.tilemap.y;
 	if (ah < 0 || ah >= (TILEMAP_SCREEN_H / 16) + 1) {
 		return false;
 	}
@@ -1198,7 +1204,7 @@ static bool level_handle_bonuses_found(struct object_t *obj, struct level_bonus_
 		}
 		g_vars.current_bonus.x_pos = (pos & 0xFF) << 4;
 		g_vars.current_bonus.y_pos = (pos >> 8)   << 4;
-		int ax, count = 1;
+		int x_vel, count = 1;
 		if (bonus->count & 0x40) {
 			if (bonus->count == 64) {
 				bonus->count = 0;
@@ -1221,15 +1227,15 @@ static bool level_handle_bonuses_found(struct object_t *obj, struct level_bonus_
 		} else {
 			g_vars.current_bonus.spr_num = level_get_random_bonus_spr_num();
 		}
-		ax = 48;
+		x_vel = 48;
 		if (obj < &g_vars.objects_tbl[1]) {
 			if (g_vars.objects_tbl[1].data.p.hdir >= 0) {
-				ax = -ax;
+				x_vel = -x_vel;
 			}
 		} else if (obj->x_velocity >= 0) {
-			ax = -ax;
+			x_vel = -x_vel;
 		}
-		level_add_object23_bonus(ax, -112, count);
+		level_add_object23_bonus(x_vel, -112, count);
 decrement_bonus:
 		--bonus->count;
 		if ((bonus->count & 0x80) == 0) {
@@ -1304,7 +1310,254 @@ static void level_update_objects_axe() {
 	}
 }
 
-static void level_update_monsters_state() {
+static void level_update_objects_boss_level5_helper() {
+	--g_vars.bonus_energy_counter;
+	if (g_vars.bonus_energy_counter < 0) {
+		g_vars.bonus_energy_counter = 5;
+		if ((g_options.cheats & CHEATS_UNLIMITED_ENERGY) == 0) {
+			--g_vars.player_energy;
+			if (g_vars.player_energy < 0) {
+				level_player_die();
+			}
+		}
+	}
+	g_vars.current_bonus.x_pos = g_vars.objects_tbl[1].x_pos;
+	g_vars.current_bonus.y_pos = g_vars.objects_tbl[1].y_pos - 48;
+	g_vars.current_bonus.spr_num = 0x2046;
+	const int x_vel = (g_vars.bonus_energy_counter & 1) != 0 ? -48 : 48;
+	const int y_vel = -128;
+	level_add_object23_bonus(x_vel, y_vel, 1);
+}
+
+static void level_update_boss() {
+	const int x = (g_vars.boss.x_pos >> 4) + g_res.level.end_x_pos;
+	if (x >= 0) {
+		if (g_res.level.boss_xmin <= x && g_res.level.boss_xmax >= x) {
+			g_res.level.end_x_pos = x;
+		}
+	}
+	g_res.level.end_y_pos += (g_vars.boss.y_pos >> 4);
+	if (g_vars.boss.y_pos >= 0) {
+		const uint8_t bh = (g_res.level.end_y_pos >> 4);
+		const uint8_t bl = (g_res.level.end_x_pos >> 4);
+		const uint8_t tile_num = level_get_tile((bh << 8) | bl);
+		if (g_res.level.tile_attributes1[tile_num] != 0) {
+			g_res.level.end_y_pos &= ~15;
+			if (g_vars.boss.y_pos != 0) {
+				g_vars.shake_screen_counter = 7;
+			}
+			g_vars.boss.y_pos = 0;
+			g_vars.boss.x_pos = 0;
+		} else {
+			if (g_vars.boss.y_pos < 224) {
+				g_vars.boss.y_pos += 16;
+			}
+		}
+	} else {
+		if (g_vars.boss.y_pos < 224) {
+			g_vars.boss.y_pos += 16;
+		}
+	}
+	g_vars.boss.hdir = (g_vars.objects_tbl[1].x_pos < g_res.level.end_x_pos) ? 1 : 0;
+	g_vars.boss.x_dist = abs(g_vars.objects_tbl[1].x_pos - g_res.level.end_x_pos);
+	if (g_vars.boss.x_dist > 400) {
+		return;
+	}
+	if (abs(g_vars.objects_tbl[1].y_pos - g_res.level.end_y_pos) > 250) {
+		return;
+	}
+	print_warning("level_update_boss unimplemented end_pos %d,%d", g_res.level.end_x_pos, g_res.level.end_y_pos);
+}
+
+static void level_update_objects_boss_level5() {
+	struct object_t *obj_player = &g_vars.objects_tbl[1];
+	for (int i = 0; i < 5; ++i) {
+		struct boss_level5_proj_t *prj = &g_vars.boss_level5.proj_tbl[i];
+		struct object_t *obj = &g_vars.objects_tbl[98 + i];
+		if (prj->spr_num == 0xFFFF) {
+			continue;
+		}
+		if (g_vars.restart_level_flag == 0 && level_objects_collide(obj_player, obj)) {
+			obj_player->hit_counter = 44;
+			g_vars.player_anim_0x40_flag = 0;
+			obj_player->data.p.y_velocity = -128;
+			obj_player->x_friction = 3;
+			obj_player->x_velocity = -128;
+			level_update_objects_boss_level5_helper();
+			prj->spr_num = 0xFFFF;
+			obj->spr_num = 0xFFFF;
+		} else {
+			prj->y_pos += prj->unk6 >> 4;
+			prj->unk8 += prj->dir;
+			int dx = prj->unk8;
+			if (dx >= 32 || dx < -32) {
+				prj->dir = -prj->dir;
+			}
+			uint16_t spr_num = prj->spr_num;
+			dx >>= 4;
+			if (dx != 0) {
+				spr_num += (dx > 0) ? 1 : 2;
+			}
+			prj->x_pos += dx;
+			obj->x_pos = prj->x_pos;
+			obj->y_pos = prj->y_pos;
+			if (obj->y_pos > 2008) {
+				prj->spr_num = 0xFFFF;
+				obj->spr_num = 0xFFFF;
+			} else {
+				obj->spr_num = spr_num;
+			}
+		}
+	}
+	g_vars.objects_tbl[105].spr_num = 0xFFFF;
+	g_vars.objects_tbl[104].spr_num = 0xFFFF;
+	if (g_vars.boss_level5.state < 2) {
+		static const uint16_t pos2_data[] = {
+			0x3D5, 0x7C1, 0x1A3, 0x3FA, 0x7B6, 0x1A4, 0x3E8, 0x7A8, 0x1A5,
+			0x3FF, 0x788, 0x1A6, 0x3D9, 0x79B, 0x1A7, 0x3FF, 0x7A8, 0x1A8,
+			0x405, 0x7A9, 0x1B0, 0, 0, 0xFFFF
+		};
+		const uint16_t *p = &pos2_data[g_vars.boss_level5.state * 6];
+		g_vars.objects_tbl[105].x_pos = p[0];
+		g_vars.objects_tbl[105].y_pos = p[1];
+		g_vars.objects_tbl[105].spr_num = p[2];
+		g_vars.objects_tbl[104].x_pos = p[3];
+		g_vars.objects_tbl[104].y_pos = p[4];
+		g_vars.objects_tbl[104].spr_num = p[5];
+	}
+	static const uint16_t pos1_data[] = {
+		0x3A9, 0x7D4, 0x19D, 0x3D1, 0x7B9, 0x19E, 0x3A2, 0x7A6, 0x19F,
+		0x3B4, 0x79F, 0x1A0, 0x396, 0x78A, 0x1A1, 0x3B6, 0x79C, 0x1A2,
+		0x3E0, 0x795, 0x1AF, 0, 0, 0xFFFF
+	};
+	const uint16_t *p = &pos1_data[g_vars.boss_level5.unk5 * 6];
+	g_vars.objects_tbl[107].x_pos = p[0];
+	g_vars.objects_tbl[107].y_pos = p[1];
+	g_vars.objects_tbl[107].spr_num = p[2];
+	g_vars.objects_tbl[106].x_pos = p[3];
+	g_vars.objects_tbl[106].y_pos = p[4];
+	g_vars.objects_tbl[106].spr_num = p[5];
+	static const uint16_t pos3_data[] = {
+		0x3E3, 0x773, 0x1A9, 0x3E4, 0x771, 0x1AA, 0x3E4, 0x773, 0x1AB
+	};
+	const uint16_t *q = &pos3_data[g_vars.boss_level5.unk4 * 3];
+	g_vars.objects_tbl[103].x_pos = q[0];
+	g_vars.objects_tbl[103].y_pos = q[1];
+	g_vars.objects_tbl[103].spr_num = (g_vars.boss_level5.state != 0) ? 0xFFFF : q[2];
+	if ((g_vars.level_draw_counter & 3) == 0) {
+		++g_vars.boss_level5.unk4;
+		if (g_vars.boss_level5.unk4 > 2) {
+			g_vars.boss_level5.unk4 = 0;
+		}
+	}
+	if (g_vars.boss_level5.unk1 >= 1) {
+		if (g_vars.boss_level5.unk1 == 1) {
+			g_vars.boss_level5.unk6 = 2;
+			--g_vars.boss_level5.unk5;
+			g_vars.boss_level5.counter += 5;
+		}
+		--g_vars.boss_level5.unk1;
+	} else if (g_vars.boss_level5.counter == 0) {
+		++g_vars.boss_level5.unk6;
+		if (g_vars.boss_level5.unk6 > 2) {
+			g_vars.boss_level5.unk6 = 0;
+		}
+		++g_vars.boss_level5.unk5;
+		if (g_vars.boss_level5.unk5 > 2) {
+			g_vars.boss_level5.unk5 = 0;
+		}
+		uint8_t ah = 1;
+		if (g_vars.boss_level5.unk5 != 0) {
+			ah = 3;
+			g_vars.shake_screen_counter = 4;
+			obj_player->x_pos += 2;
+			for (int i = 0; i < 5; ++i) {
+				struct boss_level5_proj_t *prj = &g_vars.boss_level5.proj_tbl[i];
+				if (prj->spr_num == 0xFFFF) {
+					prj->spr_num = 0x1AC;
+					prj->y_pos = obj_player->y_pos - 150;
+					const uint8_t r = random_get_number();
+					const int dx = r & 0x7C;
+					prj->x_pos = obj_player->x_pos + (((r & 4) != 0) ? dx : -dx);
+					prj->unk6 = ((r & 3) + 1) << 4;
+					prj->unk8 = 0;
+					prj->dir = 4;
+					break;
+				}
+			}
+		}
+		g_vars.boss_level5.counter = ah;
+		--g_vars.boss_level5.unk8;
+		if (g_vars.boss_level5.unk8 == 0) {
+			g_vars.boss_level5.unk8 = (random_get_number() & 15) << 3;
+			g_vars.boss_level5.counter = 64 + ((random_get_number() & 15) << 3);
+			g_vars.boss_level5.unk6 = 0;
+		}
+		if (g_vars.restart_level_flag == 0) {
+			if (level_objects_collide(obj_player, &g_vars.objects_tbl[107]) || level_objects_collide(obj_player, &g_vars.objects_tbl[106])) {
+				if (obj_player->y_pos <= 1979) {
+					obj_player->data.p.y_velocity = -160;
+				} else {
+					obj_player->data.p.y_velocity = -160;
+					obj_player->hit_counter = 44;
+					g_vars.player_anim_0x40_flag = 0;
+					obj_player->x_friction = 3;
+					obj_player->x_velocity = -128;
+					level_update_objects_boss_level5_helper();
+					level_update_objects_boss_level5_helper();
+					level_update_objects_boss_level5_helper();
+				}
+			}
+		}
+	} else if (g_vars.restart_level_flag == 0) {
+		if (level_objects_collide(obj_player, &g_vars.objects_tbl[107]) && g_vars.player_jump_monster_flag) {
+			obj_player->data.p.y_velocity = g_vars.input.key_up ? -128 : -64;
+		}
+	}
+	if (g_vars.restart_level_flag == 0) {
+		struct object_t *_si = &g_vars.objects_tbl[103 + g_vars.boss_level5.state * 2];
+		for (int i = 0; i < 6; ++i) {
+			struct object_t *_di = &g_vars.objects_tbl[i];
+			if (_di->spr_num == 0xFFFF || _di == obj_player) {
+				continue;
+			}
+			g_vars.player_using_club_flag = 1;
+			const bool ret = level_objects_collide(_si, _di);
+			g_vars.player_using_club_flag = 0;
+			if (ret) {
+				_si->spr_num ^= 0x4000;
+				if (g_vars.boss_level5.state != 0) {
+					_si[-1].spr_num ^= 0x4000;
+				}
+				_di->spr_num = 0xFFFF;
+				g_vars.boss_level5.unk1 = 6;
+				if (g_vars.boss_level5.state < 2) {
+					g_vars.boss_level5.unk6 = 3;
+					g_vars.boss_level5.unk5 = 3;
+				}
+				--g_vars.boss_level5.energy;
+				if (g_vars.boss_level5.energy == 0) {
+					g_vars.boss_level5.energy = 10;
+					++g_vars.boss_level5.state;
+					if (g_vars.boss_level5.state == 3) {
+						g_vars.level_completed_flag = 1;
+					}
+				}
+				break;
+			}
+		}
+		if (obj_player->x_pos > 984) {
+			obj_player->hit_counter = 44;
+			g_vars.player_anim_0x40_flag = 0;
+			obj_player->data.p.y_velocity = -144;
+			obj_player->x_friction = 3;
+			obj_player->x_velocity = -160;
+			level_update_objects_boss_level5_helper();
+		}
+	}
+	if (g_vars.boss_level5.counter > 0) {
+		--g_vars.boss_level5.counter;
+	}
 }
 
 static int level_get_tile_monster_offset(uint8_t tile_num, struct object_t *obj) {
@@ -1382,10 +1635,11 @@ extern void monster_func1(int type, struct object_t *obj); /* update */
 extern bool monster_func2(int type, struct level_monster_t *m); /* init */
 
 static void level_update_objects_monsters() {
-	if (g_res.level.monsters_state != 0xFF) {
-		level_update_monsters_state();
+	if (g_res.level.boss_flag != 0xFF) {
+		level_update_boss();
 	}
 	if (g_vars.level_num == 5 && (g_res.level.scrolling_mask & ~1) == 0) {
+		level_update_objects_boss_level5();
 	}
 	for (int i = 0; i < MONSTERS_COUNT; ++i) {
 		struct object_t *obj = &g_vars.objects_tbl[11 + i];
@@ -1646,45 +1900,43 @@ static void level_update_objects_decors() {
 				int a = trigger->type8.y_delta - 8;
 				if (a < 0) {
 					a = 0;
-					trigger->type8.unk7 = 0;
+					trigger->type8.y_velocity = 0;
 				}
 				trigger->type8.y_delta = a;
-			}
-			if (trigger->flags & 0x40) {
-				if (trigger->type8.unk7 != 0 && --trigger->type8.counter == 0) {
-					trigger->type8.state = 1;
-					trigger->type8.unk7 = 0;
-				}
-			} else {
-				if (trigger->type8.state == 1) {
-					int y = trigger->type8.unk7;
-					if (y < 192) {
-						trigger->type8.unk7 += 8;
+				if (trigger->flags & 0x40) {
+					if (trigger->type8.y_velocity != 0 && --trigger->type8.counter == 0) {
+						trigger->type8.state = 1;
+						trigger->type8.y_velocity = 0;
 					}
-					y >>= 4;
-					g_vars.level_current_object_decor_y_pos = y;
-					trigger->type8.y_delta += y;
-					const int tile_x =  trigger->x_pos >> 4;
-					const int tile_y = (trigger->y_pos + trigger->type8.y_delta) >> 4;
-					const int y2 = g_vars.tilemap_h - 1 - tile_y;
-					if (y2 < 0) {
-						if ((-y2) >= 3) {
-							trigger->type8.state = 2;
-							trigger->type8.counter = 22;
-						}
-					} else {
-						const uint8_t tile_num = level_get_tile((tile_y << 8) | tile_x);
-						const uint8_t tile_attr1 = g_res.level.tile_attributes1[tile_num];
-						if (tile_attr1 != 0 && tile_attr1 != 6) {
-							trigger->type8.state = 2;
-							trigger->type8.counter = 22;
-						}
+				}
+			} else if (trigger->type8.state == 1) {
+				int y = trigger->type8.y_velocity;
+				if (y < 192) {
+					trigger->type8.y_velocity += 8;
+				}
+				y >>= 4;
+				g_vars.level_current_object_decor_y_pos = y;
+				trigger->type8.y_delta += y;
+				const int tile_x =  trigger->x_pos >> 4;
+				const int tile_y = (trigger->y_pos + trigger->type8.y_delta) >> 4;
+				const int y2 = g_vars.tilemap.h - 1 - tile_y;
+				if (y2 < 0) {
+					if ((-y2) >= 3) {
+						trigger->type8.state = 2;
+						trigger->type8.counter = 22;
 					}
 				} else {
-					if (trigger->type8.state == 2 && (trigger->flags & 0x40) == 0 && --trigger->type8.counter == 0) {
-						trigger->type8.state = 0;
-						trigger->type8.counter = trigger->type8.unk9;
+					const uint8_t tile_num = level_get_tile((tile_y << 8) | tile_x);
+					const uint8_t tile_attr1 = g_res.level.tile_attributes1[tile_num];
+					if (tile_attr1 != 0 && tile_attr1 != 6) {
+						trigger->type8.state = 2;
+						trigger->type8.counter = 22;
 					}
+				}
+			} else if (trigger->type8.state == 2) {
+				if ((trigger->flags & 0x40) == 0 && --trigger->type8.counter == 0) {
+					trigger->type8.state = 0;
+					trigger->type8.counter = trigger->type8.unk9;
 				}
 			}
 			trigger->y_pos += trigger->type8.y_delta;
@@ -1736,11 +1988,11 @@ static void level_update_objects_decors() {
 				}
 			}
 		}
-		const int x_pos = trigger->x_pos - (g_vars.tilemap_x << 4);
+		const int x_pos = trigger->x_pos - (g_vars.tilemap.x << 4);
 		if (x_pos >= TILEMAP_SCREEN_W + 32 || x_pos <= -32) {
 			continue;
 		}
-		const int y_pos = trigger->y_pos - (g_vars.tilemap_y << 4);
+		const int y_pos = trigger->y_pos - (g_vars.tilemap.y << 4);
 		if (y_pos >= TILEMAP_SCREEN_H + 32 || y_pos <= -32) {
 			continue;
 		}
@@ -2006,7 +2258,7 @@ static void level_update_player_anim_0(uint8_t al) {
 				const uint8_t *anim = level_update_player_anim1_num(19, 38);
 				level_update_object_anim(anim);
 				if ((g_res.level.scrolling_mask & 2) == 0 && g_vars.tilemap_noscroll_flag == 0) {
-					const int dx = (g_vars.objects_tbl[1].x_pos >> 4) - g_vars.tilemap_x;
+					const int dx = (g_vars.objects_tbl[1].x_pos >> 4) - g_vars.tilemap.x;
 					if ((g_vars.objects_tbl[1].spr_num & 0x8000) == 0) {
 						if (dx > 2) {
 							level_adjust_hscroll_right();
@@ -2158,22 +2410,21 @@ static void level_update_player_decor() {
 		dx = 0;
 	}
 	const int x_pos = g_vars.objects_tbl[1].x_pos >> 4;
-	const int player_ypos_diff = abs((g_vars.objects_tbl[1].y_pos >> 4) - g_vars.tilemap_y);
+	const int player_ypos_diff = abs((g_vars.objects_tbl[1].y_pos >> 4) - g_vars.tilemap.y);
 	if (player_ypos_diff > (TILEMAP_SCREEN_H / 16)) {
 		level_update_tile_type_2();
 	} else {
-		const int player_xpos_diff = abs((g_vars.objects_tbl[1].x_pos >> 4) - g_vars.tilemap_x);
+		const int player_xpos_diff = abs((g_vars.objects_tbl[1].x_pos >> 4) - g_vars.tilemap.x);
 		if (player_xpos_diff > (TILEMAP_SCREEN_W / 16)) {
 			level_update_tile_type_2();
-		} else if ((g_res.level.scrolling_mask & 4) != 0 && g_vars.objects_tbl[1].y_pos < (g_vars.tilemap_y << 4)) {
+		} else if ((g_res.level.scrolling_mask & 4) != 0 && g_vars.objects_tbl[1].y_pos < (g_vars.tilemap.y << 4)) {
 			level_update_tile_type_2();
-		} else if (g_vars.objects_tbl[1].y_pos >= 0 && g_vars.objects_tbl[1].y_pos > ((g_vars.tilemap_h + 1) << 4)) {
+		} else if (g_vars.objects_tbl[1].y_pos >= 0 && g_vars.objects_tbl[1].y_pos > ((g_vars.tilemap.h + 1) << 4)) {
 			level_update_tile_type_2();
 		}
 	}
-	int bx = (y_pos << 8) | x_pos;
 	g_vars.player_tile_flags = 0;
-	level_update_tile0(bx);
+	level_update_tile0((y_pos << 8) | x_pos);
 	if (g_vars.player_tile_flags == 1) {
 		if (g_vars.level_force_x_scroll_flag != 0) {
 			level_player_reset();
@@ -2190,18 +2441,18 @@ static void level_update_player_decor() {
 	if (g_vars.objects_tbl[1].y_pos <= 0) {
 		return;
 	}
-	bx = ((dx + g_vars.objects_tbl[1].x_pos) >> 4) + (y_pos << 8);
-	level_update_tile1(bx);
+	int pos = (y_pos << 8) | ((dx + g_vars.objects_tbl[1].x_pos) >> 4);
+	level_update_tile1(pos);
 	while (1) {
-		bx -= 0x100;
-		if (bx < 0) {
+		pos -= 0x100;
+		if (pos < 0) {
 			break;
 		}
 		spr_h -= 16;
 		if (spr_h <= 0) {
 			break;
 		}
-		level_update_tile2(bx);
+		level_update_tile2(pos);
 	}
 }
 
@@ -2391,14 +2642,14 @@ static void level_update_player_collision() {
 			if (obj->spr_num == 0xFFFF || (obj->spr_num & 0x2000) == 0) {
 				continue;
 			}
-			if (g_options.cheats & CHEATS_NO_HIT) {
-				continue;
-			}
 			struct level_monster_t *m = obj->data.m.ref;
 			if (m->flags & 0x10) {
 				continue;
 			}
 			if (obj->data.m.state == 0xFF) {
+				continue;
+			}
+			if (g_options.cheats & CHEATS_NO_HIT) {
 				continue;
 			}
 			if (!level_objects_collide(obj_player, obj)) {
@@ -2408,7 +2659,7 @@ static void level_update_player_collision() {
 				level_monster_die(obj, m, &g_vars.objects_tbl[1]);
 				continue;
 			}
-			if (!g_vars.player_jump_monster_flag && g_vars.objects_tbl[1].data.p.y_velocity < 0) {
+			if (!g_vars.player_jump_monster_flag || g_vars.objects_tbl[1].data.p.y_velocity < 0) {
 				m->flags &= ~1;
 				g_vars.objects_tbl[1].hit_counter = 44;
 				g_vars.player_anim_0x40_flag = 0;
@@ -2418,9 +2669,11 @@ static void level_update_player_collision() {
 				if (g_vars.player_flying_flag != 0) {
 					g_vars.player_flying_flag = 0;
 				} else {
-					--g_vars.player_energy;
-					if (g_vars.player_energy < 0) {
-						level_player_die();
+					if ((g_options.cheats & CHEATS_UNLIMITED_ENERGY) == 0) {
+						--g_vars.player_energy;
+						if (g_vars.player_energy < 0) {
+							level_player_die();
+						}
 					}
 				}
 				return;
@@ -2685,11 +2938,11 @@ static void level_update_objects_items() {
 		if (level_item->spr_num == 0xFFFF) {
 			continue;
 		}
-		const int16_t x = (level_item->x_pos >> 4) - g_vars.tilemap_x;
+		const int16_t x = (level_item->x_pos >> 4) - g_vars.tilemap.x;
 		if (x < 0 || x > 22) {
 			continue;
 		}
-		const int16_t y = (level_item->y_pos >> 4) - g_vars.tilemap_y;
+		const int16_t y = (level_item->y_pos >> 4) - g_vars.tilemap.y;
 		if (y < 0 || y > 43) {
 			continue;
 		}
@@ -2732,23 +2985,23 @@ static void level_update_gates() {
 			g_vars.objects_tbl[1].x_velocity = 0;
 			g_vars.objects_tbl[1].data.p.y_velocity = 0;
 			video_transition_close();
-			g_vars.tilemap_scroll_dy = 0;
+			g_vars.tilemap.scroll_dy = 0;
 			const uint8_t tmp = g_res.level.tilemap_w;
 			g_res.level.tilemap_w = 256 - 20;
 			const uint16_t dst_pos = gate->dst_pos;
 			g_vars.objects_tbl[1].x_pos = (dst_pos & 255) << 4;
 			g_vars.objects_tbl[1].y_pos = (dst_pos >>  8) << 4;
 			const uint8_t tilemap_y = gate->tilemap_pos >> 8;
-			while (g_vars.tilemap_y != tilemap_y) {
-				if (g_vars.tilemap_y > tilemap_y) {
+			while (g_vars.tilemap.y != tilemap_y) {
+				if (g_vars.tilemap.y > tilemap_y) {
 					level_adjust_vscroll_up(16);
 				} else {
 					level_adjust_vscroll_down(16);
 				}
 			}
 			const uint8_t tilemap_x = gate->tilemap_pos & 255;
-			while (g_vars.tilemap_x != tilemap_x) {
-				if (g_vars.tilemap_x > tilemap_x) {
+			while (g_vars.tilemap.x != tilemap_x) {
+				if (g_vars.tilemap.x > tilemap_x) {
 					level_adjust_hscroll_left();
 				} else {
 					level_adjust_hscroll_right();
@@ -2758,6 +3011,17 @@ static void level_update_gates() {
 			g_vars.tilemap_noscroll_flag = gate->scroll_flag;
 			g_vars.player_action_counter = 0;
 			if (g_vars.level_num == 5) {
+				/* exit to boss (tree) */
+				g_res.level.scrolling_mask &= 1;
+				g_vars.boss_level5.unk1 = 0;
+				g_vars.boss_level5.energy = 10;
+				g_vars.boss_level5.state = 0;
+				g_vars.boss_level5.unk4 = 0;
+				g_vars.boss_level5.unk5 = 1;
+				g_vars.boss_level5.unk6 = 0;
+				g_vars.boss_level5.counter = 110;
+				g_vars.boss_level5.unk8 = 8;
+				memset(&g_vars.objects_tbl[91], 0xFF, sizeof(struct object_t) * 6);
 			}
 			level_draw_tilemap();
 			level_update_objects_decors();
@@ -2773,14 +3037,14 @@ static void level_update_gates() {
 static void level_draw_front_tile(uint8_t tile_num, int x, int y) {
 	const int num = g_res.level.front_tiles_lut[tile_num];
 	assert(num < (g_res.frontlen / 128));
-	g_sys.render_add_sprite(RENDER_SPR_FG, num, x * 16 - g_vars.tilemap_scroll_dx, y * 16 - g_vars.tilemap_scroll_dy, 0);
+	g_sys.render_add_sprite(RENDER_SPR_FG, num, x * 16 - g_vars.tilemap.scroll_dx, y * 16 - g_vars.tilemap.scroll_dy, 0);
 }
 
 static void level_draw_front_tiles() {
 	if ((g_vars.tile_attr2_flags & 0x40) == 0) { /* no front tiles */
 		return;
 	}
-	uint16_t offset = (g_vars.tilemap_y << 8) | g_vars.tilemap_x;
+	uint16_t offset = (g_vars.tilemap.y << 8) | g_vars.tilemap.x;
 	for (int y = 0; y < (TILEMAP_SCREEN_H / 16) + 1; ++y) {
 		for (int x = 0; x < (TILEMAP_SCREEN_W / 16) + 1; ++x) {
 			const uint8_t tile_num = level_get_tile(offset + x);
@@ -2864,11 +3128,13 @@ static void level_draw_panel() {
 	}
 	if (g_vars.score != g_vars.panel.score || _redraw_panel) {
 		g_vars.panel.score = g_vars.score;
+		const int score_digits = _score_8_digits ? 8 : 7;
+		const int offset = _score_8_digits ? 0x1CF0 : 0x1CF1;
 		int score = g_vars.score * 10;
-		for (int i = 0; i < 7; ++i) {
+		for (int i = 0; i < score_digits; ++i) {
 			const int digit = score % 10;
 			score /= 10;
-			video_draw_panel_number(0x1CF1 + (6 - i) * 16 / 8, digit);
+			video_draw_panel_number(offset + (score_digits - 1 - i) * 16 / 8, digit);
 		}
 	}
 	if (g_vars.player_energy != g_vars.panel.energy || _redraw_panel) {
@@ -2971,10 +3237,10 @@ static void level_draw_objects() {
 		}
 		const int spr_num = obj->spr_num & 0x1FFF;
 		const int spr_hflip = ((obj->spr_num & 0x8000) != 0) ? 1 : 0;
-		int spr_y_pos = obj->y_pos - ((g_vars.tilemap_y << 4) + g_vars.tilemap_scroll_dy);
+		int spr_y_pos = obj->y_pos - ((g_vars.tilemap.y << 4) + g_vars.tilemap.scroll_dy);
 		int spr_h = spr_size_tbl[2 * spr_num + 1];
 		spr_y_pos -= spr_h;
-		int spr_x_pos = obj->x_pos - ((g_vars.tilemap_x << 4) + g_vars.tilemap_scroll_dx);
+		int spr_x_pos = obj->x_pos - ((g_vars.tilemap.x << 4) + g_vars.tilemap.scroll_dx);
 		int spr_w = spr_offs_tbl[2 * spr_num];
 		if (spr_hflip) {
 			spr_w = spr_size_tbl[2 * spr_num] - spr_w;
@@ -2999,9 +3265,9 @@ static void level_draw_rotated_tiles() {
 		const int ry = ((int8_t)sin_tbl[p->index_tbl]) >> 2;
 		p->y_pos += (ry * p->radius) >> 4;
 
-		const int dy = p->y_pos - g_vars.tilemap_scroll_dy - (g_vars.tilemap_y << 4);
+		const int dy = p->y_pos - g_vars.tilemap.scroll_dy - (g_vars.tilemap.y << 4);
 		if (dy < TILEMAP_SCREEN_H) {
-			const int dx = p->x_pos - g_vars.tilemap_scroll_dx - (g_vars.tilemap_x << 4);
+			const int dx = p->x_pos - g_vars.tilemap.scroll_dx - (g_vars.tilemap.x << 4);
 			if (dx < TILEMAP_SCREEN_W) {
 			}
 		}
@@ -3057,7 +3323,7 @@ static void level_player_death_animation() {
 	g_vars.objects_tbl[1].hit_counter = 0;
 	g_vars.objects_tbl[1].spr_num = 33;
 	g_vars.objects_tbl[1].data.p.y_velocity = 15;
-	g_vars.objects_tbl[1].x_velocity = (g_vars.objects_tbl[1].x_pos < ((g_vars.tilemap_x + 10) << 4)) ? 5 : -5;
+	g_vars.objects_tbl[1].x_velocity = (g_vars.objects_tbl[1].x_pos < ((g_vars.tilemap.x + 10) << 4)) ? 5 : -5;
 	for (int i = 0; i < 60; ++i) {
 		g_vars.objects_tbl[0].spr_num = 0xFFFF;
 		level_update_objects_hit_animation();
@@ -3082,11 +3348,13 @@ static void level_player_death_animation() {
 }
 
 static void level_completed_bonuses_animation_draw_score() {
+	const int score_digits = _score_8_digits ? 8 : 7;
+	const int offset = _score_8_digits ? 0x246 : 0x247;
 	int score = g_vars.score * 10;
-	for (int i = 0; i < 7; ++i) {
+	for (int i = 0; i < score_digits; ++i) {
 		const int digit = score % 10;
 		score /= 10;
-		video_draw_number(0x247 + (7 - i) * 16 / 8, digit);
+		video_draw_number(offset + (score_digits - 1 - i) * 16 / 8, digit);
 	}
 }
 
@@ -3139,10 +3407,10 @@ static void level_completed_bonuses_animation() {
 		g_vars.light.palette_flag2 = 1;
 		g_vars.light.palette_counter = 0;
 	}
-	g_vars.objects_tbl[1].y_pos -= g_vars.tilemap_y << 4;
-	g_vars.objects_tbl[1].x_pos -= g_vars.tilemap_x << 4;
-	g_vars.tilemap_y = 0;
-	g_vars.tilemap_x = 0;
+	g_vars.objects_tbl[1].y_pos -= g_vars.tilemap.y << 4;
+	g_vars.objects_tbl[1].x_pos -= g_vars.tilemap.x << 4;
+	g_vars.tilemap.y = 0;
+	g_vars.tilemap.x = 0;
 	g_vars.objects_tbl[1].data.p.hdir = 0;
 	g_vars.objects_tbl[1].x_velocity = 0;
 	level_completed_bonuses_animation_draw_score();

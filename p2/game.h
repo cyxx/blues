@@ -80,7 +80,16 @@ struct object_t {
      55    20 : items
      75    16 : bonus scores
      91     7 : decor
+     98     5 : boss level 5 (tree)
 */
+
+struct boss_level5_proj_t {
+	int16_t x_pos, y_pos;
+	uint16_t spr_num;
+	uint16_t unk6;
+	uint16_t unk8;
+	int8_t dir;
+};
 
 struct rotation_t {
 	uint16_t x_pos;
@@ -170,22 +179,25 @@ struct vars_t {
 	bool tilemap_adjust_player_pos_flag;
 	uint8_t tilemap_noscroll_flag;
 	int16_t tilemap_yscroll_diff;
-	int16_t tilemap_x, tilemap_y;
-	int16_t tilemap_prev_x, tilemap_prev_y;
-	int8_t tilemap_scroll_dx, tilemap_scroll_dy;
-	uint8_t tilemap_h;
-	uint16_t tilemap_size; /* tilemap size h*256 */
 	uint16_t tilemap_start_x_pos, tilemap_start_y_pos; /* tilemap restart position */
 	uint8_t tile_attr2_flags; /* current tilemap tile types (eg. front) */
+
 	uint8_t level_animated_tiles_counter; /* animated tiles update counter */
 	uint8_t *level_animated_tiles_current_tbl; /* pointer to current tile_tbl */
 	uint8_t tile_tbl1[256]; /* animated tile state 1 */
 	uint8_t tile_tbl2[256]; /* animated tile state 2 */
 	uint8_t tile_tbl3[256]; /* animated tile state 3 */
 	uint8_t animated_tile_flag_tbl[256]; /* 1 if tile is animated */
-	uint8_t tilemap_redraw_flag2; /* tilemap needs redraw */
-	uint8_t tilemap_redraw_flag1; /* force redraw even if tilemap origin did not change */
 
+	struct {
+		int16_t x, y;
+		int16_t prev_x, prev_y;
+		int8_t scroll_dx, scroll_dy;
+		uint8_t redraw_flag2; /* tilemap needs redraw */
+		uint8_t redraw_flag1; /* force redraw even if tilemap origin did not change */
+		uint8_t h;
+		uint16_t size; /* tilemap size h*256 */
+	} tilemap;
 	struct {
 		struct object_t *current_object;
 		uint8_t type10_dist;
@@ -193,6 +205,22 @@ struct vars_t {
 		int16_t collide_y_dist;
 		uint8_t type0_hdir;
 	} monster;
+	struct {
+		int16_t x_pos, y_pos;
+		uint8_t hdir;
+		int16_t x_dist;
+	} boss;
+	struct {
+		uint8_t unk1;
+		uint8_t energy;
+		uint8_t state; /* 3: boss dead */
+		uint8_t unk4; /* spr103_pos */
+		uint8_t unk5; /* spr106_pos */
+		uint8_t unk6;
+		uint8_t counter;
+		uint8_t unk8;
+		struct boss_level5_proj_t proj_tbl[5];
+	} boss_level5;
 	struct {
 		int16_t x_pos, y_pos;
 		uint16_t spr_num;
@@ -263,7 +291,6 @@ extern void	video_draw_number(int offset, int num);
 extern void	video_draw_tile(const uint8_t *src, int x, int y);
 extern void	video_convert_tiles(uint8_t *data, int len);
 extern void	video_load_front_tiles();
-extern void	video_set_palette();
 extern void	fade_in_palette();
 extern void	fade_out_palette();
 extern void	video_wait_vbl();

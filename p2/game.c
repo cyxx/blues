@@ -3,6 +3,7 @@
 #include "game.h"
 #include "resource.h"
 #include "sys.h"
+#include "util.h"
 
 struct vars_t g_vars;
 
@@ -213,7 +214,6 @@ static void game_run(const char *data_path) {
 	g_vars.starttime = g_sys.get_timestamp();
 	while (!g_sys.input.quit) {
 		if (1) {
-			video_set_palette();
 			g_vars.player_lifes = 2;
 			g_vars.player_bonus_letters_mask = 0;
 			g_vars.player_club_power = 20;
@@ -223,9 +223,12 @@ static void game_run(const char *data_path) {
 			}
 			do_menu();
 		}
-		video_set_palette();
-		video_set_palette();
-		do_level();
+		uint8_t level_num;
+		do {
+			level_num = g_vars.level_num;
+			do_level();
+			print_debug(DBG_GAME, "previous level %d current %d", level_num, g_vars.level_num);
+		} while (!g_res.dos_demo && g_vars.level_num != level_num);
 	}
 	sound_fini();
 	res_fini();

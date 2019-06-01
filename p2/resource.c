@@ -153,7 +153,7 @@ void load_leveldat(const uint8_t *p, struct level_t *level) {
 			m->type4.radius = p[0xD];
 			m->type4.unkE = p[0xE];
 			m->type4.angle = p[0xF];
-			m->type4.unk10 = p[0x10];
+			m->type4.angle_step = p[0x10];
 			break;
 		case 5:
 			assert(len == 16);
@@ -232,7 +232,7 @@ void load_leveldat(const uint8_t *p, struct level_t *level) {
 		trigger->flags = *p++;
 		const int type = trigger->flags & 15;
 		if (type == 8) {
-			trigger->type8.unk7 = *p++;
+			trigger->type8.y_velocity = *p++;
 			trigger->type8.unk8 = *p++;
 			trigger->type8.unk9 = *p++;
 			trigger->type8.state = *p++;
@@ -246,11 +246,11 @@ void load_leveldat(const uint8_t *p, struct level_t *level) {
 		}
 		trigger->unkE = *p++;
 	}
-	g_res.level.monsters_xmin = READ_LE_UINT16(p); p += 2;
-	g_res.level.monsters_xmax = READ_LE_UINT16(p); p += 2;
-	g_res.level.monsters_unk0 = *p++;
-	g_res.level.monsters_unk1 = READ_LE_UINT16(p); p += 2;
-	g_res.level.monsters_state = *p++;
+	g_res.level.boss_xmin = READ_LE_UINT16(p); p += 2;
+	g_res.level.boss_xmax = READ_LE_UINT16(p); p += 2;
+	g_res.level.boss_counter = *p++;
+	g_res.level.boss_energy = READ_LE_UINT16(p); p += 2;
+	g_res.level.boss_flag = *p++;
 	g_res.level.end_x_pos = READ_LE_UINT16(p); p += 2;
 	g_res.level.end_y_pos = READ_LE_UINT16(p); p += 2;
 	const int total = p - g_res.leveldat;

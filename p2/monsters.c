@@ -221,11 +221,11 @@ static void monster_func1_type4(struct object_t *obj) {
 	} else if (state == 2) {
 		monster_rotate_pos(obj, m);
 		if (m->type4.angle & 0x80) {
-			++m->type4.unk10;
+			++m->type4.angle_step;
 		} else {
-			--m->type4.unk10;
+			--m->type4.angle_step;
 		}
-		m->type4.angle = m->type4.unk10;
+		m->type4.angle += m->type4.angle_step;
 	} else if (state == 0xFF) {
 		monster_update_y_velocity(obj, m);
 	}
@@ -297,10 +297,8 @@ static void monster_func1_type6(struct object_t *obj) {
 		if (g_vars.player_anim_0x40_flag != 0) {
 			y += 5;
 		}
-		y -= g_vars.objects_tbl[1].y_pos;
-		y = -y;
+		y = g_vars.objects_tbl[1].y_pos - y - obj->y_pos;
 		d = 3;
-		y -= obj->y_pos;
 		if (y <= 0) {
 			y = -y;
 			d = -d;
@@ -622,11 +620,11 @@ static bool monster_init_object(struct level_monster_t *m) {
 }
 
 static bool monster_is_visible(int x_pos, int y_pos) {
-	const int dx = (x_pos >> 4) - g_vars.tilemap_x;
+	const int dx = (x_pos >> 4) - g_vars.tilemap.x;
 	if (dx < -2 || dx > (TILEMAP_SCREEN_W + 2)) {
 		return false;
 	}
-	const int dy = (y_pos >> 4) - g_vars.tilemap_y;
+	const int dy = (y_pos >> 4) - g_vars.tilemap.y;
 	if (dy < -2 || dy > (TILEMAP_SCREEN_H + 2)) {
 		return false;
 	}
@@ -712,7 +710,7 @@ static bool monster_func2_type4(struct level_monster_t *m) {
 	}
 	m->flags = 5;
 	m->type4.angle = 0;
-	m->type4.unk10 = 0;
+	m->type4.angle_step = 0;
 	return true;
 }
 
@@ -777,7 +775,7 @@ static bool monster_func2_type10(struct level_monster_t *m) {
 	uint8_t bl = (obj->x_pos >> 4);
 	uint16_t pos = (bh << 8) | bl;
 	for (int i = 0; i < 10 && pos >= 0x300; ++i, pos -= 0x100) {
-		if (pos < (g_vars.tilemap_h << 8)) {
+		if (pos < (g_vars.tilemap.h << 8)) {
 			bool init_spr = true;
 			for (int j = 0; j < 3; ++j) {
 				const uint8_t tile_num = g_res.leveldat[pos - j * 0x100];
