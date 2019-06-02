@@ -104,15 +104,15 @@ void load_leveldat(const uint8_t *p, struct level_t *level) {
 		gate->dst_pos = READ_LE_UINT16(p); p += 2;
 		gate->scroll_flag = *p++;
 	}
-	for (int i = 0; i < MAX_LEVEL_PLATFORMS; ++i) {
-		struct level_platform_t *platform = &g_res.level.platforms_tbl[i];
-		platform->tilemap_pos = READ_LE_UINT16(p); p += 2;
-		platform->w = *p++;
-		platform->h = *p++;
-		platform->unk4 = READ_LE_UINT16(p); p += 2;
-		platform->unk6 = READ_LE_UINT16(p); p += 2;
-		platform->unk8 = *p++;
-		platform->unk9 = *p++;
+	for (int i = 0; i < MAX_LEVEL_UNKS; ++i) {
+		struct level_unk_t *unk = &g_res.level.unks_tbl[i];
+		unk->tilemap_pos = READ_LE_UINT16(p); p += 2;
+		unk->w = *p++;
+		unk->h = *p++;
+		unk->unk4 = READ_LE_UINT16(p); p += 2;
+		unk->unk6 = READ_LE_UINT16(p); p += 2;
+		unk->unk8 = *p++;
+		unk->unk9 = *p++;
 	}
 	const uint8_t *monster_attr = p;
 	int monsters_count = 0;
@@ -225,27 +225,29 @@ void load_leveldat(const uint8_t *p, struct level_t *level) {
 		item->spr_num = READ_LE_UINT16(p); p += 2;
 		item->y_delta = *p++;
 	}
-	for (int i = 0; i < MAX_LEVEL_TRIGGERS; ++i) {
-		struct level_trigger_t *trigger = &g_res.level.triggers_tbl[i];
-		trigger->x_pos = READ_LE_UINT16(p); p += 2;
-		trigger->y_pos = READ_LE_UINT16(p); p += 2;
-		trigger->spr_num = READ_LE_UINT16(p); p += 2;
-		trigger->flags = *p++;
-		const int type = trigger->flags & 15;
+	for (int i = 0; i < MAX_LEVEL_PLATFORMS; ++i) {
+		struct level_platform_t *platform = &g_res.level.platforms_tbl[i];
+		platform->x_pos = READ_LE_UINT16(p); p += 2;
+		platform->y_pos = READ_LE_UINT16(p); p += 2;
+		platform->spr_num = READ_LE_UINT16(p); p += 2;
+		platform->flags = *p++;
+		const int type = platform->flags & 15;
 		if (type == 8) {
-			trigger->type8.y_velocity = *p++;
-			trigger->type8.unk8 = *p++;
-			trigger->type8.unk9 = *p++;
-			trigger->type8.state = *p++;
-			trigger->type8.y_delta = READ_LE_UINT16(p); p += 2;
-			trigger->type8.counter = *p++;
+			platform->type8.y_velocity = *p++;
+			platform->type8.unk8 = *p++;
+			platform->type8.unk9 = *p++;
+			platform->type8.state = *p++;
+			platform->type8.y_delta = READ_LE_UINT16(p); p += 2;
+			platform->type8.counter = *p++;
+			++p;
 		} else {
-			trigger->other.unk7 = READ_LE_UINT16(p); p += 2;
-			trigger->other.unk9 = *p++;
-			trigger->other.unkA = READ_LE_UINT16(p); p += 2;
-			trigger->other.unkC = READ_LE_UINT16(p); p += 2;
+			platform->other.max_velocity = *p++;
+			++p;
+			platform->other.unk9 = *p++;
+			platform->other.unkA = READ_LE_UINT16(p); p += 2;
+			platform->other.counter = READ_LE_UINT16(p); p += 2;
+			platform->other.velocity = *p++;
 		}
-		trigger->unkE = *p++;
 	}
 	g_res.level.boss_xmin = READ_LE_UINT16(p); p += 2;
 	g_res.level.boss_xmax = READ_LE_UINT16(p); p += 2;

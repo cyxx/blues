@@ -61,3 +61,7 @@ Usage: blues [OPTIONS]...
   --screensize=WxH  Graphics screen size (default 320x200)
   --cga             Enable CGA colors
 ```
+
+## Downloads
+
+[blues-sdl2-win32.zip](https://www.dropbox.com/s/vv8mh0vrk8l6xro/blues-gh-sdl2-win32.zip?dl=0) - Win32 executable

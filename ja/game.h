@@ -38,7 +38,7 @@ struct object_t {
 		uint8_t b[2];
 		int16_t w;
 		const uint8_t *p;
-	} data[11]; // 0x6..0x1C
+	} data[11];
 };
 
 enum {
@@ -49,22 +49,22 @@ enum {
 	PLAYER_FLAGS_JAKE = 0x80
 };
 
-#define player_obj_num(obj)        (obj)->data[0].w     //  0x6
-#define player_prev_spr_num(obj)   (obj)->data[1].w     //  0x8
-#define player_anim_data(obj)      (obj)->data[2].p     //  0xA
-#define player_idle_counter(obj)   (obj)->data[3].b[0]  //  0xC
-#define player_power(obj)          (obj)->data[3].b[1]  //  0xD
-#define player_x_delta(obj)        (obj)->data[4].w     //  0xE
-#define player_y_delta(obj)        (obj)->data[5].w     // 0x10
-#define player_flags(obj)          (obj)->data[6].b[0]  // 0x12
-#define player_jump_counter(obj)   (obj)->data[6].b[1]  // 0x13
-#define player_bounce_counter(obj) (obj)->data[7].b[0]  // 0x14
-#define player_tilemap_offset(obj) (obj)->data[8].w     // 0x16
-#define player_hit_counter(obj)    (obj)->data[9].b[0]  // 0x18
-#define player_throw_counter(obj)  (obj)->data[9].b[1]  // 0x19
-#define player_flags2(obj)         (obj)->data[10].b[0] // 0x1A, 8:dead 1:blocked
+#define player_obj_num(obj)        (obj)->data[0].w
+#define player_prev_spr_num(obj)   (obj)->data[1].w
+#define player_anim_data(obj)      (obj)->data[2].p
+#define player_idle_counter(obj)   (obj)->data[3].b[0]
+#define player_power(obj)          (obj)->data[3].b[1]
+#define player_x_delta(obj)        (obj)->data[4].w
+#define player_y_delta(obj)        (obj)->data[5].w
+#define player_flags(obj)          (obj)->data[6].b[0]
+#define player_jump_counter(obj)   (obj)->data[6].b[1]
+#define player_bounce_counter(obj) (obj)->data[7].b[0]
+#define player_tilemap_offset(obj) (obj)->data[8].w
+#define player_hit_counter(obj)    (obj)->data[9].b[0]
+#define player_throw_counter(obj)  (obj)->data[9].b[1]
+#define player_flags2(obj)         (obj)->data[10].b[0]
 
-#define object_blinking_counter(obj) (obj)->data[6].b[1]  // 0x13, shield, jump
+#define object_blinking_counter(obj) (obj)->data[6].b[1]
 
 /* star */
 #define object2_spr_count(obj)   (obj)->data[0].b[0]
@@ -99,13 +99,13 @@ enum {
 
 struct player_t {
 	struct object_t obj;
-	int16_t unk_counter; // 0x1D always zero
+	int16_t unk_counter;
 	int16_t change_hdir_counter;
 	uint8_t lifes_count;
 	int16_t vinyls_count;
 	int8_t energy;
-	uint8_t dir_mask; // 0x25
-	uint8_t ticks_counter; // 0x26
+	uint8_t dir_mask;
+	uint8_t ticks_counter;
 };
 
 #define TRIGGERS_COUNT  36

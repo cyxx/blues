@@ -126,10 +126,10 @@ static void load_level_data_fix_items_spr_num() {
 			g_res.level.items_tbl[i].spr_num = num - offset + 53;
 		}
 	}
-	for (int i = 0; i < MAX_LEVEL_TRIGGERS; ++i) {
-		const uint16_t num = g_res.level.triggers_tbl[i].spr_num;
+	for (int i = 0; i < MAX_LEVEL_PLATFORMS; ++i) {
+		const uint16_t num = g_res.level.platforms_tbl[i].spr_num;
 		if (num != 0xFFFF) {
-			g_res.level.triggers_tbl[i].spr_num = num - offset + 53;
+			g_res.level.platforms_tbl[i].spr_num = num - offset + 53;
 		}
 	}
 }
@@ -1364,8 +1364,7 @@ static void level_update_objects_boss_energy(int count) {
 		}
 	}
 	for (int i = count; i < 8; ++i) {
-		struct object_t *obj = &g_vars.objects_tbl[108 + i];
-		obj->spr_num = 0xFFFF;
+		g_vars.objects_tbl[108 + i].spr_num = 0xFFFF;
 	}
 }
 
@@ -1398,6 +1397,9 @@ static void level_update_boss_gorilla_collide_proj(struct object_t *obj_player, 
 	g_vars.boss.unk_counter -= 4 - g_res.level.boss_counter;
 	if (g_vars.boss.unk_counter < 0) {
 		g_vars.boss.unk_counter = 0;
+	}
+	if (g_options.cheats & CHEATS_NO_HIT) {
+		return;
 	}
 	level_update_objects_boss_hit_player();
 	obj_player->hit_counter = 44;
@@ -2493,120 +2495,116 @@ static void level_update_objects_decors() {
 	g_vars.level_force_x_scroll_flag = 0;
 	int count = 7;
 	struct object_t *obj = &g_vars.objects_tbl[91];
-	for (int i = 0; i < MAX_LEVEL_TRIGGERS; ++i) {
-		struct level_trigger_t *trigger = &g_res.level.triggers_tbl[i];
-		if (trigger->spr_num == 0xFFFF) {
+	for (int i = 0; i < MAX_LEVEL_PLATFORMS; ++i) {
+		struct level_platform_t *platform = &g_res.level.platforms_tbl[i];
+		if (platform->spr_num == 0xFFFF) {
 			continue;
 		}
-		if ((trigger->flags & 15) == 8) {
+		if ((platform->flags & 15) == 8) {
 			g_vars.level_current_object_decor_x_pos = 0;
-			trigger->y_pos -= trigger->type8.y_delta;
-			if (trigger->type8.state == 0) {
-				int a = trigger->type8.y_delta - 8;
+			platform->y_pos -= platform->type8.y_delta;
+			if (platform->type8.state == 0) {
+				int a = platform->type8.y_delta - 8;
 				if (a < 0) {
 					a = 0;
-					trigger->type8.y_velocity = 0;
+					platform->type8.y_velocity = 0;
 				}
-				trigger->type8.y_delta = a;
-				if (trigger->flags & 0x40) {
-					if (trigger->type8.y_velocity != 0 && --trigger->type8.counter == 0) {
-						trigger->type8.state = 1;
-						trigger->type8.y_velocity = 0;
+				platform->type8.y_delta = a;
+				if (platform->flags & 0x40) {
+					if (platform->type8.y_velocity != 0 && --platform->type8.counter == 0) {
+						platform->type8.state = 1;
+						platform->type8.y_velocity = 0;
 					}
 				}
-			} else if (trigger->type8.state == 1) {
-				int y = trigger->type8.y_velocity;
+			} else if (platform->type8.state == 1) {
+				int y = platform->type8.y_velocity;
 				if (y < 192) {
-					trigger->type8.y_velocity += 8;
+					platform->type8.y_velocity += 8;
 				}
 				y >>= 4;
 				g_vars.level_current_object_decor_y_pos = y;
-				trigger->type8.y_delta += y;
-				const int tile_x =  trigger->x_pos >> 4;
-				const int tile_y = (trigger->y_pos + trigger->type8.y_delta) >> 4;
+				platform->type8.y_delta += y;
+				const int tile_x =  platform->x_pos >> 4;
+				const int tile_y = (platform->y_pos + platform->type8.y_delta) >> 4;
 				const int y2 = g_vars.tilemap.h - 1 - tile_y;
 				if (y2 < 0) {
 					if ((-y2) >= 3) {
-						trigger->type8.state = 2;
-						trigger->type8.counter = 22;
+						platform->type8.state = 2;
+						platform->type8.counter = 22;
 					}
 				} else {
 					const uint8_t tile_num = level_get_tile((tile_y << 8) | tile_x);
 					const uint8_t tile_attr1 = g_res.level.tile_attributes1[tile_num];
 					if (tile_attr1 != 0 && tile_attr1 != 6) {
-						trigger->type8.state = 2;
-						trigger->type8.counter = 22;
+						platform->type8.state = 2;
+						platform->type8.counter = 22;
 					}
 				}
-			} else if (trigger->type8.state == 2) {
-				if ((trigger->flags & 0x40) == 0 && --trigger->type8.counter == 0) {
-					trigger->type8.state = 0;
-					trigger->type8.counter = trigger->type8.unk9;
+			} else if (platform->type8.state == 2) {
+				if ((platform->flags & 0x40) == 0 && --platform->type8.counter == 0) {
+					platform->type8.state = 0;
+					platform->type8.counter = platform->type8.unk9;
 				}
 			}
-			trigger->y_pos += trigger->type8.y_delta;
+			platform->y_pos += platform->type8.y_delta;
 		} else {
 			g_vars.level_current_object_decor_x_pos = 0;
 			g_vars.level_current_object_decor_y_pos = 0;
-			if (trigger->unkE != 0 || trigger->other.unk7 < 0 || (trigger->flags & 0xC0) != 0) {
-				if (trigger->other.unk7 > trigger->unkE) {
-					++trigger->unkE;
-				} else if (trigger->other.unk7 < trigger->unkE) {
-					--trigger->unkE;
+			if (platform->other.velocity != 0 || platform->other.max_velocity < 0 || (platform->flags & 0xC0) != 0) {
+				if (platform->other.max_velocity > platform->other.velocity) {
+					++platform->other.velocity;
+				} else if (platform->other.max_velocity < platform->other.velocity) {
+					--platform->other.velocity;
 				}
-				int al = trigger->unkE;
-				int ah = trigger->unkE;
-				int dl = trigger->flags & 7;
-				if (dl == 0) {
+				int al = platform->other.velocity;
+				int ah = platform->other.velocity;
+				const int type = platform->flags & 7;
+				if (type == 0) {
 					al = 0;
 					ah = -ah;
-				} else if (dl == 1) {
+				} else if (type == 1) {
 					ah = -ah;
-				} else if (dl == 2) {
+				} else if (type == 2) {
 					ah = 0;
+				} else if (type == 4) {
+					al = 0;
+				} else if (type == 5) {
+					al = -al;
+				} else if (type == 6) {
+					al = -al;
+					ah = 0;
+				} else if (type == 7) {
+					al = -al;
+					ah = -ah;
 				}
-				if (dl != 3) {
-					if (dl == 4) {
-						al = 0;
-					} else if (dl == 5) {
-						al = -al;
-					} else if (dl == 6) {
-						al = -al;
-						ah = 0;
-					} else if (dl == 7) {
-						al = -al;
-						ah = -ah;
-					}
-				}
-				dl = ah;
-				g_vars.level_current_object_decor_x_pos = (int8_t)al;
-				trigger->x_pos += al;
-				g_vars.level_current_object_decor_y_pos = (int8_t)dl;
-				trigger->y_pos += dl;
-				if (trigger->other.unk7 == trigger->unkE) {
-					int16_t ax = trigger->other.unkC + 1;
-					if (trigger->other.unkA == ax) {
-						trigger->other.unk7 = -trigger->other.unk7;
+				g_vars.level_current_object_decor_x_pos = al;
+				platform->x_pos += al;
+				g_vars.level_current_object_decor_y_pos = ah;
+				platform->y_pos += ah;
+				if (platform->other.max_velocity == platform->other.velocity) {
+					uint16_t ax = platform->other.counter + 1;
+					if (platform->other.unkA == ax) {
+						platform->other.max_velocity = -platform->other.max_velocity;
 						ax = 0;
 					}
-					trigger->other.unkC = ax;
+					platform->other.counter = ax;
 				}
 			}
 		}
-		const int x_pos = trigger->x_pos - (g_vars.tilemap.x << 4);
+		const int x_pos = platform->x_pos - (g_vars.tilemap.x << 4);
 		if (x_pos >= TILEMAP_SCREEN_W + 32 || x_pos <= -32) {
 			continue;
 		}
-		const int y_pos = trigger->y_pos - (g_vars.tilemap.y << 4);
+		const int y_pos = platform->y_pos - (g_vars.tilemap.y << 4);
 		if (y_pos >= TILEMAP_SCREEN_H + 32 || y_pos <= -32) {
 			continue;
 		}
-		obj->x_pos = trigger->x_pos;
-		obj->y_pos = trigger->y_pos;
-		obj->spr_num = trigger->spr_num;
-		obj->data.t.ref = trigger;
+		obj->x_pos = platform->x_pos;
+		obj->y_pos = platform->y_pos;
+		obj->spr_num = platform->spr_num;
+		obj->data.t.ref = platform;
 		if (g_vars.objects_tbl[1].data.p.y_velocity > -16) {
-			trigger->flags |= 0x40;
+			platform->flags |= 0x40;
 			if (level_update_objects_decors_helper(obj)) {
 				++obj;
 				--count;
@@ -2616,7 +2614,7 @@ static void level_update_objects_decors() {
 				continue;
 			}
 		}
-		trigger->flags &= ~0x40;
+		platform->flags &= ~0x40;
 		obj->y_pos -= 2;
 		++obj;
 		--count;

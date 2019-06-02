@@ -11,7 +11,7 @@ struct level_gate_t {
 	uint8_t scroll_flag;
 };
 
-struct level_platform_t {
+struct level_unk_t {
 	uint16_t tilemap_pos;
 	uint8_t w;
 	uint8_t h;
@@ -34,7 +34,7 @@ struct level_item_t {
 	int8_t y_delta;
 };
 
-struct level_trigger_t {
+struct level_platform_t {
 	uint16_t x_pos;
 	uint16_t y_pos;
 	uint16_t spr_num;
@@ -49,13 +49,13 @@ struct level_trigger_t {
 			uint8_t counter;
 		} type8;
 		struct {
-			int16_t unk7;
+			int8_t max_velocity;
 			uint8_t unk9;
-			int16_t unkA;
-			int16_t unkC;
+			uint16_t unkA;
+			uint16_t counter;
+			int8_t velocity;
 		} other;
 	};
-	uint8_t unkE;
 };
 
 struct level_monster_t {
@@ -122,12 +122,12 @@ struct level_monster_t {
 	};
 };
 
-#define MAX_LEVEL_GATES     20
-#define MAX_LEVEL_PLATFORMS 15
-#define MAX_LEVEL_BONUSES   80
-#define MAX_LEVEL_ITEMS     70
-#define MAX_LEVEL_TRIGGERS  16
-#define MAX_LEVEL_MONSTERS 150
+#define MAX_LEVEL_GATES      20
+#define MAX_LEVEL_UNKS       15
+#define MAX_LEVEL_BONUSES    80
+#define MAX_LEVEL_ITEMS      70
+#define MAX_LEVEL_PLATFORMS  16
+#define MAX_LEVEL_MONSTERS  150
 
 struct level_t {
 	uint8_t tile_attributes0[256];
@@ -140,7 +140,7 @@ struct level_t {
 	uint16_t scrolling_mask; /* 4: screen scroll down 1 line, 2: no horizontal scrolling, 1: wider vertical scrolling */
 	uint16_t front_tiles_lut[256];
 	struct level_gate_t gates_tbl[MAX_LEVEL_GATES];
-	struct level_platform_t platforms_tbl[MAX_LEVEL_PLATFORMS];
+	struct level_unk_t unks_tbl[MAX_LEVEL_UNKS];
 	struct level_monster_t monsters_tbl[MAX_LEVEL_MONSTERS];
 	uint8_t monsters_count;
 	uint16_t items_spr_num_offset;
@@ -148,7 +148,7 @@ struct level_t {
 	struct level_bonus_t bonuses_tbl[MAX_LEVEL_BONUSES];
 	uint8_t tile_attributes3[256];
 	struct level_item_t items_tbl[MAX_LEVEL_ITEMS];
-	struct level_trigger_t triggers_tbl[MAX_LEVEL_TRIGGERS];
+	struct level_platform_t platforms_tbl[MAX_LEVEL_PLATFORMS];
 	uint16_t boss_xmin;
 	uint16_t boss_xmax;
 	uint8_t boss_counter;
