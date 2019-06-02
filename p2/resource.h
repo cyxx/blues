@@ -11,13 +11,13 @@ struct level_gate_t {
 	uint8_t scroll_flag;
 };
 
-struct level_unk_t {
-	uint16_t tilemap_pos;
+struct level_column_t {
+	uint16_t tilemap_pos; /* current column tilemap pos */
 	uint8_t w;
 	uint8_t h;
-	uint16_t unk4;
-	uint16_t unk6;
-	uint8_t unk8;
+	uint16_t trigger_pos; /* compared with player pos */
+	uint16_t tiles_offset_buf;
+	uint8_t y_target; /* final y pos */
 	uint8_t unk9;
 };
 
@@ -123,7 +123,7 @@ struct level_monster_t {
 };
 
 #define MAX_LEVEL_GATES      20
-#define MAX_LEVEL_UNKS       15
+#define MAX_LEVEL_COLUMNS    15
 #define MAX_LEVEL_BONUSES    80
 #define MAX_LEVEL_ITEMS      70
 #define MAX_LEVEL_PLATFORMS  16
@@ -140,7 +140,7 @@ struct level_t {
 	uint16_t scrolling_mask; /* 4: screen scroll down 1 line, 2: no horizontal scrolling, 1: wider vertical scrolling */
 	uint16_t front_tiles_lut[256];
 	struct level_gate_t gates_tbl[MAX_LEVEL_GATES];
-	struct level_unk_t unks_tbl[MAX_LEVEL_UNKS];
+	struct level_column_t columns_tbl[MAX_LEVEL_COLUMNS];
 	struct level_monster_t monsters_tbl[MAX_LEVEL_MONSTERS];
 	uint8_t monsters_count;
 	uint16_t items_spr_num_offset;
@@ -151,8 +151,8 @@ struct level_t {
 	struct level_platform_t platforms_tbl[MAX_LEVEL_PLATFORMS];
 	uint16_t boss_xmin;
 	uint16_t boss_xmax;
-	uint8_t boss_counter;
-	uint16_t boss_energy;
+	uint8_t boss_speed; /* 0..4 */
+	int16_t boss_energy;
 	uint8_t boss_state; /* !=255: has boss */
 	uint16_t boss_x_pos;
 	uint16_t boss_y_pos;

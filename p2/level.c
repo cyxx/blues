@@ -16,6 +16,8 @@ static const uint16_t _undefined = 0x55AA;
 static void level_completed_bonuses_animation();
 static void level_player_death_animation();
 
+static const uint8_t next_level_tbl[] = { 0xFF, 0x0C, 0x0B, 0x0A, 0xFF, 0xFF, 0x00, 0xFF, 0xFF, 0x0E };
+
 static void set_level_palette() {
 	g_sys.set_screen_palette(palettes_tbl[g_vars.level_num], 0, 16, 6);
 }
@@ -50,7 +52,7 @@ static bool level_check_tilemap_offset(uint16_t offset) {
 	return true;
 }
 
-static uint8_t level_get_tile(uint16_t offset) {
+uint8_t level_get_tile(uint16_t offset) {
 	if (level_check_tilemap_offset(offset)) {
 		return g_res.leveldat[offset];
 	}
@@ -62,7 +64,6 @@ static void level_set_tile(uint16_t offset, uint8_t tile_num) {
 		g_res.leveldat[offset] = tile_num;
 	}
 }
-
 
 static void load_level_data_init_animated_tiles() {
 	for (int i = 0; i < 256; ++i) {
@@ -200,6 +201,44 @@ static void load_level_data_init_password_items() {
 	}
 }
 
+static void load_level_data_init_columns() {
+	uint8_t *p = g_vars.columns_tiles_buf;
+	for (int i = 0; i < MAX_LEVEL_COLUMNS; ++i) {
+		struct level_column_t *column = &g_res.level.columns_tbl[i];
+		if (column->tilemap_pos == 0xFFFF) {
+			continue;
+		}
+		uint16_t offset = column->tilemap_pos - (column->y_target << 8);
+		const int h = column->y_target + column->h;
+		const int w = column->w;
+		WRITE_LE_UINT16(p, offset); p += 2;
+		*p++ = h;
+		*p++ = w;
+		for (int y = 0; y < h; ++y) {
+			memcpy(p, g_res.leveldat + offset, w); p += w;
+			offset += 0x100;
+		}
+		column->tiles_offset_buf = p - g_vars.columns_tiles_buf - w;
+	}
+	WRITE_LE_UINT16(p, 0xFFFF); p += 2;
+	assert(p - g_vars.columns_tiles_buf <= sizeof(g_vars.columns_tiles_buf));
+}
+
+static void level_reset_columns_tiles() {
+	const uint8_t *p = g_vars.columns_tiles_buf;
+	while (1) {
+		uint16_t offset = READ_LE_UINT16(p); p += 2;
+		if (offset == 0xFFFF) {
+			break;
+		}
+		const int h = *p++;
+		const int w = *p++;
+		for (int y = 0; y < h; ++y) {
+			memcpy(g_res.leveldat + offset, p, w); p += w;
+			offset += 0x100;
+		}
+	}
+}
 
 static void load_level_data(int num) {
 	static const uint8_t num_tbl[] = { 0, 0, 0, 1, 1, 1, 2, 3, 3, 0, 4, 4, 4, 5, 0, 2 };
@@ -220,7 +259,7 @@ static void load_level_data(int num) {
 	print_debug(DBG_GAME, "tilemap offset %d", offset);
 	load_leveldat(g_res.leveldat + offset, 0);
 	video_convert_tiles(g_res.leveldat + g_vars.tilemap.size + 512, offset - (g_vars.tilemap.size + 512));
-	print_debug(DBG_GAME, "start_pos %d,%d end_pos %d,%d", g_res.level.start_x_pos, g_res.level.start_y_pos, g_res.level.boss_x_pos, g_res.level.boss_y_pos);
+	print_debug(DBG_GAME, "start_pos %d,%d", g_res.level.start_x_pos, g_res.level.start_y_pos);
 	load_level_data_init_animated_tiles();
 	load_level_data_init_transparent_tiles();
 	g_vars.snow.counter = 0;
@@ -231,6 +270,7 @@ static void load_level_data(int num) {
 	load_level_data_init_secret_bonus_tiles();
 	load_level_data_init_password_items();
 	g_res.restart = g_res.level;
+	load_level_data_init_columns();
 	int count = 0;
 	for (int i = 0; i < MAX_LEVEL_ITEMS; ++i) {
 		struct level_item_t *item = &g_res.level.items_tbl[i];
@@ -242,8 +282,7 @@ static void load_level_data(int num) {
 		}
 	}
 	g_vars.level_complete_bonuses_count = count;
-	static const uint8_t type_tbl[] = { 0xFF, 0x0C, 0x0B, 0x0A, 0xFF, 0xFF, 0x00, 0xFF, 0xFF, 0x0E };
-	if (g_vars.level_num < 10 && type_tbl[g_vars.level_num] != 0xFF) {
+	if (g_vars.level_num < 10 && next_level_tbl[g_vars.level_num] != 0xFF) {
 		g_vars.level_complete_bonuses_count *= 2;
 		g_vars.level_complete_secrets_count *= 2;
 	}
@@ -582,7 +621,7 @@ static void level_init_tilemap() {
 	video_transition_open();
 }
 
-static void level_player_die() {
+void level_player_die() {
 	g_vars.restart_level_flag = 2;
 	if (g_vars.player_lifes != 0) {
 		if ((g_options.cheats & CHEATS_UNLIMITED_LIFES) == 0) {
@@ -839,6 +878,9 @@ static void level_update_tile0(uint16_t offset) {
 	case 1:
 		level_update_tile_attr2_type1();
 		break;
+	case 2:
+		level_update_tile_type_2();
+		break;
 	default:
 		print_warning("Unhandled level_update_tile0 attr2 %d", al);
 		break;
@@ -868,14 +910,14 @@ static void level_update_tile_type_0(uint16_t offset) {
 		return;
 	}
 	for (int i = 0; i < 20; ++i) {
-		struct collision_t *p = &g_vars.collision_tbl[i];
-		if (p->x_pos == _undefined) {
+		struct fly_t *p = &g_vars.fly_tbl[i];
+		if (p->x_pos != _undefined) {
 			continue;
 		}
 		p->x_pos = g_vars.objects_tbl[1].x_pos << 3;
 		p->y_pos = g_vars.objects_tbl[1].y_pos << 3;
-		p->unk4 = 0;
-		p->unk5 = 0;
+		p->x_delta = 0;
+		p->y_delta = 0;
 		p->unk7 = 0;
 		break;
 	}
@@ -950,12 +992,13 @@ static void level_reset() {
 		g_vars.snow.random_tbl[i] = (al << 8) | al;
 	}
 	for (int i = 0; i < 20; ++i) {
-		g_vars.collision_tbl[i].x_pos = _undefined;
+		g_vars.fly_tbl[i].x_pos = _undefined;
 	}
+	level_reset_columns_tiles();
 	for (int i = 0; i < 20; ++i) {
-		g_vars.rotation_tbl[i].x_pos = 0xFFFF;
+		g_vars.orb_tbl[i].x_pos = 0xFFFF;
 	}
-	memset(g_vars.boss_level5.proj_tbl, 0xFF, sizeof(g_vars.boss_level5.proj_tbl));
+	memset(g_vars.boss_level5.leaf_tbl, 0xFF, sizeof(g_vars.boss_level5.leaf_tbl));
 	g_vars.player_energy = 3;
 	memset(&g_vars.boss_level9, 0, sizeof(g_vars.boss_level9));
 
@@ -1022,7 +1065,7 @@ static void level_update_objects_hit_animation() {
 	}
 }
 
-static void level_add_object23_bonus(int x_vel, int y_vel, int count) {
+void level_add_object23_bonus(int x_vel, int y_vel, int count) {
 	int counter = 0;
 	for (int i = 0; i < 32; ++i) {
 		struct object_t *obj = &g_vars.objects_tbl[23 + i];
@@ -1052,7 +1095,7 @@ static void level_add_object23_bonus(int x_vel, int y_vel, int count) {
 	}
 }
 
-static bool level_objects_collide(const struct object_t *si, const struct object_t *di) {
+bool level_objects_collide(const struct object_t *si, const struct object_t *di) {
 	const int dx = abs(si->x_pos - di->x_pos);
 	if (dx >= 64) {
 		return false;
@@ -1179,6 +1222,20 @@ static uint16_t level_get_random_bonus_spr_num() {
 		}
 	}
 	return 0x2080 + num;
+}
+
+void level_add_bonuses_4x() {
+	int x_vel = 32;
+	int y_vel = -160;
+	for (int i = 0; i < 4; ++i) {
+		g_vars.current_bonus.spr_num = level_get_random_bonus_spr_num();
+		level_add_object23_bonus(x_vel, y_vel, 4);
+		x_vel = -x_vel;
+		if (x_vel >= 0) {
+			x_vel -= 16;
+			y_vel -= 16;
+		}
+	}
 }
 
 static bool level_update_found_bonus_tile(struct level_bonus_t *bonus) {
@@ -1350,818 +1407,6 @@ static void level_update_objects_axe() {
 	}
 }
 
-static void level_update_objects_boss_energy(int count) {
-	if (count > 8) {
-		count = 8;
-	}
-	if (count != 0) {
-		play_music(13);
-		for (int i = 0; i < count; ++i) {
-			struct object_t *obj = &g_vars.objects_tbl[108 + i];
-			obj->spr_num = 0x135;
-			obj->x_pos = 8 + i * 5;
-			obj->y_pos = 170;
-		}
-	}
-	for (int i = count; i < 8; ++i) {
-		g_vars.objects_tbl[108 + i].spr_num = 0xFFFF;
-	}
-}
-
-static void level_update_objects_boss_hit_player() {
-	--g_vars.bonus_energy_counter;
-	if (g_vars.bonus_energy_counter < 0) {
-		g_vars.bonus_energy_counter = 5;
-		if ((g_options.cheats & CHEATS_UNLIMITED_ENERGY) == 0) {
-			--g_vars.player_energy;
-			if (g_vars.player_energy < 0) {
-				level_player_die();
-			}
-		}
-	}
-	g_vars.current_bonus.x_pos = g_vars.objects_tbl[1].x_pos;
-	g_vars.current_bonus.y_pos = g_vars.objects_tbl[1].y_pos - 48;
-	g_vars.current_bonus.spr_num = 0x2046; /* bones */
-	const int x_vel = (g_vars.bonus_energy_counter & 1) != 0 ? -48 : 48;
-	const int y_vel = -128;
-	level_add_object23_bonus(x_vel, y_vel, 1);
-}
-
-static void level_update_boss_gorilla_collide_proj(struct object_t *obj_player, struct object_t *obj) {
-	if (obj->spr_num == 0xFFFF || (obj->spr_num & 0x2000) == 0) {
-		return;
-	}
-	if (!level_objects_collide(obj_player, obj)) {
-		return;
-	}
-	g_vars.boss.unk_counter -= 4 - g_res.level.boss_counter;
-	if (g_vars.boss.unk_counter < 0) {
-		g_vars.boss.unk_counter = 0;
-	}
-	if (g_options.cheats & CHEATS_NO_HIT) {
-		return;
-	}
-	level_update_objects_boss_hit_player();
-	obj_player->hit_counter = 44;
-	g_vars.player_anim_0x40_flag = 0;
-	obj_player->data.p.y_velocity = -128;
-	obj_player->x_friction = 3;
-	obj_player->x_velocity = (g_vars.objects_tbl[1].x_pos >= g_res.level.boss_x_pos) ? 128 : -128;
-	g_vars.player_gravity_flag = 0;
-}
-
-static void level_update_boss_gorilla_hit_player() {
-	if (g_vars.restart_level_flag != 0) {
-		return;
-	}
-	level_update_boss_gorilla_collide_proj(&g_vars.objects_tbl[1], g_vars.boss.obj2);
-	level_update_boss_gorilla_collide_proj(&g_vars.objects_tbl[1], g_vars.boss.obj1);
-	if (level_objects_collide(&g_vars.objects_tbl[1], g_vars.boss.obj3)) {
-		if (g_vars.player_jump_monster_flag != 0) {
-			g_vars.objects_tbl[1].data.p.y_velocity = (g_vars.input.key_up != 0) ? -128 : -64;
-		}
-	}
-}
-
-static void level_update_boss_gorilla_tick() {
-	if (g_vars.boss.unk_counter < UCHAR_MAX) {
-		++g_vars.boss.unk_counter;
-	}
-}
-
-static uint16_t level_update_boss_gorilla_find_pos(uint16_t num1, uint16_t num2) {
-	const uint16_t *p = boss_gorilla_spr_tbl;
-	const uint16_t *end = &boss_gorilla_spr_tbl[138];
-	while (p + 3 <= end) {
-		if (p[0] == num1 && p[1] == num2) {
-			return p[2]; /* dy,dx packed as a uint16_t */
-		}
-		p += 3;
-	}
-	print_warning("boss_gorilla spr range (%d,%d) not found", num1, num2);
-	return 0xFFFF;
-}
-
-static void level_update_boss_gorilla_init_objects(const uint16_t *p) {
-	g_vars.boss.parts[0].spr_num = *p++;
-	g_vars.boss.parts[1].spr_num = *p++;
-	uint16_t d;
-	int8_t dx, dy;
-
-	d = level_update_boss_gorilla_find_pos(g_vars.boss.parts[0].spr_num, g_vars.boss.parts[1].spr_num);
-	dx = d & 255;
-	if (g_vars.boss.hdir) {
-		dx = -dx;
-	}
-	g_vars.boss.parts[1].x_pos = dx + g_vars.boss.parts[0].x_pos;
-	dy = d >> 8;
-	g_vars.boss.parts[1].y_pos = dy + g_vars.boss.parts[0].y_pos;
-
-	g_vars.boss.parts[2].spr_num = *p++;
-	d = level_update_boss_gorilla_find_pos(g_vars.boss.parts[1].spr_num, g_vars.boss.parts[2].spr_num);
-	dx = d & 255;
-	if (g_vars.boss.hdir) {
-		dx = -dx;
-	}
-	g_vars.boss.parts[2].x_pos = dx + g_vars.boss.parts[1].x_pos;
-	dy = d >> 8;
-	g_vars.boss.parts[2].y_pos = dy + g_vars.boss.parts[1].y_pos;
-
-	g_vars.boss.parts[3].spr_num = *p++;
-	d = level_update_boss_gorilla_find_pos(g_vars.boss.parts[1].spr_num, g_vars.boss.parts[3].spr_num);
-	dx = d & 255;
-	if (g_vars.boss.hdir) {
-		dx = -dx;
-	}
-	g_vars.boss.parts[3].x_pos = dx + g_vars.boss.parts[1].x_pos;
-	dy = d >> 8;
-	g_vars.boss.parts[3].y_pos = dy + g_vars.boss.parts[1].y_pos;
-
-	g_vars.boss.parts[4].spr_num = *p++;
-	d = level_update_boss_gorilla_find_pos(g_vars.boss.parts[1].spr_num, g_vars.boss.parts[4].spr_num);
-	dx = d & 255;
-	if (g_vars.boss.hdir) {
-		dx = -dx;
-	}
-	g_vars.boss.parts[4].x_pos = dx + g_vars.boss.parts[1].x_pos;
-	dy = d >> 8;
-	g_vars.boss.parts[4].y_pos = dy + g_vars.boss.parts[1].y_pos;
-
-	if (g_vars.boss.anim_num & 0x40) {
-		g_vars.boss.parts[1].y_pos += 2;
-		++g_vars.boss.parts[2].y_pos;
-		++g_vars.boss.parts[4].y_pos;
-		++g_vars.boss.parts[3].y_pos;
-	}
-	if (g_vars.boss.hdir) {
-		g_vars.boss.parts[0].spr_num |= 0x8000;
-		g_vars.boss.parts[1].spr_num |= 0x8000;
-		g_vars.boss.parts[2].spr_num |= 0x8000;
-		g_vars.boss.parts[3].spr_num |= 0x8000;
-		g_vars.boss.parts[4].spr_num |= 0x8000;
-	}
-	for (int i = 0; i < 5; ++i) {
-		struct object_t *obj = &g_vars.objects_tbl[103 + i];
-		const uint16_t addr = *p++;
-		if (addr == 0xA609) {
-			g_vars.boss.obj1 = obj;
-		}
-		if (addr == 0xA60F) {
-			g_vars.boss.obj2 = obj;
-		}
-		if (addr == 0xA603) {
-			g_vars.boss.obj3 = obj;
-		}
-		assert(addr == 0xA5F7 || addr == 0xA5FD || addr == 0xA603 || addr == 0xA609 || addr == 0xA60F);
-		const int num = (addr - 0xA5F7) / 6;
-		obj->x_pos = g_vars.boss.parts[num].x_pos;
-		obj->y_pos = g_vars.boss.parts[num].y_pos;
-		obj->spr_num = g_vars.boss.parts[num].spr_num;
-	}
-}
-
-static bool level_update_boss_gorilla_collides_obj3(struct object_t *obj) {
-	if (obj->spr_num == 0xFFFF) {
-		return false;
-	}
-	const int spr_num = g_vars.boss.obj1->spr_num & 0x1FFF;
-	if ((spr_num == 0x196 || spr_num == 0x195) && level_objects_collide(obj, g_vars.boss.obj1)) {
-		obj->spr_num = 0xFFFF;
-		return false;
-	}
-	return level_objects_collide(obj, g_vars.boss.obj3);
-}
-
-static void level_update_boss_gorilla_helper2() {
-	for (int i = 0; i < 6; ++i) {
-		if (i == 1) {
-			continue;
-		}
-		struct object_t *obj = &g_vars.objects_tbl[i];
-		if (!level_update_boss_gorilla_collides_obj3(obj)) {
-			continue;
-		}
-		if (abs(g_vars.level_draw_counter - g_vars.boss.draw_counter) <= 22) {
-			break;
-		}
-		g_vars.boss.draw_counter = g_vars.level_draw_counter;
-		for (int j = 103; j <= 107; ++j) {
-			g_vars.objects_tbl[j].spr_num |= 0x4000;
-		}
-		g_vars.player_flying_flag = 0;
-		level_update_boss_gorilla_tick();
-		g_res.level.boss_energy -= g_vars.player_club_power;
-		if (g_res.level.boss_energy < 0) {
-			g_res.level.boss_state = 6;
-			g_vars.boss.y_velocity = -240;
-			break;
-		}
-		if (g_vars.player_club_power > 20) {
-			g_vars.boss.x_velocity = (g_res.level.boss_x_pos >= g_vars.objects_tbl[1].x_pos) ? 48 : -48;
-			g_vars.boss.y_velocity = (g_vars.boss.y_velocity > 0) ? -128 : -64;
-			g_res.level.boss_state = 5;
-		}
-		g_vars.boss.state_counter = 0;
-		obj->spr_num = 0xFFFF;
-		break;
-	}
-}
-
-static void level_update_boss_gorilla() {
-	const int x = (g_vars.boss.x_velocity >> 4) + g_res.level.boss_x_pos;
-	if (x >= 0) {
-		if (g_res.level.boss_xmin <= x && g_res.level.boss_xmax >= x) {
-			g_res.level.boss_x_pos = x;
-		}
-	}
-	g_res.level.boss_y_pos += (g_vars.boss.y_velocity >> 4);
-	if (g_vars.boss.y_velocity >= 0) {
-		const uint16_t pos = ((g_res.level.boss_y_pos >> 4) << 8) | (g_res.level.boss_x_pos >> 4);
-		const uint8_t tile_num = level_get_tile(pos);
-		if (g_res.level.tile_attributes1[tile_num] != 0) {
-			g_res.level.boss_y_pos &= ~15;
-			if (g_vars.boss.y_velocity != 0) {
-				g_vars.shake_screen_counter = 7;
-			}
-			g_vars.boss.y_velocity = 0;
-			g_vars.boss.x_velocity = 0;
-		} else {
-			if (g_vars.boss.y_velocity < 224) {
-				g_vars.boss.y_velocity += 16;
-			}
-		}
-	} else {
-		if (g_vars.boss.y_velocity < 224) {
-			g_vars.boss.y_velocity += 16;
-		}
-	}
-	g_vars.boss.hdir = (g_res.level.boss_x_pos < g_vars.objects_tbl[1].x_pos);
-	g_vars.boss.x_dist = abs(g_vars.objects_tbl[1].x_pos - g_res.level.boss_x_pos);
-	if (g_vars.boss.x_dist > 400) {
-		return;
-	}
-	if (abs(g_vars.objects_tbl[1].y_pos - g_res.level.boss_y_pos) > 250) {
-		return;
-	}
-	if (g_res.level.boss_state == 0) {
-		if (g_vars.boss.x_dist >= 250) {
-			g_vars.boss.unk_counter = 0;
-			static const uint8_t data_st0[] = {
-				0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0xF4
-			};
-			g_vars.boss.next_anim = data_st0;
-		} else {
-			g_vars.boss.state_counter = 0;
-			g_res.level.boss_state = 1;
-		}
-	} else if (g_res.level.boss_state == 1) {
-		if (g_vars.boss.x_dist >= 250) {
-			g_res.level.boss_state = 0;
-		} else {
-			++g_vars.boss.state_counter;
-			if (g_res.level.boss_energy < 60) {
-				g_res.level.boss_state = 2;
-			} else {
-				static const uint8_t data_st1[] = {
-					0x00, 0x00, 0x00, 0x40, 0x40, 0x40, 0xFA
-				};
-				g_vars.boss.next_anim = data_st1;
-				if (g_vars.boss.state_counter >= 110) {
-					g_res.level.boss_state = 1;
-					level_update_boss_gorilla_tick();
-					g_vars.boss.state_counter = 0;
-				} else if (g_vars.player_anim_0x40_flag != 0 && (g_vars.level_draw_counter & 7) == 0) {
-					level_update_boss_gorilla_tick();
-				} else if (g_vars.boss.unk_counter >= 10) {
-					g_res.level.boss_state = 3;
-					g_vars.boss.state_counter = 0;
-				} else if (g_vars.boss.unk_counter > 3) {
-					g_res.level.boss_state = 2;
-					g_vars.boss.state_counter = 0;
-				}
-			}
-		}
-	} else if (g_res.level.boss_state == 2) {
-		++g_vars.boss.state_counter;
-		if (g_vars.boss.state_counter != 64) {
-			if (g_vars.boss.state_counter > 64) {
-				if (g_vars.boss.y_velocity > 0) {
-					static const uint8_t data_st2a[] = {
-						0x04, 0xFF
-					};
-					static const uint8_t data_st2b[] = {
-						0x07, 0xFF
-					};
-					g_vars.boss.next_anim = (g_res.level.boss_energy >= 100) ? data_st2a : data_st2b;
-				}
-				if (g_vars.boss.x_dist <= 80) {
-					g_vars.boss.state_counter = 0;
-					g_res.level.boss_state = 3;
-					g_vars.boss.unk_counter = 11;
-				} else if (g_vars.boss.state_counter == 80) {
-					static const uint8_t data_st2[] = {
-						0x03, 0xFF
-					};
-					g_vars.boss.next_anim = data_st2;
-					int dx = g_res.level.boss_x_pos - g_vars.objects_tbl[1].x_pos;
-					int x_vel = 48;
-					int y_vel = abs(dx);
-					if (y_vel > g_res.level.boss_counter * 80) {
-						y_vel = -96;
-					} else {
-						y_vel = (y_vel / 14) << 4;
-						x_vel = y_vel >> 1;
-						y_vel = -y_vel;
-					}
-					g_vars.boss.y_velocity = y_vel;
-					if (dx >= 0) {
-						x_vel = -x_vel;
-					}
-					g_vars.boss.x_velocity = x_vel;
-				} else if (g_vars.boss.state_counter > 80) {
-					if (g_vars.boss.y_velocity == 0) {
-						g_vars.boss.unk_counter = 3;
-						g_vars.boss.state_counter = 0;
-						g_res.level.boss_state = 1;
-					}
-				}
-			} else {
-				level_update_boss_gorilla_hit_player();
-				if (g_vars.boss.x_dist < 75) {
-					g_res.level.boss_state = 3;
-					g_vars.boss.state_counter = 0;
-				} else {
-					static const uint8_t data_st2[] = {
-						0x10, 0x50, 0x10, 0x11, 0x51, 0x11, 0x10, 0x50, 0x10, 0x11,
-						0x51, 0x11, 0x10, 0x50, 0x10, 0x11, 0x51, 0x11, 0x00, 0x00,
-						0x40, 0x40, 0x00, 0x00, 0x40, 0x40, 0x00, 0x00, 0x40, 0x40,
-						0x00, 0x00, 0x40, 0x40, 0xDE
-					};
-					g_vars.boss.next_anim = data_st2;
-				}
-			}
-		} else {
-			level_update_boss_gorilla_hit_player();
-			g_vars.boss.y_velocity = -224;
-			if (g_res.level.boss_energy < 60 && g_vars.boss.x_dist < 80) {
-				g_res.level.boss_state = 4;
-				g_vars.boss.state_counter = 0;
-			}
-			static const uint8_t data_st2[] = {
-				0x03, 0xFF
-			};
-			g_vars.boss.next_anim = data_st2;
-		}
-	} else if (g_res.level.boss_state == 3) {
-		level_update_boss_gorilla_hit_player();
-		const int counter = (abs(g_res.level.boss_energy - 50) > 25) ? 66 : 154;
-		if (g_vars.boss.state_counter > counter) {
-			g_vars.boss.state_counter = 0;
-			g_res.level.boss_state = 2;
-		} else {
-			if (g_vars.boss.y_velocity == 0) {
-				if (g_vars.boss.x_dist < 100) {
-					if (g_vars.boss.x_dist <= 25) {
-						static const uint8_t data_st3[] = {
-							0x0D, 0x0D, 0x0E, 0x0E, 0xFC
-						};
-						g_vars.boss.next_anim = data_st3;
-					} else if (g_vars.boss.x_dist <= 35) {
-						g_res.level.boss_state = 4;
-						g_vars.boss.state_counter = 0;
-					} else {
-						if (g_vars.boss.unk_counter == 0) {
-							g_res.level.boss_state = 7;
-							g_vars.boss.state_counter = 0;
-						}
-						static const uint8_t data_st3[] = {
-							0x0D, 0x0D, 0x0C, 0x0C, 0xFC
-						};
-						g_vars.boss.next_anim = data_st3;
-					}
-				} else {
-					g_vars.boss.y_velocity = -81;
-					g_vars.boss.x_velocity = (g_vars.objects_tbl[1].x_pos > g_res.level.boss_x_pos) ? 80 : -80;
-				}
-			} else if (g_vars.boss.y_velocity < 0) {
-				static const uint8_t data_st3[] = {
-					0x03, 0xFF
-				};
-				g_vars.boss.next_anim = data_st3;
-			} else {
-				static const uint8_t data_st3[] = {
-					0x0D, 0x0D, 0x0D, 0x0E, 0x0E, 0x0E, 0xFA
-				};
-				g_vars.boss.next_anim = data_st3;
-			}
-		}
-	} else if (g_res.level.boss_state == 4) {
-		level_update_boss_gorilla_hit_player();
-		++g_vars.boss.state_counter;
-		if (g_vars.boss.state_counter > 66) {
-			g_res.level.boss_state = 3;
-			g_vars.boss.state_counter = 0;
-		} else {
-			static const uint8_t data_st4[] = {
-				0x12, 0x12, 0x52, 0x12, 0x0E, 0x0E, 0x4E, 0x0E, 0xF8
-			};
-			g_vars.boss.next_anim = data_st4;
-			if (g_vars.boss.y_velocity == 0) {
-				g_vars.shake_screen_counter = 4;
-			}
-		}
-	} else if (g_res.level.boss_state == 5) {
-		++g_vars.boss.state_counter;
-		if (g_vars.boss.state_counter > 19) {
-			g_vars.boss.state_counter = 0;
-			g_res.level.boss_state = 1;
-		} else {
-			static const uint8_t data_st5[] = {
-				0x05, 0xFF
-			};
-			g_vars.boss.next_anim = data_st5;
-		}
-	} else if (g_res.level.boss_state == 6) {
-		static const uint8_t data_st6[] = {
-			0x05, 0x05, 0x0F, 0x0F, 0xFC
-		};
-		g_vars.boss.next_anim = data_st6;
-		if (g_vars.boss.y_velocity >= 0) {
-			g_res.level.boss_state = 0xFF;
-			g_vars.level_completed_flag = 1;
-			g_vars.objects_tbl[103].spr_num = 0xFFFF;
-			g_vars.objects_tbl[104].spr_num = 0xFFFF;
-			g_vars.objects_tbl[105].spr_num = 0xFFFF;
-			g_vars.objects_tbl[106].spr_num = 0xFFFF;
-			g_vars.objects_tbl[107].spr_num = 0xFFFF;
-			return;
-		}
-	} else if (g_res.level.boss_state == 7) {
-		++g_vars.boss.state_counter;
-		if (g_vars.boss.state_counter > 44) {
-			g_res.level.boss_state = 1;
-		} else {
-			static const uint8_t data_st7[] = {
-				0x03, 0xFF
-			};
-			g_vars.boss.next_anim = data_st7;
-			if (g_vars.boss.y_velocity == 0) {
-				g_vars.boss.y_velocity = -97;
-				g_vars.boss.x_velocity = (g_vars.objects_tbl[1].x_pos > g_res.level.boss_x_pos) ? -48 : 48;
-			} else if (g_vars.boss.y_velocity > 0) {
-				static const uint8_t data_st7[] = {
-					0x04, 0xFF
-				};
-				g_vars.boss.next_anim = data_st7;
-			}
-		}
-	}
-	if (g_vars.boss.prev_anim != g_vars.boss.next_anim) {
-		g_vars.boss.prev_anim = g_vars.boss.next_anim;
-		g_vars.boss.current_anim = g_vars.boss.next_anim;
-	}
-	const uint8_t *p = g_vars.boss.current_anim;
-	while (1) {
-		const uint8_t num = *p;
-		if (num & 0x80) {
-			p += (int8_t)num;
-		} else {
-			g_vars.boss.current_anim = p + 1;
-			g_vars.boss.anim_num = num;
-			g_vars.boss.parts[0].x_pos = g_res.level.boss_x_pos;
-			g_vars.boss.parts[0].y_pos = g_res.level.boss_y_pos;
-			const uint16_t *p = &boss_gorilla_data[(num & ~0x40) * 20 / sizeof(uint16_t)];
-			level_update_boss_gorilla_init_objects(p);
-			level_update_boss_gorilla_helper2();
-			break;
-		}
-	}
-}
-
-static void level_update_boss_tree() {
-	level_update_objects_boss_energy((2 - g_vars.boss_level5.state) << 1);
-	struct object_t *obj_player = &g_vars.objects_tbl[1];
-	for (int i = 0; i < 5; ++i) {
-		struct boss_level5_proj_t *prj = &g_vars.boss_level5.proj_tbl[i];
-		struct object_t *obj = &g_vars.objects_tbl[98 + i];
-		if (prj->spr_num == 0xFFFF) {
-			continue;
-		}
-		if (g_vars.restart_level_flag == 0 && level_objects_collide(obj_player, obj)) {
-			obj_player->hit_counter = 44;
-			g_vars.player_anim_0x40_flag = 0;
-			obj_player->data.p.y_velocity = -128;
-			obj_player->x_friction = 3;
-			obj_player->x_velocity = -128;
-			level_update_objects_boss_hit_player();
-			prj->spr_num = 0xFFFF;
-			obj->spr_num = 0xFFFF;
-		} else {
-			prj->y_pos += prj->unk6 >> 4;
-			prj->unk8 += prj->dir;
-			int dx = prj->unk8;
-			if (dx >= 32 || dx < -32) {
-				prj->dir = -prj->dir;
-			}
-			uint16_t spr_num = prj->spr_num;
-			dx >>= 4;
-			if (dx != 0) {
-				spr_num += (dx > 0) ? 1 : 2;
-			}
-			prj->x_pos += dx;
-			obj->x_pos = prj->x_pos;
-			obj->y_pos = prj->y_pos;
-			if (obj->y_pos > 2008) {
-				prj->spr_num = 0xFFFF;
-				obj->spr_num = 0xFFFF;
-			} else {
-				obj->spr_num = spr_num;
-			}
-		}
-	}
-	g_vars.objects_tbl[105].spr_num = 0xFFFF;
-	g_vars.objects_tbl[104].spr_num = 0xFFFF;
-	if (g_vars.boss_level5.state < 2) {
-		static const uint16_t pos2_data[] = {
-			0x3D5, 0x7C1, 0x1AA, 0x3FA, 0x7B6, 0x1AB, 0x3E8, 0x7A8, 0x1AC,
-			0x3FF, 0x788, 0x1AD, 0x3D9, 0x79B, 0x1AE, 0x3FF, 0x7A8, 0x1AF,
-			0x405, 0x7A9, 0x1B7, 0, 0, 0xFFFF
-		};
-		const uint16_t *p = &pos2_data[g_vars.boss_level5.state * 6];
-		g_vars.objects_tbl[105].x_pos = p[0];
-		g_vars.objects_tbl[105].y_pos = p[1];
-		g_vars.objects_tbl[105].spr_num = p[2];
-		g_vars.objects_tbl[104].x_pos = p[3];
-		g_vars.objects_tbl[104].y_pos = p[4];
-		g_vars.objects_tbl[104].spr_num = p[5];
-	}
-	static const uint16_t pos1_data[] = {
-		0x3A9, 0x7D4, 0x1A4, 0x3D1, 0x7B9, 0x1A5, 0x3A2, 0x7A6, 0x1A6,
-		0x3B4, 0x79F, 0x1A7, 0x396, 0x78A, 0x1A8, 0x3B6, 0x79C, 0x1A9,
-		0x3E0, 0x795, 0x1B6, 0, 0, 0xFFFF
-	};
-	const uint16_t *p = &pos1_data[g_vars.boss_level5.spr106_pos * 6];
-	g_vars.objects_tbl[107].x_pos = p[0];
-	g_vars.objects_tbl[107].y_pos = p[1];
-	g_vars.objects_tbl[107].spr_num = p[2];
-	g_vars.objects_tbl[106].x_pos = p[3];
-	g_vars.objects_tbl[106].y_pos = p[4];
-	g_vars.objects_tbl[106].spr_num = p[5];
-	static const uint16_t pos3_data[] = {
-		0x3E3, 0x773, 0x1B0, 0x3E4, 0x771, 0x1B1, 0x3E4, 0x773, 0x1B2
-	};
-	const uint16_t *q = &pos3_data[g_vars.boss_level5.spr103_pos * 3];
-	g_vars.objects_tbl[103].x_pos = q[0];
-	g_vars.objects_tbl[103].y_pos = q[1];
-	g_vars.objects_tbl[103].spr_num = (g_vars.boss_level5.state != 0) ? 0xFFFF : q[2];
-	if ((g_vars.level_draw_counter & 3) == 0) {
-		++g_vars.boss_level5.spr103_pos;
-		if (g_vars.boss_level5.spr103_pos > 2) {
-			g_vars.boss_level5.spr103_pos = 0;
-		}
-	}
-	if (g_vars.boss_level5.unk1 >= 1) {
-		if (g_vars.boss_level5.unk1 == 1) {
-			g_vars.boss_level5.unk6 = 2;
-			--g_vars.boss_level5.spr106_pos;
-			g_vars.boss_level5.counter += 5;
-		}
-		--g_vars.boss_level5.unk1;
-	} else if (g_vars.boss_level5.counter == 0) {
-		++g_vars.boss_level5.unk6;
-		if (g_vars.boss_level5.unk6 > 2) {
-			g_vars.boss_level5.unk6 = 0;
-		}
-		++g_vars.boss_level5.spr106_pos;
-		if (g_vars.boss_level5.spr106_pos > 2) {
-			g_vars.boss_level5.spr106_pos = 0;
-		}
-		uint8_t ah = 1;
-		if (g_vars.boss_level5.spr106_pos != 0) {
-			ah = 3;
-			g_vars.shake_screen_counter = 4;
-			obj_player->x_pos += 2;
-			for (int i = 0; i < 5; ++i) {
-				struct boss_level5_proj_t *prj = &g_vars.boss_level5.proj_tbl[i];
-				if (prj->spr_num == 0xFFFF) {
-					prj->spr_num = 0x1AC;
-					prj->y_pos = obj_player->y_pos - 150;
-					const uint8_t r = random_get_number();
-					const int dx = r & 0x7C;
-					prj->x_pos = obj_player->x_pos + (((r & 4) != 0) ? dx : -dx);
-					prj->unk6 = ((r & 3) + 1) << 4;
-					prj->unk8 = 0;
-					prj->dir = 4;
-					break;
-				}
-			}
-		}
-		g_vars.boss_level5.counter = ah;
-		--g_vars.boss_level5.unk8;
-		if (g_vars.boss_level5.unk8 == 0) {
-			g_vars.boss_level5.unk8 = (random_get_number() & 15) << 3;
-			g_vars.boss_level5.counter = 64 + ((random_get_number() & 15) << 3);
-			g_vars.boss_level5.unk6 = 0;
-		}
-		if (g_vars.restart_level_flag == 0) {
-			if (level_objects_collide(obj_player, &g_vars.objects_tbl[107]) || level_objects_collide(obj_player, &g_vars.objects_tbl[106])) {
-				if (obj_player->y_pos <= 1979) {
-					obj_player->data.p.y_velocity = -160;
-				} else {
-					obj_player->data.p.y_velocity = -160;
-					obj_player->hit_counter = 44;
-					g_vars.player_anim_0x40_flag = 0;
-					obj_player->x_friction = 3;
-					obj_player->x_velocity = -128;
-					level_update_objects_boss_hit_player();
-					level_update_objects_boss_hit_player();
-					level_update_objects_boss_hit_player();
-				}
-			}
-		}
-	} else if (g_vars.restart_level_flag == 0) {
-		if (level_objects_collide(obj_player, &g_vars.objects_tbl[107]) && g_vars.player_jump_monster_flag) {
-			obj_player->data.p.y_velocity = g_vars.input.key_up ? -128 : -64;
-		}
-	}
-	if (g_vars.restart_level_flag == 0) {
-		struct object_t *_si = &g_vars.objects_tbl[103 + g_vars.boss_level5.state * 2];
-		for (int i = 0; i < 6; ++i) {
-			struct object_t *_di = &g_vars.objects_tbl[i];
-			if (_di->spr_num == 0xFFFF || _di == obj_player) {
-				continue;
-			}
-			g_vars.player_using_club_flag = 1;
-			const bool ret = level_objects_collide(_si, _di);
-			g_vars.player_using_club_flag = 0;
-			if (ret) {
-				_si->spr_num ^= 0x4000;
-				if (g_vars.boss_level5.state != 0) {
-					_si[-1].spr_num ^= 0x4000;
-				}
-				_di->spr_num = 0xFFFF;
-				g_vars.boss_level5.unk1 = 6;
-				if (g_vars.boss_level5.state < 2) {
-					g_vars.boss_level5.unk6 = 3;
-					g_vars.boss_level5.spr106_pos = 3;
-				}
-				--g_vars.boss_level5.energy;
-				if (g_vars.boss_level5.energy == 0) {
-					g_vars.boss_level5.energy = 10;
-					++g_vars.boss_level5.state;
-					if (g_vars.boss_level5.state == 3) {
-						g_vars.level_completed_flag = 1;
-					}
-				}
-				break;
-			}
-		}
-		if (obj_player->x_pos > 984) {
-			obj_player->hit_counter = 44;
-			g_vars.player_anim_0x40_flag = 0;
-			obj_player->data.p.y_velocity = -144;
-			obj_player->x_friction = 3;
-			obj_player->x_velocity = -160;
-			level_update_objects_boss_hit_player();
-		}
-	}
-	if (g_vars.boss_level5.counter > 0) {
-		--g_vars.boss_level5.counter;
-	}
-}
-
-static void level_update_boss_minotaur_set_frame(int num) {
-	const int offset = (num * 6 + 20);
-	for (int y = 0; y < 7; ++y) {
-		for (int x = 0; x < 6; ++x) {
-			g_res.leveldat[(y << 8) + 12 + x] = g_res.leveldat[(y << 8) + offset + x];
-		}
-	}
-}
-
-static void level_update_boss_minotaur_add_spr_0x137() { /* boss defeated, bonus */
-	g_vars.current_bonus.x_pos = 185;
-	g_vars.current_bonus.y_pos = 30;
-	g_vars.current_bonus.spr_num = 0x2137;
-	int x_vel = 32;
-	int y_vel = -160;
-	for (int i = 0; i < 4; ++i) {
-		level_add_object23_bonus(x_vel, y_vel, 1);
-		x_vel = -x_vel;
-		if (x_vel >= 0) {
-			x_vel -= 16;
-			y_vel -= 16;
-		}
-	}
-}
-
-static void level_update_boss_minotaur_add_spr_0x1CA() { /* rock */
-	for (int i = 0; i < 32; ++i) {
-		struct object_t *obj = &g_vars.objects_tbl[23 + i];
-		if (obj->spr_num != 0xFFFF) {
-			continue;
-		}
-		obj->spr_num = 0x1CA;
-		obj->x_pos = 200;
-		obj->y_pos = 88;
-		obj->hit_counter = 0;
-		obj->data.t.counter = 132;
-		obj->data.t.ref = 0;
-		obj->x_velocity = -((random_get_number() & 15) << 3);
-		obj->data.t.y_velocity = 0;
-		break;
-	}
-}
-
-static void level_update_boss_minotaur_add_spr_0x1CB() { /* ceiling chandelier */
-	for (int i = 0; i < 32; ++i) {
-		struct object_t *obj = &g_vars.objects_tbl[23 + i];
-		if (obj->spr_num != 0xFFFF) {
-			continue;
-		}
-		obj->spr_num = 0x1CB;
-		obj->x_pos = (random_get_number() & 0x7F) - 16;
-		obj->y_pos = 0;
-		obj->hit_counter = 0;
-		obj->data.t.counter = 66;
-		obj->data.t.ref = 0;
-		obj->x_velocity = 0;
-		obj->data.t.y_velocity = 0;
-		break;
-	}
-}
-
-static void level_update_boss_minotaur() {
-	static const uint16_t data[] = {
-		0xA70F, 5, 0xA74E, 1, 0xA70F, 3, 0xA74E, 2, 0xA70F, 2, 0xA734, 1, 0xFFFF
-	};
-	if (!g_vars.boss_level9.seq) {
-		g_vars.boss_level9.anim = data;
-		g_vars.boss_level9.energy = 24;
-		g_vars.boss_level9.seq_counter = 0;
-		g_vars.boss_level9.hit_counter = 3;
-	}
-	level_update_objects_boss_energy(g_vars.boss_level9.energy >> 2);
-	if (g_vars.boss_level9.energy == 0) {
-		level_update_boss_minotaur_set_frame(2);
-		return;
-	}
-	if (g_vars.boss_level9.seq_counter == 0) {
-		const uint16_t *p = g_vars.boss_level9.anim;
-		if (p[0] == 0xFFFF) {
-			p = data;
-		}
-		assert(p[0] >= 0xA70F);
-		g_vars.boss_level9.seq = &boss_minotaur_seq_data[p[0] - 0xA70F];
-		g_vars.boss_level9.seq_counter = p[1];
-		g_vars.boss_level9.anim = p + 2;
-	}
-	for (int i = 0; i < 4; ++i) {
-		struct object_t *obj = &g_vars.objects_tbl[2 + i];
-		if (obj->spr_num == 0xFFFF) {
-			continue;
-		}
-		if (obj->x_pos >= 235 || obj->y_pos >= 80) {
-			continue;
-		}
-		g_vars.boss_level9.seq = &boss_minotaur_seq_data[0x19];
-		if (g_vars.boss_level9.energy > 0) {
-			--g_vars.boss_level9.energy;
-		}
-		if (g_vars.boss_level9.energy == 0) {
-			level_update_boss_minotaur_add_spr_0x137();
-		}
-		++g_vars.boss_level9.hit_counter;
-		g_vars.boss_level9.hit_counter &= 3;
-		if (g_vars.boss_level9.hit_counter == 0) {
-			g_vars.boss_level9.seq = &boss_minotaur_seq_data[0x25];
-		}
-		break;
-	}
-	const uint8_t *p = g_vars.boss_level9.seq;
-	while (1) {
-		if (*p == 0xFF) {
-			level_update_boss_minotaur_add_spr_0x1CA();
-			++p;
-		} else if (*p == 0xFE) {
-			level_update_boss_minotaur_add_spr_0x1CB();
-			++p;
-		} else if (*p == 0xFD) {
-			play_sound(2);
-			++p;
-		} else if ((*p & 0x80) == 0) {
-			++g_vars.boss_level9.seq;
-			level_update_boss_minotaur_set_frame(*p);
-			break;
-		} else {
-			if (g_vars.boss_level9.seq_counter > 0) {
-				--g_vars.boss_level9.seq_counter;
-			}
-			p += (int8_t)*p;
-			g_vars.boss_level9.seq = p;
-		}
-	}
-}
 
 static int level_get_tile_monster_offset(uint8_t tile_num, struct object_t *obj) {
 	const uint8_t attr = g_res.level.tile_attributes1[tile_num];
@@ -2237,19 +1482,13 @@ static void level_update_monster_pos(struct object_t *obj, struct level_monster_
 	}
 }
 
+extern void boss_update();
+
 extern void monster_func1(int type, struct object_t *obj); /* update */
 extern bool monster_func2(int type, struct level_monster_t *m); /* init */
 
 static void level_update_objects_monsters() {
-	if (g_res.level.boss_state != 0xFF) {
-		level_update_boss_gorilla();
-	}
-	if (g_vars.level_num == 5 && (g_res.level.scrolling_mask & ~1) == 0) {
-		level_update_boss_tree();
-	}
-	if (g_vars.level_num == 9) {
-		level_update_boss_minotaur();
-	}
+	boss_update();
 	for (int i = 0; i < MONSTERS_COUNT; ++i) {
 		struct object_t *obj = &g_vars.objects_tbl[11 + i];
 		if (obj->spr_num == 0xFFFF) {
@@ -2466,8 +1705,8 @@ static bool level_update_objects_decors_helper(struct object_t *obj) {
 		return false;
 	}
 	const int prev_y_pos = g_vars.objects_tbl[1].y_pos;
-	if (g_vars.level_current_object_decor_y_pos >= 0) {
-		g_vars.objects_tbl[1].y_pos += g_vars.level_current_object_decor_y_pos;
+	if (g_vars.current_platform_dy >= 0) {
+		g_vars.objects_tbl[1].y_pos += g_vars.current_platform_dy;
 	}
 	const int prev_spr_num = g_vars.objects_tbl[1].spr_num;
 	g_vars.objects_tbl[1].spr_num = 7;
@@ -2479,14 +1718,14 @@ static bool level_update_objects_decors_helper(struct object_t *obj) {
 	}
 	g_vars.level_force_x_scroll_flag = 1;
 	g_vars.objects_tbl[1].x_friction = 0;
-	g_vars.objects_tbl[1].x_pos += g_vars.level_current_object_decor_x_pos;
+	g_vars.objects_tbl[1].x_pos += g_vars.current_platform_dx;
 	level_player_reset();
 	const int y = obj->y_pos - spr_size_tbl[(obj->spr_num & 0x1FFF) * 2 + 1];
 	if (g_vars.objects_tbl[1].y_pos > y) {
 		g_vars.objects_tbl[1].y_pos = y + 1;
 		g_vars.objects_tbl[1].data.p.y_velocity = 1;
 	} else {
-		g_vars.objects_tbl[1].data.p.y_velocity = g_vars.level_current_object_decor_y_pos << 4;
+		g_vars.objects_tbl[1].data.p.y_velocity = g_vars.current_platform_dy << 4;
 	}
 	return true;
 }
@@ -2501,7 +1740,7 @@ static void level_update_objects_decors() {
 			continue;
 		}
 		if ((platform->flags & 15) == 8) {
-			g_vars.level_current_object_decor_x_pos = 0;
+			g_vars.current_platform_dx = 0;
 			platform->y_pos -= platform->type8.y_delta;
 			if (platform->type8.state == 0) {
 				int a = platform->type8.y_delta - 8;
@@ -2522,7 +1761,7 @@ static void level_update_objects_decors() {
 					platform->type8.y_velocity += 8;
 				}
 				y >>= 4;
-				g_vars.level_current_object_decor_y_pos = y;
+				g_vars.current_platform_dy = y;
 				platform->type8.y_delta += y;
 				const int tile_x =  platform->x_pos >> 4;
 				const int tile_y = (platform->y_pos + platform->type8.y_delta) >> 4;
@@ -2548,8 +1787,8 @@ static void level_update_objects_decors() {
 			}
 			platform->y_pos += platform->type8.y_delta;
 		} else {
-			g_vars.level_current_object_decor_x_pos = 0;
-			g_vars.level_current_object_decor_y_pos = 0;
+			g_vars.current_platform_dx = 0;
+			g_vars.current_platform_dy = 0;
 			if (platform->other.velocity != 0 || platform->other.max_velocity < 0 || (platform->flags & 0xC0) != 0) {
 				if (platform->other.max_velocity > platform->other.velocity) {
 					++platform->other.velocity;
@@ -2577,9 +1816,9 @@ static void level_update_objects_decors() {
 					al = -al;
 					ah = -ah;
 				}
-				g_vars.level_current_object_decor_x_pos = al;
+				g_vars.current_platform_dx = al;
 				platform->x_pos += al;
-				g_vars.level_current_object_decor_y_pos = ah;
+				g_vars.current_platform_dy = ah;
 				platform->y_pos += ah;
 				if (platform->other.max_velocity == platform->other.velocity) {
 					uint16_t ax = platform->other.counter + 1;
@@ -3459,7 +2698,7 @@ static void level_update_player_collision() {
 			play_sound(8);
 			if (num == 145) { /* tap */
 				for (int i = 0; i < 20; ++i) {
-					g_vars.collision_tbl[i].x_pos = _undefined;
+					g_vars.fly_tbl[i].x_pos = _undefined;
 				}
 			}
 			const int index = num - 57;
@@ -3518,17 +2757,7 @@ static void level_update_player_collision() {
 				g_vars.current_bonus.y_pos = obj->y_pos;
 				obj->data.m.state = 0xFF;
 				obj->spr_num = 0xFFFF;
-				int x_vel = 32;
-				int y_vel = -160;
-				for (int i = 0; i < 4; ++i) {
-					g_vars.current_bonus.spr_num = level_get_random_bonus_spr_num();
-					level_add_object23_bonus(x_vel, y_vel, 4);
-					x_vel = -x_vel;
-					if (x_vel >= 0) {
-						x_vel -= 16;
-						y_vel -= 16;
-					}
-				}
+				level_add_bonuses_4x();
 			}
 			level_clear_item(obj);
 		} else if (num == 181) { /* light off */
@@ -3658,8 +2887,8 @@ static void level_update_gates() {
 				g_vars.boss_level5.spr103_pos = 0;
 				g_vars.boss_level5.spr106_pos = 1;
 				g_vars.boss_level5.unk6 = 0;
-				g_vars.boss_level5.counter = 110;
-				g_vars.boss_level5.unk8 = 8;
+				g_vars.boss_level5.tick_counter = 110;
+				g_vars.boss_level5.idle_counter = 8;
 				memset(&g_vars.objects_tbl[91], 0xFF, sizeof(struct object_t) * 6);
 			}
 			level_draw_tilemap();
@@ -3672,6 +2901,46 @@ static void level_update_gates() {
 	}
 }
 
+static void level_update_columns() {
+	const uint16_t player_pos = level_get_player_tile_pos();
+	for (int i = 0; i < MAX_LEVEL_COLUMNS; ++i) {
+		struct level_column_t *column = &g_res.level.columns_tbl[i];
+		uint16_t pos = column->trigger_pos;
+		if (pos == 0xFFFF) {
+			continue;
+		}
+		if (pos != 0xFFFE) {
+			const int x = -(pos - player_pos);
+			if (x <= 8) {
+				column->trigger_pos = 0xFFFE;
+				g_vars.shake_screen_counter = 7;
+			}
+			continue;
+		}
+		g_vars.shake_screen_counter = 7;
+		if ((g_vars.level_draw_counter & 3) != 0) {
+			continue;
+		}
+		/* scroll the column up */
+		pos = column->tilemap_pos - 0x100;
+		for (int y = 0; y < column->h; ++y) {
+			for (int x = 0; x < column->w; ++x) {
+				g_res.leveldat[pos + x] = g_res.leveldat[pos + 0x100 + x];
+			}
+			pos += 0x100;
+		}
+		column->tilemap_pos -= 0x100;
+		const uint16_t offset = column->tiles_offset_buf;
+		for (int x = 0; x < column->w; ++x) {
+			g_res.leveldat[pos + x] = g_vars.columns_tiles_buf[offset + x];
+		}
+		column->tiles_offset_buf -= column->w;
+		--column->y_target;
+		if (column->y_target == 0) {
+			column->trigger_pos = 0xFFFF;
+		}
+	}
+}
 
 static void level_draw_front_tile(uint8_t tile_num, int x, int y) {
 	const int num = g_res.level.front_tiles_lut[tile_num];
@@ -3702,10 +2971,30 @@ static void level_clear_items_spr_num_tbl() {
 
 static bool level_update_objects_anim() {
 	if (g_vars.level_completed_flag == 1) {
-		level_completed_bonuses_animation();
-		++g_vars.level_num;
+		if (g_vars.level_num < 10) {
+			level_completed_bonuses_animation();
+		} else {
+			++g_vars.level_num;
+		}
 		level_reset();
-		level_clear_items_spr_num_tbl();
+		return false;
+	} else if (g_vars.level_completed_flag & 0x80) {
+		if (g_vars.level_num < 10) {
+			g_vars.level_num = next_level_tbl[g_vars.level_num];
+		} else {
+			int num = 0;
+			while (next_level_tbl[num] != g_vars.level_num) {
+				++num;
+			}
+			g_vars.level_num = num;
+			if (num < 10) {
+				level_completed_bonuses_animation();
+			} else {
+				++g_vars.level_num;
+			}
+		}
+		level_reset();
+		return false;
 	} else if (g_vars.restart_level_flag == 1) {
 		level_player_death_animation();
 		if (g_vars.player_death_flag == 0) {
@@ -3807,8 +3096,7 @@ static void level_draw_panel() {
 }
 
 static void level_update_panel() {
-	int count = g_vars.score / 25000;
-	count -= g_vars.score_extra_life;
+	const int count = (g_vars.score / 25000) - g_vars.score_extra_life;
 	if (count != 0) {
 		g_vars.score_extra_life += count;
 		g_vars.player_lifes += count;
@@ -3875,7 +3163,7 @@ static void level_draw_objects() {
 			continue;
 		}
 		const int spr_num = obj->spr_num & 0x1FFF;
-		const int spr_hflip = ((obj->spr_num & 0x8000) != 0) ? 1 : 0;
+		const bool spr_hflip = (obj->spr_num & 0x8000) != 0;
 		int spr_y_pos = obj->y_pos - ((g_vars.tilemap.y << 4) + g_vars.tilemap.scroll_dy);
 		int spr_h = spr_size_tbl[2 * spr_num + 1];
 		spr_y_pos -= spr_h;
@@ -3897,9 +3185,9 @@ static void level_draw_objects() {
 	}
 }
 
-static void level_draw_rotated_tiles() {
+static void level_draw_orbs() {
 	for (int i = 0; i < 20; ++i) {
-		struct rotation_t *p = &g_vars.rotation_tbl[i];
+		struct orb_t *p = &g_vars.orb_tbl[i];
 		if (p->x_pos == 0xFFFF) {
 			continue;
 		}
@@ -3910,16 +3198,72 @@ static void level_draw_rotated_tiles() {
 		const int ry = ((int8_t)sin_tbl[p->index_tbl]) >> 2;
 		p->y_pos += (ry * p->radius) >> 4;
 
-		const int dy = p->y_pos - g_vars.tilemap.scroll_dy - (g_vars.tilemap.y << 4);
-		if (dy < TILEMAP_SCREEN_H) {
-			const int dx = p->x_pos - g_vars.tilemap.scroll_dx - (g_vars.tilemap.x << 4);
-			if (dx < TILEMAP_SCREEN_W) {
+		const int y_pos = p->y_pos - g_vars.tilemap.scroll_dy - (g_vars.tilemap.y << 4);
+		if (y_pos >= 0 && y_pos < TILEMAP_SCREEN_H) {
+			const int x_pos = p->x_pos - g_vars.tilemap.scroll_dx - (g_vars.tilemap.x << 4);
+			if (x_pos >= 0 && x_pos < TILEMAP_SCREEN_W) {
+				video_put_pixel(x_pos, y_pos, 15);
 			}
 		}
 		p->x_pos = 0xFFFF;
 	}
 }
 
+static void level_draw_flies() {
+	for (int i = 0; i < 20; ++i) {
+		struct fly_t *p = &g_vars.fly_tbl[i];
+		if (p->x_pos == _undefined) {
+			continue;
+		}
+		--p->unk6;
+		if (p->unk6 & 0x80) {
+			p->unk6 = (random_get_number2() & 7) + 3;
+		}
+		int x_vel = random_get_number() & 15;
+		if (g_vars.objects_tbl[1].x_pos < (p->x_pos >> 3)) {
+			x_vel = -x_vel;
+		}
+		if (p->unk7 & 7) {
+			x_vel = -x_vel;
+		}
+		int y_vel = random_get_number() & 15;
+		if (g_vars.objects_tbl[1].y_pos < (p->y_pos >> 3)) {
+			y_vel = -y_vel;
+		}
+		if (p->unk7 & 7) {
+			y_vel = -y_vel;
+		}
+		p->x_delta = random_get_number2() & 31;
+		if (x_vel < 0) {
+			p->x_delta = -p->x_delta;
+		}
+		if (x_vel == 0) {
+			p->y_delta = 2;
+		} else {
+			p->y_delta = MIN((abs(y_vel) << 3) / abs(x_vel), 32);
+		}
+		if (y_vel < 0) {
+			p->y_delta = -p->y_delta;
+		}
+		if (p->unk7 & 7) {
+			--p->unk7;
+		}
+		p->x_pos += p->x_delta;
+		p->y_pos += p->y_delta;
+		if (p->unk6) {
+		} else {
+		}
+		const int x_pos = (p->x_pos >> 3) - ((g_vars.tilemap.x << 4) + g_vars.tilemap.scroll_dx);
+		if (x_pos < 0 || x_pos >= TILEMAP_SCREEN_W) {
+			continue;
+		}
+		const int y_pos = (p->y_pos >> 3) - ((g_vars.tilemap.y << 4) + g_vars.tilemap.scroll_dy);
+		if (y_pos < 0 || y_pos >= TILEMAP_SCREEN_H) {
+			continue;
+		}
+		video_put_pixel(x_pos, y_pos, 15);
+	}
+}
 
 static void level_draw_snow() {
 	++g_vars.snow.counter;
@@ -3927,6 +3271,18 @@ static void level_draw_snow() {
 	}
 	if (g_vars.snow.value == 0) {
 		return;
+	}
+	const int half = g_vars.snow.value >> 1;
+	uint16_t *p = g_vars.snow.random_tbl;
+	for (int i = 0; i < g_vars.snow.value; ++i) {
+		p[i] += 79;
+		uint16_t pos = (p[i] - g_vars.tilemap.x) & 0x1FFF;
+		if (pos >= 7000) {
+			pos -= 7000;
+			p[i] = pos;
+		}
+		if ((g_vars.snow.value - i) > half) {
+		}
 	}
 	const uint8_t num = random_get_number();
 	const uint8_t hi = random_get_number();
@@ -3979,9 +3335,10 @@ static void level_player_death_animation() {
 		level_update_tilemap();
 		level_draw_tilemap();
 		level_draw_panel();
-		level_draw_rotated_tiles();
+		level_draw_orbs();
 		level_draw_objects();
 		level_draw_front_tiles();
+		level_draw_flies();
 		level_draw_snow();
 		level_sync();
 		g_vars.objects_tbl[1].x_pos += g_vars.objects_tbl[1].x_velocity;
@@ -4071,6 +3428,7 @@ static void level_completed_bonuses_animation() {
 		g_vars.light.palette_flag2 = 1;
 		g_vars.light.palette_counter = 0;
 	}
+	play_music(15);
 	g_vars.objects_tbl[1].y_pos -= g_vars.tilemap.y << 4;
 	g_vars.objects_tbl[1].x_pos -= g_vars.tilemap.x << 4;
 	g_vars.tilemap.y = 0;
@@ -4201,8 +3559,6 @@ static void level_completed_bonuses_animation() {
 			}
 		}
 	}
-	video_wait_vbl();
-	video_wait_vbl();
 	g_vars.objects_tbl[1].data.p.anim = object_anim_tbl[1];
 	do {
 		level_update_object_anim(g_vars.objects_tbl[1].data.p.anim);
@@ -4254,14 +3610,16 @@ void do_level() {
 		level_update_player_collision();
 		level_update_objects_items();
 		level_update_gates();
+		level_update_columns();
 		g_vars.tilemap_adjust_player_pos_flag = false;
 		level_update_scrolling();
 		level_update_tilemap();
 		level_draw_tilemap();
 		level_draw_panel();
-		level_draw_rotated_tiles();
+		level_draw_orbs();
 		level_draw_objects();
 		level_draw_front_tiles();
+		level_draw_flies();
 		level_draw_snow();
 		if (!level_update_objects_anim()) {
 			break;

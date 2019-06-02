@@ -195,9 +195,6 @@ void video_load_front_tiles() {
 	}
 }
 
-void video_wait_vbl() {
-}
-
 void video_transition_close() {
 }
 
@@ -271,4 +268,8 @@ void video_load_sprites() {
 
 void video_draw_sprite(int num, int x, int y, int flag) {
 	g_sys.render_add_sprite(RENDER_SPR_GAME, num, x, y, flag != 0);
+}
+
+void video_put_pixel(int x, int y, uint8_t color) {
+	g_res.vga[y * GAME_SCREEN_W + x] = color;
 }

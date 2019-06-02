@@ -104,15 +104,15 @@ void load_leveldat(const uint8_t *p, struct level_t *level) {
 		gate->dst_pos = READ_LE_UINT16(p); p += 2;
 		gate->scroll_flag = *p++;
 	}
-	for (int i = 0; i < MAX_LEVEL_UNKS; ++i) {
-		struct level_unk_t *unk = &g_res.level.unks_tbl[i];
-		unk->tilemap_pos = READ_LE_UINT16(p); p += 2;
-		unk->w = *p++;
-		unk->h = *p++;
-		unk->unk4 = READ_LE_UINT16(p); p += 2;
-		unk->unk6 = READ_LE_UINT16(p); p += 2;
-		unk->unk8 = *p++;
-		unk->unk9 = *p++;
+	for (int i = 0; i < MAX_LEVEL_COLUMNS; ++i) {
+		struct level_column_t *column = &g_res.level.columns_tbl[i];
+		column->tilemap_pos = READ_LE_UINT16(p); p += 2;
+		column->w = *p++;
+		column->h = *p++;
+		column->trigger_pos = READ_LE_UINT16(p); p += 2;
+		column->tiles_offset_buf = READ_LE_UINT16(p); p += 2;
+		column->y_target = *p++;
+		column->unk9 = *p++;
 	}
 	const uint8_t *monster_attr = p;
 	int monsters_count = 0;
@@ -251,7 +251,7 @@ void load_leveldat(const uint8_t *p, struct level_t *level) {
 	}
 	g_res.level.boss_xmin = READ_LE_UINT16(p); p += 2;
 	g_res.level.boss_xmax = READ_LE_UINT16(p); p += 2;
-	g_res.level.boss_counter = *p++;
+	g_res.level.boss_speed = *p++;
 	g_res.level.boss_energy = READ_LE_UINT16(p); p += 2;
 	g_res.level.boss_state = *p++;
 	g_res.level.boss_x_pos = READ_LE_UINT16(p); p += 2;

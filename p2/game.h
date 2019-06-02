@@ -85,26 +85,27 @@ struct object_t {
     108     8 : boss energy bars
 */
 
-struct boss_level5_proj_t {
-	int16_t x_pos, y_pos;
+struct boss_level5_leaf_t {
+	int16_t x_pos;
+	int16_t y_pos;
 	uint16_t spr_num;
-	uint16_t unk6;
-	uint16_t unk8;
+	int16_t y_delta;
+	int16_t x_delta;
 	int8_t dir;
 };
 
-struct rotation_t {
+struct orb_t {
 	uint16_t x_pos;
 	uint16_t y_pos;
 	uint8_t index_tbl; /* cos_/sin_tbl */
 	uint8_t radius;
 };
 
-struct collision_t {
+struct fly_t {
 	uint16_t x_pos;
 	uint16_t y_pos;
-	uint8_t unk4;
-	uint8_t unk5;
+	int8_t x_delta;
+	int8_t y_delta;
 	uint8_t unk6;
 	uint8_t unk7;
 };
@@ -173,11 +174,11 @@ struct vars_t {
 	uint8_t level_bonuses_count_tbl[80];
 	uint8_t bonus_energy_counter;
 
-	int16_t level_current_object_decor_x_pos, level_current_object_decor_y_pos;
+	int16_t current_platform_dx, current_platform_dy;
 	uint16_t decor_tile0_offset; /* decor tile below the player */
 
-	struct collision_t collision_tbl[20]; /* reset by bonus 145 */
-	struct rotation_t rotation_tbl[20];
+	struct fly_t fly_tbl[20];
+	struct orb_t orb_tbl[20]; /* spider webs */
 	struct object_t *current_hit_object;
 	struct object_t objects_tbl[OBJECTS_COUNT];
 
@@ -195,6 +196,8 @@ struct vars_t {
 	uint8_t tile_tbl2[256]; /* animated tile state 2 */
 	uint8_t tile_tbl3[256]; /* animated tile state 3 */
 	uint8_t animated_tile_flag_tbl[256]; /* 1 if tile is animated */
+
+	uint8_t columns_tiles_buf[256];
 
 	struct {
 		int16_t x, y;
@@ -214,7 +217,7 @@ struct vars_t {
 	} monster;
 	struct {
 		uint16_t draw_counter;
-		uint8_t unk_counter;
+		uint8_t change_counter;
 		int16_t x_velocity, y_velocity;
 		bool hdir; /* facing to the right */
 		int16_t x_dist; /* horizontal distance from player */
@@ -238,12 +241,12 @@ struct vars_t {
 		uint8_t spr103_pos;
 		uint8_t spr106_pos;
 		uint8_t unk6;
-		uint8_t counter;
-		uint8_t unk8;
-		struct boss_level5_proj_t proj_tbl[5];
+		uint8_t tick_counter;
+		uint8_t idle_counter;
+		struct boss_level5_leaf_t leaf_tbl[5];
 	} boss_level5; /* tree */
 	struct {
-		uint16_t energy;
+		int16_t energy;
 		uint8_t seq_counter;
 		uint8_t hit_counter;
 		const uint8_t *seq;
@@ -307,6 +310,11 @@ extern void	game_main();
 
 /* level.c */
 extern void	do_level();
+extern uint8_t	level_get_tile(uint16_t offset);
+extern void	level_player_die();
+extern bool	level_objects_collide(const struct object_t *, const struct object_t *);
+extern void	level_add_object23_bonus(int x_vel, int y_vel, int count);
+extern void	level_add_bonuses_4x();
 
 /* monsters.c */
 extern void	monster_change_next_anim(struct object_t *obj);
@@ -324,11 +332,11 @@ extern void	video_draw_string2(int offset, const char *str);
 extern void	video_draw_tile(const uint8_t *src, int x, int y);
 extern void	video_convert_tiles(uint8_t *data, int len);
 extern void	video_load_front_tiles();
-extern void	video_wait_vbl();
 extern void	video_transition_close();
 extern void	video_transition_open();
 extern void	video_load_sprites();
 extern void	video_draw_sprite(int num, int x, int y, int flag);
+extern void	video_put_pixel(int x, int y, uint8_t color);
 
 /* sound.c */
 extern void	sound_init();

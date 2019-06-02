@@ -5,7 +5,7 @@ This is a rewrite of the [Blues Brothers](https://www.mobygames.com/game/blues-b
 
 ![Screenshot1](blues1.png) ![Screenshot2](bbja2.png)
 
-There is also some support for [Prehistorik 2](https://www.mobygames.com/game/prehistorik-2).
+There is also support for [Prehistorik 2](https://www.mobygames.com/game/prehistorik-2).
 
 ## Requirements
 

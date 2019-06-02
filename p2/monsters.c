@@ -61,9 +61,9 @@ void monster_change_prev_anim(struct object_t *obj) {
 	obj->data.m.anim = p;
 }
 
-static struct rotation_t *find_rotation() {
+static struct orb_t *find_orb() {
 	for (int i = 0; i < 20; ++i) {
-		struct rotation_t *r = &g_vars.rotation_tbl[i];
+		struct orb_t *r = &g_vars.orb_tbl[i];
 		if (r->x_pos == 0xFFFF) {
 			return r;
 		}
@@ -71,11 +71,11 @@ static struct rotation_t *find_rotation() {
 	return 0;
 }
 
-static void monster_rotate_tiles(struct level_monster_t *m, int index, int step) {
+static void monster_add_orb(struct level_monster_t *m, int index, int step) {
 	step >>= 2;
 	uint8_t radius = step;
 	for (int i = 0; i < 3; ++i) {
-		struct rotation_t *r = find_rotation();
+		struct orb_t *r = find_orb();
 		if (r) {
 			r->x_pos = m->x_pos;
 			r->y_pos = m->y_pos - 24;
@@ -89,7 +89,7 @@ static void monster_rotate_tiles(struct level_monster_t *m, int index, int step)
 static void monster_rotate_pos(struct object_t *obj, struct level_monster_t *m) {
 	obj->x_pos = m->x_pos + ((m->type4.radius * (((int8_t)cos_tbl[m->type4.angle]) >> 2)) >> 4);
 	obj->y_pos = m->y_pos + ((m->type4.radius * (((int8_t)sin_tbl[m->type4.angle]) >> 2)) >> 4);
-	monster_rotate_tiles(m, m->type4.angle, m->type4.radius);
+	monster_add_orb(m, m->type4.angle, m->type4.radius);
 }
 
 static void monster_update_y_velocity(struct object_t *obj, struct level_monster_t *m) {
@@ -134,7 +134,7 @@ static void monster_func1_type2(struct object_t *obj) {
 	struct level_monster_t *m = obj->data.m.ref;
 	const uint8_t state = obj->data.m.state;
 	if (state < 2) {
-		monster_rotate_tiles(m, 0, obj->y_pos - m->y_pos);
+		monster_add_orb(m, 0, obj->y_pos - m->y_pos);
 		if (state == 0) {
 			obj->data.m.y_velocity = m->type2.unkE << 4;
 			const int dy = obj->y_pos - m->y_pos;
@@ -174,7 +174,7 @@ static void monster_func1_type3(struct object_t *obj) {
 		obj->data.m.y_velocity = 32;
 		monster_change_next_anim(obj);
 	} else if (state == 1) {
-		monster_rotate_tiles(m, 0, obj->y_pos - m->y_pos);
+		monster_add_orb(m, 0, obj->y_pos - m->y_pos);
 		const uint16_t pos = ((obj->y_pos >> 4) << 8) | (obj->x_pos >> 4);
 		const uint8_t tile_num = g_res.leveldat[pos];
 		if (g_res.level.tile_attributes1[tile_num] == 0) {
@@ -205,7 +205,7 @@ static void monster_func1_type4(struct object_t *obj) {
 			return;
 		}
 		const int dy = obj->y_pos - m->y_pos;
-		monster_rotate_tiles(m, 0, dy);
+		monster_add_orb(m, 0, dy);
 		if (m->type4.radius > dy) {
 			obj->y_pos += 2;
 		} else {
