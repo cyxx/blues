@@ -88,6 +88,22 @@ void video_draw_number(int offset, int num) {
 	decode_planar(fnt + num * 88, g_res.vga + y * GAME_SCREEN_W + x, GAME_SCREEN_W, 16, 11, 0);
 }
 
+void video_draw_character_spr(int offset, uint8_t chr) {
+	const int y = (offset * 8) / 320;
+	const int x = (offset * 8) % 320;
+	video_draw_sprite(241 + chr, x, y, 0);
+}
+
+void video_draw_string2(int offset, const char *s) {
+	while (*s) {
+		const uint8_t chr = *s++;
+		if (chr != ' ') {
+			video_draw_character_spr(offset, chr - 0x41);
+		}
+		offset += 2;
+	}
+}
+
 void video_clear() {
 	memset(g_res.vga, 0, GAME_SCREEN_W * GAME_SCREEN_H);
 }

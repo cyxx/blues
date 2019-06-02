@@ -57,6 +57,7 @@ struct mixerchannel_t {
 static const int _rate = SYS_AUDIO_FREQ;
 static struct mixerchannel_t _channel;
 static ModPlugFile *_mpf;
+static int _music_num;
 
 static uint16_t sound_offsets_tbl[MAX_SOUNDS];
 
@@ -99,6 +100,7 @@ void sound_init() {
 		sound_offsets_tbl[i] = offset;
 		offset += sound_sizes_tbl[i];
 	}
+	_music_num = -1;
 	g_sys.start_audio(mix, 0);
 }
 
@@ -130,6 +132,9 @@ void play_music(int num) {
 	if (g_res.dos_demo) { /* no .TRK files with demo */
 		return;
 	}
+	if (_music_num == num) {
+		return;
+	}
 	const char *filename = trk_names_tbl[num];
 	if (filename) {
 		print_debug(DBG_MIXER, "play_music '%s'", filename);
@@ -145,6 +150,7 @@ void play_music(int num) {
 				print_debug(DBG_MIXER, "Loaded module '%s'", ModPlug_GetName(_mpf));
 			}
 			free(data);
+			_music_num = num;
 		}
 		g_sys.unlock_audio();
 	}

@@ -251,9 +251,9 @@ void load_leveldat(const uint8_t *p, struct level_t *level) {
 	g_res.level.boss_xmax = READ_LE_UINT16(p); p += 2;
 	g_res.level.boss_counter = *p++;
 	g_res.level.boss_energy = READ_LE_UINT16(p); p += 2;
-	g_res.level.boss_flag = *p++;
-	g_res.level.end_x_pos = READ_LE_UINT16(p); p += 2;
-	g_res.level.end_y_pos = READ_LE_UINT16(p); p += 2;
+	g_res.level.boss_state = *p++;
+	g_res.level.boss_x_pos = READ_LE_UINT16(p); p += 2;
+	g_res.level.boss_y_pos = READ_LE_UINT16(p); p += 2;
 	const int total = p - g_res.leveldat;
 	print_debug(DBG_RESOURCE, "level total offset %d", total);
 }

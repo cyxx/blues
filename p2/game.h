@@ -50,7 +50,7 @@ struct monster_t {
 struct thing_t {
 	void *ref;
 	int16_t counter;
-	int16_t unkE;
+	int16_t y_velocity;
 };
 
 struct object_t {
@@ -62,13 +62,13 @@ struct object_t {
 		struct player_t p; /* objects[1] */
 		struct club_projectile_t c; /* objects[2..5] */
 		struct monster_t m; /* objects[11..22] */
-		struct thing_t t;
+		struct thing_t t; /* objects[23..74] */
 	} data;
 	uint8_t hit_counter;
 };
 
 #define MONSTERS_COUNT 12
-#define OBJECTS_COUNT 108
+#define OBJECTS_COUNT 116
 /*
  offset count
       0     1 : club
@@ -78,9 +78,11 @@ struct object_t {
      11    12 : monsters
      23    32 : secret bonuses
      55    20 : items
-     75    16 : bonus scores
+     75    16 : scores
      91     7 : decor
      98     5 : boss level 5 (tree)
+    103     5 : boss projectiles
+    108     8 : boss energy bars
 */
 
 struct boss_level5_proj_t {
@@ -124,6 +126,11 @@ struct vars_t {
 	uint32_t score;
 	uint16_t score_extra_life;
 
+	uint16_t level_complete_secrets_count;
+	uint16_t level_complete_bonuses_count;
+	uint16_t level_current_secrets_count;
+	uint16_t level_current_bonuses_count;
+
 	uint8_t level_completed_flag;
 	uint8_t restart_level_flag;
 
@@ -133,7 +140,7 @@ struct vars_t {
 	uint16_t shake_screen_voffset;
 
 	uint8_t player_lifes;
-	uint8_t player_energy;
+	int8_t player_energy;
 	uint8_t player_death_flag;
 	uint8_t player_flying_flag;
 	uint8_t player_flying_counter;
@@ -206,28 +213,42 @@ struct vars_t {
 		uint8_t type0_hdir;
 	} monster;
 	struct {
-		int16_t x_pos, y_pos;
-		uint8_t hdir;
-		int16_t x_dist;
-	} boss;
+		uint16_t draw_counter;
+		uint8_t unk_counter;
+		int16_t x_velocity, y_velocity;
+		bool hdir; /* facing to the right */
+		int16_t x_dist; /* horizontal distance from player */
+		int16_t state_counter;
+		uint8_t anim_num;
+		const uint8_t *prev_anim;
+		const uint8_t *next_anim;
+		const uint8_t *current_anim;
+		struct {
+			int16_t x_pos, y_pos;
+			uint16_t spr_num;
+		} parts[5];
+		struct object_t *obj1;
+		struct object_t *obj2;
+		struct object_t *obj3;
+	} boss; /* gorilla */
 	struct {
 		uint8_t unk1;
 		uint8_t energy;
 		uint8_t state; /* 3: boss dead */
-		uint8_t unk4; /* spr103_pos */
-		uint8_t unk5; /* spr106_pos */
+		uint8_t spr103_pos;
+		uint8_t spr106_pos;
 		uint8_t unk6;
 		uint8_t counter;
 		uint8_t unk8;
 		struct boss_level5_proj_t proj_tbl[5];
 	} boss_level5; /* tree */
 	struct {
-		int16_t unk1;
-		uint8_t unk2;
-		uint8_t unk3;
+		uint16_t energy;
+		uint8_t seq_counter;
+		uint8_t hit_counter;
 		const uint8_t *seq;
 		const uint16_t *anim;
-	} boss_level9; /* minotaur statue */
+	} boss_level9; /* minotaur */
 	struct {
 		int16_t x_pos, y_pos;
 		uint16_t spr_num;
@@ -270,7 +291,9 @@ extern const uint8_t cos_tbl[256];
 extern const uint8_t sin_tbl[256];
 extern const uint16_t monster_spr_tbl[48];
 extern const uint8_t monster_anim_tbl[1100];
-extern const uint8_t boss_minotaur_seq_data[742];
+extern const uint8_t boss_minotaur_seq_data[86];
+extern const uint16_t boss_gorilla_data[19 * 10];
+extern const uint16_t boss_gorilla_spr_tbl[46 * 3]; /* uint16_t: spr1_num, uint16_t: spr2_num, uint8_t: dx, uint8_t: dy */
 
 /* game.c */
 extern void	update_input();
@@ -296,6 +319,8 @@ extern void	video_copy_img(const uint8_t *src);
 extern void	video_draw_panel(const uint8_t *src);
 extern void	video_draw_panel_number(int offset, int num);
 extern void	video_draw_number(int offset, int num);
+extern void	video_draw_character_spr(int offset, uint8_t chr);
+extern void	video_draw_string2(int offset, const char *str);
 extern void	video_draw_tile(const uint8_t *src, int x, int y);
 extern void	video_convert_tiles(uint8_t *data, int len);
 extern void	video_load_front_tiles();

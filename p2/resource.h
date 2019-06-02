@@ -153,9 +153,9 @@ struct level_t {
 	uint16_t boss_xmax;
 	uint8_t boss_counter;
 	uint16_t boss_energy;
-	uint8_t boss_flag; /* !=255: has boss */
-	uint16_t end_x_pos;
-	uint16_t end_y_pos;
+	uint8_t boss_state; /* !=255: has boss */
+	uint16_t boss_x_pos;
+	uint16_t boss_y_pos;
 };
 
 struct resource_t {
