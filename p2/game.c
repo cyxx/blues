@@ -117,7 +117,33 @@ static void do_present_screen() {
 	}
 }
 
+static const uint8_t joystick_palette_data[] = {
+	0x08,0x14,0x22,0x10,0x00,0x00,0x18,0x00,0x00,0x20,0x00,0x08,0x06,0x0F,0x1A,0x28,
+	0x10,0x08,0x28,0x18,0x08,0x30,0x20,0x08,0x30,0x28,0x08,0x38,0x30,0x10,0x38,0x30,
+	0x18,0x38,0x30,0x20,0x38,0x30,0x28,0x38,0x30,0x30,0x38,0x38,0x38,0x00,0x00,0x00
+};
+
 static void do_demo_screen() {
+	uint8_t *data = load_file("JOYSTICK.SQZ");
+	if (data) {
+		video_copy_img(data);
+		g_sys.set_screen_palette(joystick_palette_data, 0, 16, 6);
+		update_screen_img(g_res.background);
+		g_sys.fade_in_palette();
+		free(data);
+		wait_input(1000);
+	}
+}
+
+static void do_castle_screen() {
+	uint8_t *data = load_file("CASTLE.SQZ");
+	if (data) {
+		g_sys.set_screen_palette(data, 0, 256, 6);
+		update_screen_img(data + 768);
+		g_sys.fade_in_palette();
+		free(data);
+		wait_input(1000);
+	}
 }
 
 static void do_menu() {
@@ -144,11 +170,38 @@ static void do_menu() {
 	}
 }
 
+static void do_photos_screen() {
+}
+
+void input_check_ctrl_alt_e() {
+	if (g_vars.input.keystate[0x1D] && g_vars.input.keystate[0x38] && g_vars.input.keystate[0x12]) {
+		do_photos_screen();
+	}
+}
+
 void input_check_ctrl_alt_w() {
 	if (g_vars.input.keystate[0x1D] && g_vars.input.keystate[0x38] && g_vars.input.keystate[0x11]) {
 		do_credits();
 		wait_input(60);
 	}
+}
+
+void do_theend_screen() {
+	uint8_t *data = load_file("THEEND.SQZ");
+	if (data) {
+		g_sys.set_screen_palette(data, 0, 256, 6);
+		update_screen_img(data + 768);
+		g_sys.fade_in_palette();
+		free(data);
+		wait_input(1000);
+	}
+	time_t now;
+	time(&now);
+	struct tm *t = localtime(&now);
+	if (t->tm_year + 1900 < 1994) {
+		return;
+	}
+	do_photos_screen();
 }
 
 uint32_t timer_get_counter() {
@@ -204,7 +257,7 @@ static void game_run(const char *data_path) {
 	video_convert_tiles(g_res.uniondat, g_res.unionlen);
 	g_vars.level_num = g_options.start_level;
 	do_programmed_in_1992_screen();
-	if (!g_sys.input.space) {
+	if (!g_sys.input.space && !g_sys.input.quit) {
 		do_titus_screen();
 		play_music(3);
 		do_present_screen();
@@ -226,6 +279,10 @@ static void game_run(const char *data_path) {
 		uint8_t level_num;
 		do {
 			level_num = g_vars.level_num;
+			if (g_vars.level_num >= 8 && g_vars.level_num < 10 && 0 /* !g_vars.level_expert_flag */ ) {
+				do_castle_screen();
+				break;
+			}
 			do_level();
 			print_debug(DBG_GAME, "previous level %d current %d", level_num, g_vars.level_num);
 		} while (!g_res.dos_demo && g_vars.level_num != level_num);

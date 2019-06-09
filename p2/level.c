@@ -262,6 +262,7 @@ static void load_level_data(int num) {
 	print_debug(DBG_GAME, "start_pos %d,%d", g_res.level.start_x_pos, g_res.level.start_y_pos);
 	load_level_data_init_animated_tiles();
 	load_level_data_init_transparent_tiles();
+	g_vars.snow.pattern = (g_vars.level_num != 15) ? snow_pattern1_data : snow_pattern2_data;
 	g_vars.snow.counter = 0;
 	g_vars.tilemap_start_x_pos = g_res.level.start_x_pos;
 	g_vars.tilemap_start_y_pos = g_res.level.start_y_pos;
@@ -667,6 +668,10 @@ static void level_init_object_hit_from_xy_pos(int16_t x_pos, int16_t y_pos) {
 }
 
 static void level_update_tile_type_2() {
+	if (g_vars.level_num == 14) {
+		g_vars.player_death_flag = 0xFF;
+		return;
+	}
 	if (g_options.cheats & CHEATS_NO_HIT) {
 		return;
 	}
@@ -974,11 +979,14 @@ static void level_reset_objects() {
 }
 
 static void level_reset() {
+	g_vars.tilemap_noscroll_flag = 0;
 	g_vars.player_nojump_counter = 0;
 	g_vars.player_action_counter = 0;
 	g_vars.restart_level_flag = 0;
 	g_vars.player_death_flag = 0;
 	g_vars.level_completed_flag = 0;
+	g_vars.light.palette_flag1 = 0;
+	g_vars.light.palette_flag2 = 0;
 
 	g_vars.objects_tbl[1].data.p.special_anim_num = 0;
 	g_vars.tilemap.prev_x = _undefined;
@@ -1203,6 +1211,7 @@ static bool level_collide_axe_monsters(struct object_t *axe_obj) {
 		obj->data.m.flags |= 0x40;
 		obj->data.m.energy -= g_vars.player_club_power;
 		if (obj->data.m.energy < 0) {
+			play_sound(2);
 			level_monster_die(obj, m, axe_obj);
 		} else {
 			obj->x_pos -= obj->data.m.x_velocity >> 2;
@@ -1901,7 +1910,9 @@ static void level_update_player_hdir_x_velocity(int x_vel) {
 }
 
 static void level_update_screen_x_velocity() {
-	g_vars.objects_tbl[1].x_velocity -= g_vars.snow.value >> 3;
+	if ((g_options.cheats & CHEATS_NO_WIND) == 0) {
+		g_vars.objects_tbl[1].x_velocity -= g_vars.snow.value >> 3;
+	}
 	if (g_vars.objects_tbl[1].x_velocity < -96) {
 		g_vars.objects_tbl[1].x_velocity = -96;
 	}
@@ -1990,6 +2001,13 @@ static void level_update_player_anim_3_6_7(uint8_t al) {
 	g_vars.player_anim_0x40_flag = (g_vars.player_current_anim_type & 0x40) ^ 0x40;
 	if (g_vars.player_anim_0x40_flag == 0) {
 		g_vars.player_club_anim_duration = club_anim_tbl[g_vars.player_club_type].a;
+		if (g_vars.player_club_type == 0) {
+			play_sound(5);
+		} else if (g_vars.player_club_type == 1) {
+			play_sound(0);
+		} else {
+			play_sound(10);
+		}
 		int16_t dy = 0;
 		al = g_vars.objects_tbl[1].data.p.current_anim_num;
 		if (al != 6) {
@@ -2302,7 +2320,51 @@ static void level_update_player_flying() {
 	if (g_vars.player_flying_flag == 0) {
 		return;
 	}
-	print_warning("Unimplemented level_update_player_flying");
+	if (g_vars.player_gravity_flag != 0) {
+		g_vars.objects_tbl[1].spr_num &= 0x8000;
+		const int x_vel = abs(g_vars.objects_tbl[1].x_velocity);
+		int num = 48;
+		if (x_vel < 64) {
+			++num;
+			if (x_vel < 32) {
+				++num;
+			}
+		}
+		if (g_vars.player_flying_anim_index < 3) {
+			num = 51 - g_vars.player_flying_anim_index;
+		}
+		g_vars.objects_tbl[1].spr_num |= num;
+	}
+	const uint8_t *p = &player_flying_anim_data[14];
+	if ((g_vars.input.key_up | g_vars.input.key_down) == 0 && g_vars.player_flying_anim_index != 3) {
+		if (g_vars.player_flying_anim_index < 3) {
+			++g_vars.player_flying_anim_index;
+		} else {
+			--g_vars.player_flying_anim_index;
+		}
+	}
+	const uint16_t player_spr_num = g_vars.objects_tbl[1].spr_num;
+	for (uint16_t num; (num = READ_LE_UINT16(p)) != 0; p += 6) {
+		if (num != (player_spr_num & 0x1FFF)) {
+			continue;
+		}
+		int x_delta = (int8_t)p[4];
+		int spr_num = READ_LE_UINT16(p + 2);
+		if (spr_num >= 121) {
+			 spr_num = READ_LE_UINT16(player_flying_anim_data + g_vars.player_flying_anim_index * 2);
+		}
+		if (player_spr_num & 0x8000) {
+			spr_num |= 0x8000;
+			x_delta = -x_delta;
+		}
+		if (g_vars.player_unk_counter1 > 24 && (spr_num & 0x1FFF) < 121) {
+			++spr_num;
+		}
+		g_vars.objects_tbl[0].spr_num = spr_num;
+		g_vars.objects_tbl[0].x_pos += x_delta;
+		g_vars.objects_tbl[0].y_pos += (int8_t)p[5];
+		break;
+	}
 }
 
 static void level_update_player() {
@@ -2514,6 +2576,7 @@ static void level_update_player_collision() {
 				continue;
 			}
 			if (!g_vars.player_jump_monster_flag || g_vars.objects_tbl[1].data.p.y_velocity < 0) {
+				play_sound(9);
 				m->flags &= ~1;
 				g_vars.objects_tbl[1].hit_counter = 44;
 				g_vars.player_anim_0x40_flag = 0;
@@ -2534,6 +2597,7 @@ static void level_update_player_collision() {
 			}
 			if (!g_vars.player_gravity_flag) {
 				/* jumping on a monster */
+				play_sound(3);
 				int num = obj->data.m.hit_jump_counter >> 2;
 				if (num != 11) {
 					obj->data.m.hit_jump_counter += 4;
@@ -2973,9 +3037,8 @@ static bool level_update_objects_anim() {
 	if (g_vars.level_completed_flag == 1) {
 		if (g_vars.level_num < 10) {
 			level_completed_bonuses_animation();
-		} else {
-			++g_vars.level_num;
 		}
+		++g_vars.level_num;
 		level_reset();
 		return false;
 	} else if (g_vars.level_completed_flag & 0x80) {
@@ -3027,9 +3090,14 @@ static bool level_update_objects_anim() {
 		}
 	} else if (g_vars.player_death_flag == 1) {
 		level_player_death_animation();
+	} else if (g_vars.player_death_flag == 0xFF) {
+		do_theend_screen();
+		return false;
 	} else {
 		return true;
 	}
+	input_check_ctrl_alt_e();
+	play_music(17);
 	g_vars.objects_tbl[1].spr_num = 13;
 	g_vars.level_num = 0;
 	g_vars.score = 0;
@@ -3109,28 +3177,25 @@ static void level_update_light_palette() {
 	if ((g_vars.light.palette_flag1 | g_vars.light.palette_flag2) != 0) {
 		++g_vars.light.palette_counter;
 		uint8_t palette[16 * 3];
-		const uint8_t *si = palettes_tbl[g_vars.level_num];
-		const uint8_t *bx = light_palette_data;
+		const uint8_t *src_pal = palettes_tbl[g_vars.level_num];
+		const uint8_t *dst_pal = light_palette_data;
 		bool changed = false;
 		if (g_vars.light.palette_flag2 != 0) {
-			SWAP(si, bx);
+			SWAP(src_pal, dst_pal);
 		}
 		for (int i = 0; i < 16 * 3; ++i) {
-			int al = *si++;
-			const int ah = *bx++;
-			int dh = g_vars.light.palette_counter;
-			al -= ah;
-			if (al < 0) {
-				al = -al;
-				dh = -dh;
+			int diff = src_pal[i] - dst_pal[i];
+			int step = g_vars.light.palette_counter;
+			if (diff < 0) {
+				diff = -diff;
+				step = -step;
 			}
-			if (al <= g_vars.light.palette_counter) {
-				al = ah;
+			if (diff <= g_vars.light.palette_counter) {
+				palette[i] = dst_pal[i];
 			} else {
-				al = si[-1] - dh;
+				palette[i] = src_pal[i] - step;
 				changed = true;
 			}
-			palette[i] = al;
 		}
 		if (!changed) {
 			g_vars.light.palette_flag1 = 0;
@@ -3268,6 +3333,16 @@ static void level_draw_flies() {
 static void level_draw_snow() {
 	++g_vars.snow.counter;
 	if ((g_vars.level_draw_counter & 3) == 0) {
+		const uint16_t *p = g_vars.snow.pattern;
+		if (p[0] != 0xFFFF) {
+			if (p[0] < g_vars.snow.counter) {
+				g_vars.snow.value += p[1];
+				if (p[3] < g_vars.snow.counter) {
+					g_vars.snow.counter += 3;
+				}
+			}
+			g_vars.snow.value = MIN(g_vars.snow.value, p[2]);
+		}
 	}
 	if (g_vars.snow.value == 0) {
 		return;
@@ -3276,12 +3351,18 @@ static void level_draw_snow() {
 	uint16_t *p = g_vars.snow.random_tbl;
 	for (int i = 0; i < g_vars.snow.value; ++i) {
 		p[i] += 79;
+		uint8_t al = p[i];
+		uint8_t cl = ((al << 1) | (al >> 7)) & 3;
 		uint16_t pos = (p[i] - g_vars.tilemap.x) & 0x1FFF;
 		if (pos >= 7000) {
 			pos -= 7000;
 			p[i] = pos;
 		}
+		const int y_pos = (pos / 40);
+		const int x_pos = (pos % 40) * 8 + cl * 2;
+		video_put_pixel(x_pos, y_pos, 15);
 		if ((g_vars.snow.value - i) > half) {
+			video_put_pixel(x_pos, y_pos + 1, 15);
 		}
 	}
 	const uint8_t num = random_get_number();
@@ -3321,6 +3402,7 @@ static void level_shake_screen() {
 }
 
 static void level_player_death_animation() {
+	play_sound(7);
 	g_vars.objects_tbl[1].hit_counter = 0;
 	g_vars.objects_tbl[1].spr_num = 33;
 	g_vars.objects_tbl[1].data.p.y_velocity = 15;

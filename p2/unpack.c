@@ -234,6 +234,7 @@ static int unpack_sqv(FILE *in, struct unpack_sqv_t *u) {
 	const int uncompressed_size = (READ_LE_UINT16(u->rd) << 16) + READ_LE_UINT16(u->rd + 2);
 	const int dict_len = READ_LE_UINT16(u->rd + 4);
 	print_debug(DBG_UNPACK, "SQV uncompressed size %d dict_len %d", uncompressed_size, dict_len);
+	assert(dict_len <= 0x400);
 	fread(u->dict_buf, 1, dict_len, in);
 
 	uint8_t *output_buffer = (uint8_t *)malloc(uncompressed_size);
@@ -245,13 +246,16 @@ static int unpack_sqv(FILE *in, struct unpack_sqv_t *u) {
 	uint8_t *dst = output_buffer;
 
 	const uint8_t *src = u->rd;
-	int len = 1;
+	int bits_count = 1;
 	int bytes_count = 2;
+	int state = 0;
+	int count = 0;
+	uint8_t code, prev;
 	uint16_t bits = 0;
 	uint16_t val = 0;
 	while ((dst - output_buffer) < uncompressed_size) {
-		--len;
-		if (len == 0) {
+		--bits_count;
+		if (bits_count == 0) {
 			bytes_count -= 2;
 			if (bytes_count == 0) {
 				bytes_count = fread(u->rd, 1, 0x1000, in);
@@ -262,20 +266,56 @@ static int unpack_sqv(FILE *in, struct unpack_sqv_t *u) {
 				src = u->rd;
 			}
 			bits = READ_BE_UINT16(src); src += 2;
-			len = 17;
-			continue;
+			bits_count = 16;
 		}
-		const int carry = (bits & 0x8000) != 0;
+		const bool carry = (bits & 0x8000) != 0;
 		bits <<= 1;
 		if (carry) {
 			val += 2;
 		}
-		assert(val < 0x400);
+		assert((val & 1) == 0);
+		assert(val < dict_len);
 		val = READ_LE_UINT16(u->dict_buf + val);
 		if ((val & 0x8000) == 0) {
 			continue;
 		}
-		*dst++ = val & 255;
+		val &= ~0x8000;
+		switch (state) {
+		case 0:
+			code = val & 255;
+			if (val >> 8) {
+				switch (code) {
+				case 0:
+					state = 1;
+					break;
+				case 1:
+					state = 2;
+					break;
+				default:
+					memset(dst, prev, code);
+					dst += code;
+					break;
+				}
+			} else {
+				*dst++ = prev = code;
+			}
+			break;
+		case 1:
+			memset(dst, prev, val);
+			dst += val;
+			state = 0;
+			break;
+		case 2:
+			count = (val & 255) << 8;
+			state = 3;
+			break;
+		case 3:
+			count |= val & 255;
+			memset(dst, prev, count);
+			dst += count;
+			state = 0;
+			break;
+		}
 		val = 0;
 	}
 	assert((dst - output_buffer) == uncompressed_size);

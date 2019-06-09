@@ -15,6 +15,7 @@ extern struct options_t g_options;
 #define CHEATS_NO_HIT           (1 << 0)
 #define CHEATS_UNLIMITED_LIFES  (1 << 1)
 #define CHEATS_UNLIMITED_ENERGY (1 << 2)
+#define CHEATS_NO_WIND          (1 << 3)
 
 struct club_anim_t {
 	const uint8_t *anim; /* uint16_t[4] : player spr, club spr, x, y */
@@ -257,8 +258,9 @@ struct vars_t {
 		uint16_t spr_num;
 	} current_bonus; /* bonus added */
 	struct {
-		uint16_t value;
+		uint16_t value; /* wind */
 		uint16_t counter;
+		const uint16_t *pattern;
 		uint16_t random_tbl[256];
 	} snow;
 	struct {
@@ -288,7 +290,7 @@ extern const uint8_t score_spr_lut[110];
 extern const uint8_t *object_anim_tbl[];
 extern const struct club_anim_t club_anim_tbl[4];
 extern const uint8_t player_anim_lut[32];
-extern const uint8_t player_anim_data[100];
+extern const uint8_t player_flying_anim_data[100]; /* uint16_t: player_spr_num, uint16_t: flying_spr_num, int8_t: dx, int8_t: dy */
 extern const uint8_t vscroll_offsets_data[132];
 extern const uint8_t cos_tbl[256];
 extern const uint8_t sin_tbl[256];
@@ -296,11 +298,15 @@ extern const uint16_t monster_spr_tbl[48];
 extern const uint8_t monster_anim_tbl[1100];
 extern const uint8_t boss_minotaur_seq_data[86];
 extern const uint16_t boss_gorilla_data[19 * 10];
-extern const uint16_t boss_gorilla_spr_tbl[46 * 3]; /* uint16_t: spr1_num, uint16_t: spr2_num, uint8_t: dx, uint8_t: dy */
+extern const uint16_t boss_gorilla_spr_tbl[46 * 3]; /* uint16_t: spr1_num, uint16_t: spr2_num, int8_t: dx, int8_t: dy */
+extern const uint16_t snow_pattern1_data[11];
+extern const uint16_t snow_pattern2_data[10];
 
 /* game.c */
 extern void	update_input();
+extern void	input_check_ctrl_alt_e();
 extern void	input_check_ctrl_alt_w();
+extern void	do_theend_screen();
 extern uint32_t	timer_get_counter();
 extern void	random_reset();
 extern uint8_t	random_get_number();

@@ -59,6 +59,7 @@ static void level_update_boss_gorilla_collide_proj(struct object_t *obj_player, 
 		return;
 	}
 	level_update_objects_boss_hit_player();
+	play_sound(1);
 	obj_player->hit_counter = 44;
 	g_vars.player_anim_0x40_flag = 0;
 	obj_player->data.p.y_velocity = -128;
@@ -75,7 +76,12 @@ static void level_update_boss_gorilla_hit_player() {
 	level_update_boss_gorilla_collide_proj(&g_vars.objects_tbl[1], g_vars.boss.obj1);
 	if (level_objects_collide(&g_vars.objects_tbl[1], g_vars.boss.obj3)) {
 		if (g_vars.player_jump_monster_flag != 0) {
-			g_vars.objects_tbl[1].data.p.y_velocity = (g_vars.input.key_up != 0) ? -128 : -64;
+			int y_vel = -64;
+			if (g_vars.input.key_up != 0) {
+				play_sound(3);
+				y_vel = -128;
+			}
+			g_vars.objects_tbl[1].data.p.y_velocity = y_vel;
 		}
 	}
 }
@@ -182,6 +188,7 @@ static void level_update_boss_gorilla_helper2() {
 		if (abs(g_vars.level_draw_counter - g_vars.boss.draw_counter) <= 22) {
 			break;
 		}
+		play_sound(8);
 		g_vars.boss.draw_counter = g_vars.level_draw_counter;
 		for (int j = 103; j <= 107; ++j) {
 			g_vars.objects_tbl[j].spr_num |= 0x4000;
