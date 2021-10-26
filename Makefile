@@ -18,13 +18,13 @@ CPPFLAGS += -Wall -Wpedantic -MMD $(SDL_CFLAGS) -I. -g
 all: blues bbja pre2
 
 blues: main.o sys_sdl2.o util.o $(BB_SRCS:.c=.o)
-	$(CC) $(LDFLAGS) -o $@ $^ $(SDL_LIBS) -lmodplug
+	$(CC) $(LDFLAGS) -o $@ $^ $(SDL_LIBS) -lopenmpt_modplug
 
 bbja: main.o sys_sdl2.o util.o $(JA_SRCS:.c=.o)
-	$(CC) $(LDFLAGS) -o $@ $^ $(SDL_LIBS) -lmodplug
+	$(CC) $(LDFLAGS) -o $@ $^ $(SDL_LIBS) -lopenmpt_modplug
 
 pre2: main.o sys_sdl2.o util.o $(P2_SRCS:.c=.o)
-	$(CC) $(LDFLAGS) -o $@ $^ $(SDL_LIBS) -lmodplug
+	$(CC) $(LDFLAGS) -o $@ $^ $(SDL_LIBS) -lopenmpt_modplug
 
 clean:
 	rm -f $(OBJS) $(DEPS) *.o *.d
