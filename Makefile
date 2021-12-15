@@ -2,6 +2,8 @@
 SDL_CFLAGS := `sdl2-config --cflags`
 SDL_LIBS   := `sdl2-config --libs`
 
+MODPLUG_LIBS ?= -lmodplug
+
 BB := decode.c game.c level.c objects.c resource.c screen.c sound.c staticres.c tiles.c unpack.c
 JA := game.c level.c resource.c screen.c sound.c staticres.c unpack.c
 P2 := bosses.c game.c level.c monsters.c resource.c screen.c sound.c staticres.c unpack.c
@@ -18,13 +20,13 @@ CPPFLAGS += -Wall -Wpedantic -MMD $(SDL_CFLAGS) -I. -g
 all: blues bbja pre2
 
 blues: main.o sys_sdl2.o util.o $(BB_SRCS:.c=.o)
-	$(CC) $(LDFLAGS) -o $@ $^ $(SDL_LIBS) -lopenmpt_modplug
+	$(CC) $(LDFLAGS) -o $@ $^ $(SDL_LIBS) $(MODPLUG_LIBS)
 
 bbja: main.o sys_sdl2.o util.o $(JA_SRCS:.c=.o)
-	$(CC) $(LDFLAGS) -o $@ $^ $(SDL_LIBS) -lopenmpt_modplug
+	$(CC) $(LDFLAGS) -o $@ $^ $(SDL_LIBS) $(MODPLUG_LIBS)
 
 pre2: main.o sys_sdl2.o util.o $(P2_SRCS:.c=.o)
-	$(CC) $(LDFLAGS) -o $@ $^ $(SDL_LIBS) -lopenmpt_modplug
+	$(CC) $(LDFLAGS) -o $@ $^ $(SDL_LIBS) $(MODPLUG_LIBS)
 
 clean:
 	rm -f $(OBJS) $(DEPS) *.o *.d
