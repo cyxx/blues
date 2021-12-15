@@ -327,7 +327,7 @@ uint8_t *unpack(FILE *in, int *uncompressed_size) {
 	const uint16_t sig = fread_le16(in);
 	fseek(in, 0, SEEK_SET);
 	if (sig == 0x4CB4) {
-		memset(&uneat, 0, sizeof(unsqz));
+		memset(&uneat, 0, sizeof(uneat));
 		*uncompressed_size = unpack_eat(in, &uneat);
 		return uneat.dst;
 	} else if ((sig >> 8) == 0x10) {
