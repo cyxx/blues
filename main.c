@@ -53,7 +53,7 @@ int main(int argc, char *argv[]) {
 	g_options.start_ypos16 = -1;
 	g_options.screen_w = 320;
 	g_options.screen_h = 200;
-	g_options.amiga_copper_bars =  true;
+	g_options.amiga_copper_bars = true;
 	g_options.amiga_colors = true;
 	// g_options.amiga_status_bar = true;
 	g_options.dos_scrolling = false;

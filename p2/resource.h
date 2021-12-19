@@ -168,6 +168,8 @@ struct resource_t {
 	int frontlen;
 	uint8_t *uniondat;
 	int unionlen;
+	uint8_t *keyb;
+	int keyblen;
 	uint8_t *leveldat;
 	int levellen;
 	uint8_t *vga;

@@ -737,7 +737,7 @@ static bool monster_func2_type9(struct level_monster_t *m) {
 }
 
 static bool monster_func2_type10(struct level_monster_t *m) {
-	if (g_vars.level_num == 5 && g_vars.shake_screen_counter != 0) {
+	if (g_vars.level_num == 5 && (g_vars.shake_screen_counter != 0 || g_vars.boss_level5.state == 3)) {
 		return false;
 	}
 	if (m->current_tick < UCHAR_MAX) {
@@ -777,15 +777,16 @@ static bool monster_func2_type10(struct level_monster_t *m) {
 	uint16_t pos = (bh << 8) | bl;
 	for (int i = 0; i < 10 && pos >= 0x300; ++i, pos -= 0x100) {
 		if (pos < (g_vars.tilemap.h << 8)) {
-			bool init_spr = true;
-			for (int j = 0; j < 3; ++j) {
-				const uint8_t tile_num = g_res.leveldat[pos - j * 0x100];
-				if (g_res.level.tile_attributes1[tile_num] != 0) {
-					init_spr = false;
-					break;
-				}
+			const uint8_t tile_num0 = g_res.leveldat[pos];
+			if (g_res.level.tile_attributes1[tile_num0] == 0) {
+				continue;
 			}
-			if (init_spr) {
+			const uint8_t tile_num1 = g_res.leveldat[pos - 0x100];
+			if (g_res.level.tile_attributes1[tile_num1] != 0) {
+				continue;
+			}
+			const uint8_t tile_num2 = g_res.leveldat[pos - 0x200];
+			if (g_res.level.tile_attributes1[tile_num2] == 0) {
 				obj->y_pos = (pos >> 8) << 4;
 				obj->spr_num = m->spr_num;
 				obj->data.m.ref = m;

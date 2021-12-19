@@ -45,6 +45,8 @@ void res_init(const char *path, int vga_size) {
 	g_res.frontlen = g_uncompressed_size;
 	g_res.uniondat = load_file("UNION.SQZ");
 	g_res.unionlen = g_uncompressed_size;
+	g_res.keyb     = load_file("KEYB.SQZ");
+	g_res.keyblen  = g_uncompressed_size;
 
 	g_res.vga = (uint8_t *)malloc(vga_size);
 	if (!g_res.vga) {

@@ -8,6 +8,10 @@
 
 static const bool _score_8_digits = true; /* maximum score 99.999.999 */
 
+static const bool _demo_inputs = false;
+
+static const bool _expert = true;
+
 static const bool _redraw_tilemap = true;
 static const bool _redraw_panel = true;
 
@@ -191,7 +195,7 @@ static void load_level_data_init_password_items() {
 	}
 	qsort(items_ptr_tbl, count, sizeof(struct level_item_t *), compare_level_item_x_pos);
 	/* level password */
-	const uint16_t r = random_get_number3(g_vars.level_num);
+	const uint16_t r = random_get_number3(g_vars.level_num + (_expert ? 10 : 0));
 	for (int j = 0; j < count; j += 4) {
 		for (int i = 0; i < 4; ++i) {
 			struct level_item_t *item = items_ptr_tbl[j + i];
@@ -1559,7 +1563,7 @@ static void level_update_objects_monsters() {
 	}
 	for (int i = 0; i < g_res.level.monsters_count; ++i) {
 		struct level_monster_t *m = &g_res.level.monsters_tbl[i];
-		if (m->spr_num != 0xFFFF && (m->flags & 4) == 0) {
+		if (m->spr_num != 0xFFFF && (m->flags & 4) == 0 && (_expert || (m->type & 0x80) == 0)) {
 			const int type = m->type & 0x7F;
 			if (!monster_func2(type, m)) {
 				continue;
@@ -2381,6 +2385,30 @@ static void level_update_player() {
 		return;
 	}
 	input_check_ctrl_alt_w();
+	if (_demo_inputs) {
+		if (g_vars.input.demo_offset < g_res.keyblen) {
+			if (g_vars.input.demo_offset == 0) {
+				if (g_res.keyb[1] == 0xFF) {
+					g_vars.input.demo_offset += 2;
+				}
+			}
+			if (g_vars.input.demo_counter == 0) {
+				const uint16_t num = READ_LE_UINT16(g_res.keyb + g_vars.input.demo_offset);
+				g_vars.input.demo_offset += 2;
+				g_vars.input.demo_mask = num & 255;
+				g_vars.input.demo_counter = num >> 8;
+			} else {
+				--g_vars.input.demo_counter;
+			}
+			g_vars.input.key_left = (g_vars.input.demo_mask & 1) != 0;
+			g_vars.input.key_right = (g_vars.input.demo_mask & 2) != 0;
+			g_vars.input.key_up = (g_vars.input.demo_mask & 4) != 0;
+			g_vars.input.key_down = (g_vars.input.demo_mask & 8) != 0;
+			g_vars.input.key_space = (g_vars.input.demo_mask & 0x10) != 0;
+		} else {
+			g_vars.player_death_flag = 1;
+		}
+	}
 	g_vars.input.key_vdir = g_vars.input.key_up | g_vars.input.key_down;
 	g_vars.input.key_hdir = g_vars.input.key_left | g_vars.input.key_right;
 	if (g_vars.input.key_right != 0) {
@@ -3661,6 +3689,80 @@ static void level_completed_bonuses_animation() {
 			g_vars.objects_tbl[1].x_pos += 2;
 		}
 	} while (g_vars.objects_tbl[2].x_pos > -52);
+}
+
+static void update_object_demo_animation(struct object_t *obj) {
+	const uint8_t *p = obj->data.m.anim;
+	int16_t num = READ_LE_UINT16(p);
+	if (num < 0) {
+		p += num;
+		num = READ_LE_UINT16(p);
+	}
+	int spr_num = (num & 0x1FFF) + g_res.spr_monsters_offset;
+	if (obj->data.m.x_velocity < 0) {
+		num |= 0x8000;
+	}
+	obj->spr_num = spr_num;
+	obj->data.m.anim = p + 2;
+}
+
+void do_demo_animation() {
+	g_vars.objects_tbl[1].x_pos = 0;
+	g_vars.objects_tbl[1].y_pos = 169;
+	g_vars.objects_tbl[1].data.p.hdir = 0;
+	g_vars.objects_tbl[1].x_velocity = 0;
+	static const uint8_t data[] = {
+		0, 0, 0, 0, 1, 0, 1, 0, 2, 0, 2, 0, 3, 0, 3, 0,
+		4, 0, 4, 0, 5, 0, 5, 0, 0xE8, 0xFF
+	};
+	g_vars.objects_tbl[1].data.p.anim = data;
+	g_vars.objects_tbl[2].x_pos = 48;
+	g_vars.objects_tbl[2].y_pos = 169;
+	g_vars.objects_tbl[2].x_velocity = 0;
+	g_vars.objects_tbl[2].data.m.anim = &monster_anim_tbl[0x2EA];
+	g_vars.player_flying_flag = 0;
+	int counter = 0;
+	do {
+		++counter;
+		level_update_object_anim(g_vars.objects_tbl[1].data.p.anim);
+		update_object_demo_animation(&g_vars.objects_tbl[2]);
+		level_draw_objects();
+		level_sync();
+		int dx = 5;
+		g_vars.objects_tbl[1].x_pos += dx;
+		if ((counter & 3) == 0) {
+			--dx;
+		}
+		g_vars.objects_tbl[2].x_pos += dx;
+	} while ((g_vars.objects_tbl[1].spr_num & 0x2000) != 0);
+	g_vars.objects_tbl[1].data.p.hdir = -1;
+	g_vars.objects_tbl[2].data.m.x_velocity = -1;
+	g_vars.objects_tbl[2].data.m.y_velocity = 0;
+	for (int i = 1; i < 3; ++i) {
+		struct object_t *obj = &g_vars.objects_tbl[2 + i];
+		*obj = g_vars.objects_tbl[2];
+	}
+	for (int i = 0; i < 3; ++i) {
+		struct object_t *obj = &g_vars.objects_tbl[2 + i];
+		obj->x_pos = g_vars.objects_tbl[1].x_pos + i * 30;
+		obj->y_pos = g_vars.objects_tbl[1].y_pos - i * 3;
+	}
+	do {
+		level_update_object_anim(g_vars.objects_tbl[1].data.p.anim);
+		for (int i = 0; i < 3; ++i) {
+			struct object_t *obj = &g_vars.objects_tbl[2 + i];
+			obj->x_pos -= 5;
+			update_object_demo_animation(obj);
+			if (obj->y_pos > 169) {
+				obj->data.m.y_velocity = -obj->data.m.y_velocity;
+			}
+			obj->data.m.y_velocity += 8;
+			obj->y_pos += (obj->data.m.y_velocity >> 4);
+		}
+		level_draw_objects();
+		level_sync();
+		g_vars.objects_tbl[1].x_pos -= 7;
+	} while (g_vars.objects_tbl[1].x_pos >= 0);
 }
 
 void do_level() {

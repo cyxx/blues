@@ -656,8 +656,7 @@ static void render_load_sprites(int spr_type, int count, const struct sys_rect_t
 	if (update_pal) { /* update texture on palette change */
 		sheet->surface = surface;
 	} else  {
-		SDL_FreeSurface(sheet->surface);
-		sheet->surface = 0;
+		SDL_FreeSurface(surface);
 	}
 }
 

@@ -122,6 +122,8 @@ struct vars_t {
 		bool keystate[128];
 		uint8_t key_left, key_right, key_down, key_up, key_space;
 		uint8_t key_vdir, key_hdir;
+		uint16_t demo_offset;
+		uint8_t demo_mask, demo_counter;
 	} input;
 
 	uint8_t level_num;
