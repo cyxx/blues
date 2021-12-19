@@ -138,23 +138,23 @@ static void level_update_boss_gorilla_init_objects(const uint16_t *p) {
 		++g_vars.boss.parts[3].y_pos;
 	}
 	if (g_vars.boss.hdir) {
-		g_vars.boss.parts[0].spr_num |= 0x8000;
-		g_vars.boss.parts[1].spr_num |= 0x8000;
-		g_vars.boss.parts[2].spr_num |= 0x8000;
-		g_vars.boss.parts[3].spr_num |= 0x8000;
-		g_vars.boss.parts[4].spr_num |= 0x8000;
+		for (int i = 0; i < 5; ++i) {
+			g_vars.boss.parts[i].spr_num |= 0x8000;
+		}
 	}
 	for (int i = 0; i < 5; ++i) {
 		struct object_t *obj = &g_vars.objects_tbl[103 + i];
 		const uint16_t addr = *p++;
-		if (addr == 0xA609) {
+		switch (addr) {
+		case 0xA609:
 			g_vars.boss.obj1 = obj;
-		}
-		if (addr == 0xA60F) {
+			break;
+		case 0xA60F:
 			g_vars.boss.obj2 = obj;
-		}
-		if (addr == 0xA603) {
+			break;
+		case 0xA603:
 			g_vars.boss.obj3 = obj;
+			break;
 		}
 		assert(addr == 0xA5F7 || addr == 0xA5FD || addr == 0xA603 || addr == 0xA609 || addr == 0xA60F);
 		const int num = (addr - 0xA5F7) / 6;
@@ -597,7 +597,7 @@ static void level_update_boss_tree() {
 			g_vars.boss_level5.spr106_pos = 0;
 		}
 		uint8_t ah = 1;
-		if (g_vars.boss_level5.spr106_pos != 0) {
+		if (g_vars.boss_level5.spr106_pos != 1) {
 			ah = 3;
 			g_vars.shake_screen_counter = 4;
 			obj_player->x_pos += 2;

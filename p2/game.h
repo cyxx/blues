@@ -299,7 +299,7 @@ extern const uint8_t monster_anim_tbl[1100];
 extern const uint8_t boss_minotaur_seq_data[86];
 extern const uint16_t boss_gorilla_data[19 * 10];
 extern const uint16_t boss_gorilla_spr_tbl[46 * 3]; /* uint16_t: spr1_num, uint16_t: spr2_num, int8_t: dx, int8_t: dy */
-extern const uint16_t snow_pattern1_data[11];
+extern const uint16_t snow_pattern1_data[1];
 extern const uint16_t snow_pattern2_data[10];
 
 /* game.c */

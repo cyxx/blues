@@ -106,30 +106,32 @@ static void init_level() {
 	if (g_vars.play_demo_flag) {
 		g_vars.objects[OBJECT_NUM_PLAYER1].unk60 = 0;
 	}
+	const int xoffs = (TILEMAP_SCREEN_W / 16) / 2;
 	int xpos = g_options.start_xpos16;
 	if (xpos < 0) {
 		xpos = g_vars.level_xpos[OBJECT_NUM_PLAYER1];
 		if (!g_vars.two_players_flag && (g_vars.objects[OBJECT_NUM_PLAYER1].unk60 || g_vars.objects[OBJECT_NUM_PLAYER2].unk60)) {
 			xpos = restart_xpos[g_vars.level * 2];
 		}
-		xpos = (xpos >> 4) - 10;
+		xpos = (xpos >> 4) - xoffs;
 	} else {
-		g_vars.level_xpos[OBJECT_NUM_PLAYER1] = (xpos << 4) + 10;
+		g_vars.level_xpos[OBJECT_NUM_PLAYER1] = (xpos << 4) + xoffs;
 	}
 	if (xpos < 0) {
 		xpos = 0;
 	}
 	g_vars.screen_tilemap_xorigin = xpos << 4;
 
+	const int yoffs = (TILEMAP_SCREEN_H / 16) / 2 + 1;
 	int ypos = g_options.start_ypos16;
 	if (ypos < 0) {
 		ypos = g_vars.level_ypos[OBJECT_NUM_PLAYER1];
 		if (!g_vars.two_players_flag && (g_vars.objects[OBJECT_NUM_PLAYER1].unk60 || g_vars.objects[OBJECT_NUM_PLAYER2].unk60)) {
 			ypos = restart_ypos[g_vars.level * 2];
 		}
-		ypos = (ypos >> 4) - 6;
+		ypos = (ypos >> 4) - yoffs;
 	} else {
-		g_vars.level_ypos[OBJECT_NUM_PLAYER1] = (ypos << 4) + 6;
+		g_vars.level_ypos[OBJECT_NUM_PLAYER1] = (ypos << 4) + yoffs;
 	}
 	if (ypos < 0) {
 		ypos = 0;

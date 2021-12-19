@@ -231,7 +231,7 @@ void video_load_sprites() {
 		assert(max_w <= MAX_SPRITESHEET_W);
 		assert(current_y + max_h <= MAX_SPRITESHEET_H);
 		g_sys.render_unload_sprites(RENDER_SPR_GAME);
-		g_sys.render_load_sprites(RENDER_SPR_GAME, count, r, data, MAX_SPRITESHEET_W, current_y + max_h, 0, 0x0);
+		g_sys.render_load_sprites(RENDER_SPR_GAME, count, r, data, MAX_SPRITESHEET_W, current_y + max_h, 0x0, false);
 		free(data);
 	}
 }

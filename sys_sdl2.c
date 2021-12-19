@@ -5,16 +5,18 @@
 
 #define COPPER_BARS_H 80
 #define MAX_SPRITES 256
+#define MAX_SPRITESHEETS 3
 
 static const int FADE_STEPS = 16;
 
 struct spritesheet_t {
 	int count;
 	SDL_Rect *r;
+	SDL_Surface *surface;
 	SDL_Texture *texture;
 };
 
-static struct spritesheet_t _spritesheets[3];
+static struct spritesheet_t _spritesheets[MAX_SPRITESHEETS];
 
 struct sprite_t {
 	int sheet;
@@ -33,11 +35,12 @@ static SDL_Window *_window;
 static SDL_Renderer *_renderer;
 static SDL_Texture *_texture;
 static SDL_PixelFormat *_fmt;
+static SDL_Palette *_palette;
 static uint32_t _screen_palette[256];
 static uint32_t *_screen_buffer;
-static struct input_t *_input = &g_sys.input;
-static int _copper_color;
+static int _copper_color_key;
 static uint32_t _copper_palette[COPPER_BARS_H];
+
 static SDL_GameController *_controller;
 static SDL_Joystick *_joystick;
 
@@ -45,13 +48,10 @@ static int sdl2_init() {
 	SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_JOYSTICK | SDL_INIT_GAMECONTROLLER);
 	SDL_ShowCursor(SDL_DISABLE);
 	_screen_w = _screen_h = 0;
-	_window = 0;
-	_renderer = 0;
-	_texture = 0;
-	_fmt = 0;
 	memset(_screen_palette, 0, sizeof(_screen_palette));
+	_palette = SDL_AllocPalette(256);
 	_screen_buffer = 0;
-	_copper_color = -1;
+	_copper_color_key = -1;
 	SDL_GameControllerAddMappingsFromFile("gamecontrollerdb.txt");
 	_controller = 0;
 	const int count = SDL_NumJoysticks();
@@ -79,6 +79,10 @@ static void sdl2_fini() {
 	if (_fmt) {
 		SDL_FreeFormat(_fmt);
 		_fmt = 0;
+	}
+	if (_palette) {
+		SDL_FreePalette(_palette);
+		_palette = 0;
 	}
 	if (_texture) {
 		SDL_DestroyTexture(_texture);
@@ -140,22 +144,33 @@ static uint32_t convert_amiga_color(uint16_t color) {
 	r |= r << 4;
 	uint8_t g = (color >> 4) & 15;
 	g |= g << 4;
-	uint8_t b = color & 15;
+	uint8_t b =  color       & 15;
 	b |= b << 4;
 	return SDL_MapRGB(_fmt, r, g, b);
 }
 
+static void set_amiga_color(uint16_t color, SDL_Color *p) {
+	const uint8_t r = (color >> 8) & 15;
+	p->r = (r << 4) | r;
+	const uint8_t g = (color >> 4) & 15;
+	p->g = (g << 4) | g;
+	const uint8_t b =  color       & 15;
+	p->b = (b << 4) | b;
+}
+
 static void sdl2_set_palette_amiga(const uint16_t *colors, int offset) {
+	SDL_Color *palette_colors = &_palette->colors[offset];
 	for (int i = 0; i < 16; ++i) {
 		_screen_palette[offset + i] = convert_amiga_color(colors[i]);
+		set_amiga_color(colors[i], &palette_colors[i]);
 	}
 }
 
 static void sdl2_set_copper_bars(const uint16_t *data) {
 	if (!data) {
-		_copper_color = -1;
+		_copper_color_key = -1;
 	} else {
-		_copper_color = (data[0] - 0x180) / 2;
+		_copper_color_key = (data[0] - 0x180) / 2;
 		const uint16_t *src = data + 1;
 		uint32_t *dst = _copper_palette;
 		for (int i = 0; i < COPPER_BARS_H / 5; ++i) {
@@ -170,6 +185,7 @@ static void sdl2_set_copper_bars(const uint16_t *data) {
 }
 
 static void sdl2_set_screen_palette(const uint8_t *colors, int offset, int count, int depth) {
+	SDL_Color *palette_colors = &_palette->colors[offset];
 	const int shift = 8 - depth;
 	for (int i = 0; i < count; ++i) {
 		int r = colors[0];
@@ -181,7 +197,17 @@ static void sdl2_set_screen_palette(const uint8_t *colors, int offset, int count
 			b = (b << shift) | (b >> (depth - shift));
 		}
 		_screen_palette[offset + i] = SDL_MapRGB(_fmt, r, g, b);
+		palette_colors[i].r = r;
+		palette_colors[i].g = g;
+		palette_colors[i].b = b;
 		colors += 3;
+	}
+	for (int i = 0; i < ARRAYSIZE(_spritesheets); ++i) {
+		struct spritesheet_t *sheet = &_spritesheets[i];
+		if (sheet->surface) {
+			SDL_DestroyTexture(sheet->texture);
+			sheet->texture = SDL_CreateTextureFromSurface(_renderer, sheet->surface);
+		}
 	}
 }
 
@@ -261,12 +287,12 @@ static void sdl2_transition_screen(enum sys_transition_e type, bool open) {
 }
 
 static void sdl2_update_screen(const uint8_t *p, int present) {
-	if (_copper_color != -1) {
+	if (_copper_color_key != -1) {
 		for (int j = 0; j < _screen_h; ++j) {
 			if (j / 2 < COPPER_BARS_H) {
 				const uint32_t line_color = _copper_palette[j / 2];
 				for (int i = 0; i < _screen_w; ++i) {
-					_screen_buffer[j * _screen_w + i] = (p[i] == _copper_color) ? line_color : _screen_palette[p[i]];
+					_screen_buffer[j * _screen_w + i] = (p[i] == _copper_color_key) ? line_color : _screen_palette[p[i]];
 				}
 			} else {
 				for (int i = 0; i < _screen_w; ++i) {
@@ -310,179 +336,179 @@ static void sdl2_update_screen(const uint8_t *p, int present) {
 	}
 }
 
-static void handle_keyevent(int keysym, bool keydown) {
+static void handle_keyevent(int keysym, bool keydown, struct input_t *input) {
 	switch (keysym) {
 	case SDLK_LEFT:
 		if (keydown) {
-			_input->direction |= INPUT_DIRECTION_LEFT;
+			input->direction |= INPUT_DIRECTION_LEFT;
 		} else {
-			_input->direction &= ~INPUT_DIRECTION_LEFT;
+			input->direction &= ~INPUT_DIRECTION_LEFT;
 		}
 		break;
 	case SDLK_RIGHT:
 		if (keydown) {
-			_input->direction |= INPUT_DIRECTION_RIGHT;
+			input->direction |= INPUT_DIRECTION_RIGHT;
 		} else {
-			_input->direction &= ~INPUT_DIRECTION_RIGHT;
+			input->direction &= ~INPUT_DIRECTION_RIGHT;
 		}
 		break;
 	case SDLK_UP:
 		if (keydown) {
-			_input->direction |= INPUT_DIRECTION_UP;
+			input->direction |= INPUT_DIRECTION_UP;
 		} else {
-			_input->direction &= ~INPUT_DIRECTION_UP;
+			input->direction &= ~INPUT_DIRECTION_UP;
 		}
 		break;
 	case SDLK_DOWN:
 		if (keydown) {
-			_input->direction |= INPUT_DIRECTION_DOWN;
+			input->direction |= INPUT_DIRECTION_DOWN;
 		} else {
-			_input->direction &= ~INPUT_DIRECTION_DOWN;
+			input->direction &= ~INPUT_DIRECTION_DOWN;
 		}
 		break;
 	case SDLK_RETURN:
 	case SDLK_SPACE:
-		_input->space = keydown;
+		input->space = keydown;
 		break;
 	case SDLK_ESCAPE:
-		_input->escape = keydown;
+		input->escape = keydown;
 		break;
 	case SDLK_1:
-		_input->digit1 = keydown;
+		input->digit1 = keydown;
 		break;
 	case SDLK_2:
-		_input->digit2 = keydown;
+		input->digit2 = keydown;
 		break;
 	case SDLK_3:
-		_input->digit3 = keydown;
+		input->digit3 = keydown;
 		break;
 	}
 }
 
-static void handle_controlleraxis(int axis, int value) {
+static void handle_controlleraxis(int axis, int value, struct input_t *input) {
 	static const int THRESHOLD = 3200;
 	switch (axis) {
 	case SDL_CONTROLLER_AXIS_LEFTX:
 	case SDL_CONTROLLER_AXIS_RIGHTX:
 		if (value < -THRESHOLD) {
-			_input->direction |= INPUT_DIRECTION_LEFT;
+			input->direction |= INPUT_DIRECTION_LEFT;
 		} else {
-			_input->direction &= ~INPUT_DIRECTION_LEFT;
+			input->direction &= ~INPUT_DIRECTION_LEFT;
 		}
 		if (value > THRESHOLD) {
-			_input->direction |= INPUT_DIRECTION_RIGHT;
+			input->direction |= INPUT_DIRECTION_RIGHT;
 		} else {
-			_input->direction &= ~INPUT_DIRECTION_RIGHT;
+			input->direction &= ~INPUT_DIRECTION_RIGHT;
 		}
 		break;
 	case SDL_CONTROLLER_AXIS_LEFTY:
 	case SDL_CONTROLLER_AXIS_RIGHTY:
 		if (value < -THRESHOLD) {
-			_input->direction |= INPUT_DIRECTION_UP;
+			input->direction |= INPUT_DIRECTION_UP;
 		} else {
-			_input->direction &= ~INPUT_DIRECTION_UP;
+			input->direction &= ~INPUT_DIRECTION_UP;
 		}
 		if (value > THRESHOLD) {
-			_input->direction |= INPUT_DIRECTION_DOWN;
+			input->direction |= INPUT_DIRECTION_DOWN;
 		} else {
-			_input->direction &= ~INPUT_DIRECTION_DOWN;
+			input->direction &= ~INPUT_DIRECTION_DOWN;
 		}
 		break;
 	}
 }
 
-static void handle_controllerbutton(int button, bool pressed) {
+static void handle_controllerbutton(int button, bool pressed, struct input_t *input) {
 	switch (button) {
 	case SDL_CONTROLLER_BUTTON_A:
 	case SDL_CONTROLLER_BUTTON_B:
 	case SDL_CONTROLLER_BUTTON_X:
 	case SDL_CONTROLLER_BUTTON_Y:
-		_input->space = pressed;
+		input->space = pressed;
 		break;
 	case SDL_CONTROLLER_BUTTON_BACK:
-		_input->escape = pressed;
+		input->escape = pressed;
 		break;
 	case SDL_CONTROLLER_BUTTON_START:
 		break;
 	case SDL_CONTROLLER_BUTTON_DPAD_UP:
 		if (pressed) {
-			_input->direction |= INPUT_DIRECTION_UP;
+			input->direction |= INPUT_DIRECTION_UP;
 		} else {
-			_input->direction &= ~INPUT_DIRECTION_UP;
+			input->direction &= ~INPUT_DIRECTION_UP;
 		}
 		break;
 	case SDL_CONTROLLER_BUTTON_DPAD_DOWN:
 		if (pressed) {
-			_input->direction |= INPUT_DIRECTION_DOWN;
+			input->direction |= INPUT_DIRECTION_DOWN;
 		} else {
-			_input->direction &= ~INPUT_DIRECTION_DOWN;
+			input->direction &= ~INPUT_DIRECTION_DOWN;
 		}
 		break;
 	case SDL_CONTROLLER_BUTTON_DPAD_LEFT:
 		if (pressed) {
-			_input->direction |= INPUT_DIRECTION_LEFT;
+			input->direction |= INPUT_DIRECTION_LEFT;
 		} else {
-			_input->direction &= ~INPUT_DIRECTION_LEFT;
+			input->direction &= ~INPUT_DIRECTION_LEFT;
 		}
 		break;
 	case SDL_CONTROLLER_BUTTON_DPAD_RIGHT:
 		if (pressed) {
-			_input->direction |= INPUT_DIRECTION_RIGHT;
+			input->direction |= INPUT_DIRECTION_RIGHT;
 		} else {
-			_input->direction &= ~INPUT_DIRECTION_RIGHT;
+			input->direction &= ~INPUT_DIRECTION_RIGHT;
 		}
 		break;
 	}
 }
 
-static void handle_joystickhatmotion(int value) {
-	_input->direction = 0;
+static void handle_joystickhatmotion(int value, struct input_t *input) {
+	input->direction = 0;
 	if (value & SDL_HAT_UP) {
-		_input->direction |= INPUT_DIRECTION_UP;
+		input->direction |= INPUT_DIRECTION_UP;
 	}
 	if (value & SDL_HAT_DOWN) {
-		_input->direction |= INPUT_DIRECTION_DOWN;
+		input->direction |= INPUT_DIRECTION_DOWN;
 	}
 	if (value & SDL_HAT_LEFT) {
-		_input->direction |= INPUT_DIRECTION_LEFT;
+		input->direction |= INPUT_DIRECTION_LEFT;
 	}
 	if (value & SDL_HAT_RIGHT) {
-		_input->direction |= INPUT_DIRECTION_RIGHT;
+		input->direction |= INPUT_DIRECTION_RIGHT;
 	}
 }
 
-static void handle_joystickaxismotion(int axis, int value) {
+static void handle_joystickaxismotion(int axis, int value, struct input_t *input) {
 	static const int THRESHOLD = 3200;
 	switch (axis) {
 	case 0:
-		_input->direction &= ~(INPUT_DIRECTION_RIGHT | INPUT_DIRECTION_LEFT);
+		input->direction &= ~(INPUT_DIRECTION_RIGHT | INPUT_DIRECTION_LEFT);
 		if (value > THRESHOLD) {
-			_input->direction |= INPUT_DIRECTION_RIGHT;
+			input->direction |= INPUT_DIRECTION_RIGHT;
 		} else if (value < -THRESHOLD) {
-			_input->direction |= INPUT_DIRECTION_LEFT;
+			input->direction |= INPUT_DIRECTION_LEFT;
 		}
 		break;
 	case 1:
-		_input->direction &= ~(INPUT_DIRECTION_UP | INPUT_DIRECTION_DOWN);
+		input->direction &= ~(INPUT_DIRECTION_UP | INPUT_DIRECTION_DOWN);
 		if (value > THRESHOLD) {
-			_input->direction |= INPUT_DIRECTION_DOWN;
+			input->direction |= INPUT_DIRECTION_DOWN;
 		} else if (value < -THRESHOLD) {
-			_input->direction |= INPUT_DIRECTION_UP;
+			input->direction |= INPUT_DIRECTION_UP;
 		}
 		break;
 	}
 }
 
-static void handle_joystickbutton(int button, int pressed) {
+static void handle_joystickbutton(int button, int pressed, struct input_t *input) {
 	if (button == 0) {
-		_input->space = pressed;
+		input->space = pressed;
 	}
 }
 
 static int handle_event(const SDL_Event *ev, bool *paused) {
 	switch (ev->type) {
 	case SDL_QUIT:
-		_input->quit = true;
+		g_sys.input.quit = true;
 		break;
 	case SDL_WINDOWEVENT:
 		switch (ev->window.event) {
@@ -494,10 +520,10 @@ static int handle_event(const SDL_Event *ev, bool *paused) {
 		}
 		break;
 	case SDL_KEYUP:
-		handle_keyevent(ev->key.keysym.sym, 0);
+		handle_keyevent(ev->key.keysym.sym, 0, &g_sys.input);
 		break;
 	case SDL_KEYDOWN:
-		handle_keyevent(ev->key.keysym.sym, 1);
+		handle_keyevent(ev->key.keysym.sym, 1, &g_sys.input);
 		break;
 	case SDL_CONTROLLERDEVICEADDED:
 		if (!_controller) {
@@ -516,37 +542,37 @@ static int handle_event(const SDL_Event *ev, bool *paused) {
 		break;
 	case SDL_CONTROLLERBUTTONUP:
 		if (_controller) {
-			handle_controllerbutton(ev->cbutton.button, 0);
+			handle_controllerbutton(ev->cbutton.button, 0, &g_sys.input);
 		}
 		break;
 	case SDL_CONTROLLERBUTTONDOWN:
 		if (_controller) {
-			handle_controllerbutton(ev->cbutton.button, 1);
+			handle_controllerbutton(ev->cbutton.button, 1, &g_sys.input);
 		}
 		break;
 	case SDL_CONTROLLERAXISMOTION:
 		if (_controller) {
-			handle_controlleraxis(ev->caxis.axis, ev->caxis.value);
+			handle_controlleraxis(ev->caxis.axis, ev->caxis.value, &g_sys.input);
 		}
 		break;
 	case SDL_JOYHATMOTION:
 		if (_joystick) {
-			handle_joystickhatmotion(ev->jhat.value);
+			handle_joystickhatmotion(ev->jhat.value, &g_sys.input);
 		}
 		break;
 	case SDL_JOYAXISMOTION:
 		if (_joystick) {
-			handle_joystickaxismotion(ev->jaxis.axis, ev->jaxis.value);
+			handle_joystickaxismotion(ev->jaxis.axis, ev->jaxis.value, &g_sys.input);
 		}
 		break;
 	case SDL_JOYBUTTONUP:
 		if (_joystick) {
-			handle_joystickbutton(ev->jbutton.button, 0);
+			handle_joystickbutton(ev->jbutton.button, 0, &g_sys.input);
 		}
 		break;
 	case SDL_JOYBUTTONDOWN:
 		if (_joystick) {
-			handle_joystickbutton(ev->jbutton.button, 1);
+			handle_joystickbutton(ev->jbutton.button, 1, &g_sys.input);
 		}
 		break;
 	default:
@@ -561,7 +587,7 @@ static void sdl2_process_events() {
 		SDL_Event ev;
 		while (SDL_PollEvent(&ev)) {
 			handle_event(&ev, &paused);
-			if (_input->quit) {
+			if (g_sys.input.quit) {
 				break;
 			}
 		}
@@ -606,39 +632,45 @@ static void sdl2_unlock_audio() {
 	SDL_UnlockAudio();
 }
 
-static void render_load_sprites(int spr_type, int count, const struct sys_rect_t *r, const uint8_t *data, int w, int h, int palette_offset, uint8_t color_key) {
+static void render_load_sprites(int spr_type, int count, const struct sys_rect_t *r, const uint8_t *data, int w, int h, uint8_t color_key, bool update_pal) {
 	assert(spr_type < ARRAYSIZE(_spritesheets));
-	struct spritesheet_t *spr_sheet = &_spritesheets[spr_type];
-	spr_sheet->count = count;
-	spr_sheet->r = (SDL_Rect *)malloc(count * sizeof(SDL_Rect));
+	struct spritesheet_t *sheet = &_spritesheets[spr_type];
+	sheet->count = count;
+	sheet->r = (SDL_Rect *)malloc(count * sizeof(SDL_Rect));
 	for (int i = 0; i < count; ++i) {
-		SDL_Rect *rect = &spr_sheet->r[i];
+		SDL_Rect *rect = &sheet->r[i];
 		rect->x = r[i].x;
 		rect->y = r[i].y;
 		rect->w = r[i].w;
 		rect->h = r[i].h;
 	}
-	uint32_t *argb = (uint32_t *)malloc(w * h * sizeof(uint32_t));
-	if (!argb) {
-		print_warning("Failed to allocate RGB buffer for sprites type %d", spr_type);
-	} else {
-		spr_sheet->texture = SDL_CreateTexture(_renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STATIC, w, h);
-		SDL_SetTextureBlendMode(spr_sheet->texture, SDL_BLENDMODE_BLEND);
-		for (int i = 0; i < w * h; ++i) {
-			argb[i] = (data[i] == color_key) ? 0 : (0xFF000000 | _screen_palette[palette_offset + data[i]]);
-		}
-		SDL_UpdateTexture(spr_sheet->texture, 0, argb, w * sizeof(uint32_t));
-		free(argb);
+	SDL_Surface *surface = SDL_CreateRGBSurface(0, w, h, 8, 0x0, 0x0, 0x0, 0x0);
+	SDL_SetSurfacePalette(surface, _palette);
+	SDL_SetColorKey(surface, 1, color_key);
+	SDL_LockSurface(surface);
+	for (int y = 0; y < h; ++y) {
+		memcpy(((uint8_t *)surface->pixels) + y * surface->pitch, data + y * w, w);
+	}
+	SDL_UnlockSurface(surface);
+	sheet->texture = SDL_CreateTextureFromSurface(_renderer, surface);
+	if (update_pal) { /* update texture on palette change */
+		sheet->surface = surface;
+	} else  {
+		SDL_FreeSurface(sheet->surface);
+		sheet->surface = 0;
 	}
 }
 
 static void render_unload_sprites(int spr_type) {
-	struct spritesheet_t *spr_sheet = &_spritesheets[spr_type];
-	free(spr_sheet->r);
-	if (spr_sheet->texture) {
-		SDL_DestroyTexture(spr_sheet->texture);
+	struct spritesheet_t *sheet = &_spritesheets[spr_type];
+	free(sheet->r);
+	if (sheet->surface) {
+		SDL_FreeSurface(sheet->surface);
 	}
-	memset(spr_sheet, 0, sizeof(struct spritesheet_t));
+	if (sheet->texture) {
+		SDL_DestroyTexture(sheet->texture);
+	}
+	memset(sheet, 0, sizeof(struct spritesheet_t));
 }
 
 static void render_add_sprite(int spr_type, int frame, int x, int y, int xflip) {

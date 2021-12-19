@@ -944,7 +944,7 @@ static void level_update_tile1(uint16_t offset) {
 		level_update_tile_type_1(offset);
 		break;
 	case 2:
-		level_update_tile_type_2(offset);
+		level_update_tile_type_2();
 		break;
 	default:
 		print_warning("Unhandled level_update_tile1 type %d", type);
@@ -2097,7 +2097,7 @@ static void level_update_player_anim_0(uint8_t al) {
 			const uint8_t *anim = level_update_player_anim1_num(18, 36);
 			level_update_object_anim(anim);
 			if ((g_vars.level_draw_counter & 3) == 0) {
-				level_init_object_hit_from_player_pos(&g_vars.objects_tbl[1]);
+				level_init_object_hit_from_player_pos();
 			}
 			g_vars.objects_tbl[1].data.p.current_anim_num = 0;
 			return;

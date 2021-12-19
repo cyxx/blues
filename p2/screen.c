@@ -61,6 +61,9 @@ static void convert_planar_tile_4bpp(const uint8_t *src, uint8_t *dst, int dst_p
 
 void video_draw_string(int offset, int hspace, const char *s) {
 	offset += hspace;
+	const int y = (offset * 8) / 320 + (GAME_SCREEN_H - 200) / 2;
+	const int x = (offset * 8) % 320 + (GAME_SCREEN_W - 320) / 2;
+	uint8_t *dst = g_res.vga + y * GAME_SCREEN_W + x;
 	while (*s) {
 		uint8_t code = *s++;
 		if (code != 0x20) {
@@ -68,10 +71,10 @@ void video_draw_string(int offset, int hspace, const char *s) {
 			if (code > 9) {
 				code -= 2;
 			}
-			decode_planar(g_res.allfonts + code * 48, g_res.vga + offset * 8, 320, 8, 12, 0);
-                }
-		++offset;
-        }
+			decode_planar(g_res.allfonts + code * 48, dst, GAME_SCREEN_W, 8, 12, 0);
+		}
+		dst += 8;
+	}
 }
 
 void video_draw_panel_number(int offset, int num) {
@@ -188,7 +191,7 @@ void video_load_front_tiles() {
 			decode_planar(g_res.frontdat + tile * 16 * 8, g_res.vga + y * w + x, w, 16, 16, 0);
 			++tile;
 			if (tile == count) {
-				g_sys.render_load_sprites(RENDER_SPR_FG, count, r, g_res.vga, w, h, 0, 0x0);
+				g_sys.render_load_sprites(RENDER_SPR_FG, count, r, g_res.vga, w, h, 0x0, true);
 				return;
 			}
 		}
@@ -260,7 +263,7 @@ void video_load_sprites() {
 		assert(max_w <= MAX_SPRITESHEET_W);
 		assert(current_y + max_h <= MAX_SPRITESHEET_H);
 		g_sys.render_unload_sprites(RENDER_SPR_GAME);
-		g_sys.render_load_sprites(RENDER_SPR_GAME, count, r, data, MAX_SPRITESHEET_W, current_y + max_h, 0, 0x0);
+		g_sys.render_load_sprites(RENDER_SPR_GAME, count, r, data, MAX_SPRITESHEET_W, current_y + max_h, 0x0, true);
 		free(data);
 		print_debug(DBG_SCREEN, "sprites total_size %d count %d", offset, count);
 	}

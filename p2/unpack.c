@@ -250,7 +250,7 @@ static int unpack_sqv(FILE *in, struct unpack_sqv_t *u) {
 	int bytes_count = 2;
 	int state = 0;
 	int count = 0;
-	uint8_t code, prev;
+	uint8_t code, prev = 0;
 	uint16_t bits = 0;
 	uint16_t val = 0;
 	while ((dst - output_buffer) < uncompressed_size) {
