@@ -29,8 +29,8 @@ static struct sprite_t _sprites[MAX_SPRITES];
 static int _sprites_count;
 static SDL_Rect _sprites_cliprect;
 
-static int _screen_w;
-static int _screen_h;
+static int _screen_w, _screen_h;
+static int _shake_dx, _shake_dy;
 static SDL_Window *_window;
 static SDL_Renderer *_renderer;
 static SDL_Texture *_texture;
@@ -308,8 +308,13 @@ static void sdl2_update_screen(const uint8_t *p, int present) {
 	}
 	SDL_UpdateTexture(_texture, 0, _screen_buffer, _screen_w * sizeof(uint32_t));
 	if (present) {
+		SDL_Rect r;
+		r.x = _shake_dx;
+		r.y = _shake_dy;
+		r.w = _screen_w;
+		r.h = _screen_h;
 		SDL_RenderClear(_renderer);
-		SDL_RenderCopy(_renderer, _texture, 0, 0);
+		SDL_RenderCopy(_renderer, _texture, 0, &r);
 
 		// sprites
 		SDL_RenderSetClipRect(_renderer, &_sprites_cliprect);
@@ -320,8 +325,8 @@ static void sdl2_update_screen(const uint8_t *p, int present) {
 				continue;
 			}
 			SDL_Rect r;
-			r.x = spr->x;
-			r.y = spr->y;
+			r.x = spr->x + _shake_dx;
+			r.y = spr->y + _shake_dy;
 			r.w = sheet->r[spr->num].w;
 			r.h = sheet->r[spr->num].h;
 			if (!spr->xflip) {
@@ -334,6 +339,11 @@ static void sdl2_update_screen(const uint8_t *p, int present) {
 
 		SDL_RenderPresent(_renderer);
 	}
+}
+
+static void sdl2_shake_screen(int dx, int dy) {
+	_shake_dx = dx;
+	_shake_dy = dy;
 }
 
 static void handle_keyevent(int keysym, bool keydown, struct input_t *input) {
@@ -705,6 +715,7 @@ struct sys_t g_sys = {
 	.fade_in_palette = sdl2_fade_in_palette,
 	.fade_out_palette = sdl2_fade_out_palette,
 	.update_screen = sdl2_update_screen,
+	.shake_screen = sdl2_shake_screen,
 	.transition_screen = sdl2_transition_screen,
 	.process_events = sdl2_process_events,
 	.sleep = sdl2_sleep,

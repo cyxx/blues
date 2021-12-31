@@ -1290,7 +1290,7 @@ static bool level_handle_bonuses_found(struct object_t *obj, struct level_bonus_
 		level_add_object23_bonus(0, 0, 1);
 		++g_vars.level_current_secrets_count;
 	} else {
-		static uint8_t draw_counter = 0;
+		static uint16_t draw_counter = 0;
 		const int diff = abs(g_vars.level_draw_counter - draw_counter);
 		draw_counter = g_vars.level_draw_counter;
 		if (diff < 6) {
@@ -1440,8 +1440,8 @@ static void level_update_monster_pos(struct object_t *obj, struct level_monster_
 	uint8_t dl = level_get_tile(pos);
 	uint8_t dh = level_get_tile(pos - 0x100);
 	int x_vel = obj->data.m.x_velocity;
-	if (x_vel != 0 && x_vel <= 1) {
-		x_vel = -x_vel;
+	if (x_vel != 0) {
+		x_vel = (x_vel < 0) ? -1 : 1;
 	}
 	uint8_t al = level_get_tile(pos + x_vel - 0x100);
 	al = g_res.level.tile_attributes0[al];
@@ -1762,8 +1762,8 @@ static void level_update_objects_decors() {
 					platform->type8.y_velocity = 0;
 				}
 				platform->type8.y_delta = a;
-				if (platform->flags & 0x40) {
-					if (platform->type8.y_velocity != 0 && --platform->type8.counter == 0) {
+				if (platform->flags & 0x40) { /* player on the platform */
+					if (platform->type8.y_velocity != 0 || --platform->type8.counter == 0) {
 						platform->type8.state = 1;
 						platform->type8.y_velocity = 0;
 					}
@@ -2681,7 +2681,7 @@ static void level_update_player_collision() {
 		g_vars.current_bonus.spr_num = obj->spr_num;
 		const int num = (obj->spr_num & 0x1FFF) - 53;
 		obj->spr_num = 0xFFFF;
-		if (num == 226) {
+		if (num == 226) { /* end of level semaphore */
 			if (g_vars.level_num == 2) {
 				g_vars.level_num = 12;
 			} else if (g_vars.level_num == 13) {
@@ -2752,10 +2752,12 @@ static void level_update_player_collision() {
 		} else if (num <= 50) {
 			play_sound(8);
 			g_vars.player_utensils_mask |= 1 << (num - 45);
-			for (int j = 0; j < MAX_LEVEL_ITEMS; ++j) {
-				struct level_item_t *item = &g_res.level.items_tbl[j];
-				if (item->spr_num == 278) { /* end of level semaphore */
-					++item->spr_num;
+			if (num == 46) { /* lighter */
+				for (int j = 0; j < MAX_LEVEL_ITEMS; ++j) {
+					struct level_item_t *item = &g_res.level.items_tbl[j];
+					if (item->spr_num == 278) { /* end of level semaphore */
+						++item->spr_num;
+					}
 				}
 			}
 			level_clear_item(obj);
@@ -3427,6 +3429,7 @@ static void level_shake_screen() {
 		++g_vars.shake_screen_counter;
 		g_vars.shake_screen_voffset = g_vars.shake_screen_counter;
 	}
+	g_sys.shake_screen(0, g_vars.shake_screen_voffset);
 }
 
 static void level_player_death_animation() {

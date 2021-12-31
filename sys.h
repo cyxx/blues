@@ -47,6 +47,7 @@ struct sys_t {
 	void	(*fade_in_palette)();
 	void	(*fade_out_palette)();
 	void	(*update_screen)(const uint8_t *p, int present);
+	void	(*shake_screen)(int dx, int dy);
 	void	(*transition_screen)(enum sys_transition_e type, bool open);
 	void	(*process_events)();
 	void	(*sleep)(int duration);

@@ -205,7 +205,6 @@ void video_transition_open() {
 }
 
 void video_load_sprites() {
-	const uint16_t *sprite_offsets = (const uint16_t *)spr_size_tbl;
 	struct sys_rect_t r[MAX_SPRITES];
 	uint8_t *data = (uint8_t *)calloc(MAX_SPRITESHEET_W * MAX_SPRITESHEET_H, 1);
 	if (data) {
@@ -223,17 +222,17 @@ void video_load_sprites() {
 				/* demo is missing 7 (monster) sprites compared to full game */
 				continue;
 			}
-			const int j = i;
+			const int j = i * 2;
 
-			value = sprite_offsets[j] & 255;
+			value = spr_size_tbl[j];
 			value = (value >> 3) | ((value & 7) << 5);
 			if ((value & 0xE0) != 0) {
 				value &= ~0xE0;
 				++value;
 			}
-			const int h = sprite_offsets[j] >> 8;
+			const int h = spr_size_tbl[j + 1];
 			const int w = value * 8;
-			assert((sprite_offsets[j] & 255) == w);
+			assert(spr_size_tbl[j] == w);
 			const int size = (h * value) * 4;
 
 			if (current_x + w > MAX_SPRITESHEET_W) {

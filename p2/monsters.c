@@ -467,7 +467,7 @@ static void monster_func1_type10(struct object_t *obj) {
 			if (m->current_tick == 0) {
 				obj->data.m.state = 3;
 				obj->data.m.y_velocity = 0;
-				obj->data.m.x_velocity >>= 15;
+				obj->data.m.x_velocity = (obj->data.m.x_velocity < 0) ? -1 : 0;
 				m->flags = 0x36;
 				monster_change_next_anim(obj);
 			}
@@ -478,7 +478,7 @@ static void monster_func1_type10(struct object_t *obj) {
 		}
 		monster_reset(obj, m);
 	} else if (state == 0xFF) {
-		if ((m->flags & 1) != 0 || (obj->data.m.flags & 0x20) != 0 || g_vars.objects_tbl[1].y_pos >= obj->y_pos) {
+		if ((m->flags & 1) != 0 && ((obj->data.m.flags & 0x20) != 0 || g_vars.objects_tbl[1].y_pos >= obj->y_pos)) {
 			if (obj->data.m.y_velocity < 240) {
 				obj->data.m.y_velocity += 15;
 			}
