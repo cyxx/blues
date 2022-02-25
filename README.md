@@ -60,6 +60,7 @@ Usage: blues [OPTIONS]...
   --filter=NAME     Graphics scaling filter (default 'nearest')
   --screensize=WxH  Graphics screen size (default 320x200)
   --cga             Enable CGA colors
+  --dosscroll       Enable DOS style screen scrolling
 ```
 
 ## Downloads
