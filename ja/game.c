@@ -15,6 +15,7 @@ void update_input() {
 	g_vars.input_key_up    = (g_sys.input.direction & INPUT_DIRECTION_UP) != 0    ? 0xFF : 0;
 	g_vars.input_key_down  = (g_sys.input.direction & INPUT_DIRECTION_DOWN) != 0  ? 0xFF : 0;
 	g_vars.input_key_space = g_sys.input.space ? 0xFF : 0;
+	g_sys.input.quit       = g_sys.input.escape;
 
 	g_vars.input_keystate[2] = g_sys.input.digit1;
 	g_vars.input_keystate[3] = g_sys.input.digit2;

@@ -28,6 +28,7 @@ void update_input() {
 	g_vars.inp_key_up = ((g_sys.input.direction & INPUT_DIRECTION_UP) != 0) || g_vars.inp_keyboard[0x48] || g_vars.inp_keyboard[0x7C];
 	g_vars.inp_key_down = ((g_sys.input.direction & INPUT_DIRECTION_DOWN) != 0) || g_vars.inp_keyboard[0x50] || g_vars.inp_keyboard[0x7B];
 	g_vars.inp_key_space = g_sys.input.space || g_vars.inp_keyboard[0x39] || g_vars.inp_keyboard[0x77];
+	g_sys.input.quit = g_sys.input.escape;
 	// g_vars.inp_key_tab = g_vars.inp_keyboard[0xF] || g_vars.inp_keyboard[0x78];
 }
 
