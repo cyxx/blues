@@ -56,6 +56,7 @@ struct options_t {
 	bool amiga_status_bar;
 	bool dos_scrolling;
 	bool cga_colors;
+	bool hybrid_color;
 };
 
 struct game_t {
