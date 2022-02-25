@@ -53,6 +53,7 @@ static void do_programmed_in_1992_screen() {
 	video_draw_string(offset, 3, "> > > ENJOY OLDIES<<");
 	g_sys.update_screen(g_res.vga, 1);
 	wait_input(100);
+	video_clear();
 }
 
 static void do_credits() {
