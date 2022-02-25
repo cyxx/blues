@@ -2943,7 +2943,7 @@ static void level_update_gates() {
 	uint16_t pos = level_get_player_tile_pos();
 	for (int i = 0; i < MAX_LEVEL_GATES; ++i) {
 		struct level_gate_t *gate = &g_res.level.gates_tbl[i];
-		if (gate->enter_pos == pos) {
+		if (gate->enter_pos == pos && g_vars.input.key_down) {
 			g_vars.objects_tbl[1].x_velocity = 0;
 			g_vars.objects_tbl[1].data.p.y_velocity = 0;
 			video_transition_close();
