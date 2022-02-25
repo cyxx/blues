@@ -114,6 +114,8 @@ static void do_present_screen() {
 		g_sys.set_screen_palette(data, 0, 256, 6);
 		update_screen_img(data + 768);
 		g_sys.fade_in_palette();
+		wait_input(700);
+		g_sys.fade_out_palette();
 		free(data);
 	}
 }
