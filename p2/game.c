@@ -22,13 +22,13 @@ void update_input() {
 }
 
 static void wait_input(int timeout) {
-	const uint32_t end = g_sys.get_timestamp() + timeout * 10;
+	const uint32_t end = g_sys.get_timestamp() + timeout;
 	while (g_sys.get_timestamp() < end) {
 		g_sys.process_events();
 		if (g_sys.input.quit || g_sys.input.space) {
 			break;
 		}
-		g_sys.sleep(20);
+		g_sys.sleep(2);
 	}
 }
 
@@ -52,7 +52,7 @@ static void do_programmed_in_1992_screen() {
 	offset += 0x1E0;
 	video_draw_string(offset, 3, "> > > ENJOY OLDIES<<");
 	g_sys.update_screen(g_res.vga, 1);
-	wait_input(100);
+	wait_input(1000);
 	video_clear();
 }
 
@@ -102,7 +102,7 @@ static void do_titus_screen() {
 		g_sys.set_screen_palette(data, 0, 256, 6);
 		update_screen_img(data + 768);
 		g_sys.fade_in_palette();
-		wait_input(70);
+		wait_input(700);
 		g_sys.fade_out_palette();
 		free(data);
 	}
@@ -132,7 +132,7 @@ static void do_demo_screen() {
 		update_screen_img(g_res.background);
 		g_sys.fade_in_palette();
 		free(data);
-		wait_input(1000);
+		wait_input(10000);
 	}
 }
 
@@ -143,7 +143,7 @@ static void do_castle_screen() {
 		update_screen_img(data + 768);
 		g_sys.fade_in_palette();
 		free(data);
-		wait_input(1000);
+		wait_input(10000);
 	}
 }
 
@@ -178,10 +178,9 @@ static void do_map(){
 				}
 				g_sys.update_screen(g_res.vga, 1);
 				g_sys.render_clear_sprites();
-				wait_input(-1);
-				g_sys.sleep(10);
+				wait_input(1);
 			}
-			wait_input(10);
+			wait_input(1000);
 			g_sys.update_screen(g_res.vga, 0);
 			g_sys.fade_out_palette();
 			free(g_res.map);
@@ -226,7 +225,7 @@ void input_check_ctrl_alt_e() {
 void input_check_ctrl_alt_w() {
 	if (g_vars.input.keystate[0x1D] && g_vars.input.keystate[0x38] && g_vars.input.keystate[0x11]) {
 		do_credits();
-		wait_input(60);
+		wait_input(600);
 	}
 }
 
@@ -237,7 +236,7 @@ void do_theend_screen() {
 		update_screen_img(data + 768);
 		g_sys.fade_in_palette();
 		free(data);
-		wait_input(1000);
+		wait_input(10000);
 	}
 	time_t now;
 	time(&now);
