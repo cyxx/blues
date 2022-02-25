@@ -24,6 +24,7 @@ static const char *USAGE =
 	"  --screensize=WxH  Graphics screen size (default 320x200)\n"
 	"  --cga             Enable CGA colors\n"
 	"  --dosscroll       Enable DOS style screen scrolling\n"
+	"  --hybrid          Enable fuchsia color as in Hybrid crack\n"
 ;
 
 static struct game_t *detect_game(const char *data_path) {
@@ -57,8 +58,9 @@ int main(int argc, char *argv[]) {
 	g_options.amiga_copper_bars = true;
 	g_options.amiga_colors = true;
 	// g_options.amiga_status_bar = true;
-	g_options.dos_scrolling = false;
 	g_options.cga_colors = false;
+	g_options.dos_scrolling = false;
+	g_options.hybrid_color = false;
 	const char *data_path = DEFAULT_DATA_PATH;
 	int scale_factor = DEFAULT_SCALE_FACTOR;
 	const char *scale_filter = DEFAULT_SCALE_FILTER;
@@ -82,6 +84,7 @@ int main(int argc, char *argv[]) {
 			{ "screensize", required_argument, 0, 9 },
 			{ "cga",        no_argument,       0, 10 },
 			{ "dosscroll",  no_argument,       0, 11 },
+			{ "hybrid",     no_argument,       0, 12 },
 			{ 0, 0, 0, 0 },
 		};
 		int index;
@@ -127,6 +130,9 @@ int main(int argc, char *argv[]) {
 		case 11:
 			g_options.dos_scrolling = true;
 			break;
+		case 12:
+			g_options.hybrid_color = true;
+			break;
 		default:
 			fprintf(stdout, USAGE, argv[0]);
 			return -1;
@@ -137,7 +143,7 @@ int main(int argc, char *argv[]) {
 		fprintf(stdout, "No data files found\n");
 	} else {
 		g_sys.init();
-		g_sys.set_screen_size(GAME_SCREEN_W, GAME_SCREEN_H, game->name, scale_factor, scale_filter, fullscreen);
+		g_sys.set_screen_size(GAME_SCREEN_W, GAME_SCREEN_H, game->name, scale_factor, scale_filter, fullscreen, g_options.hybrid_color);
 		game->run(data_path);
 		g_sys.fini();
 	}

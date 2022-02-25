@@ -61,6 +61,7 @@ Usage: blues [OPTIONS]...
   --screensize=WxH  Graphics screen size (default 320x200)
   --cga             Enable CGA colors
   --dosscroll       Enable DOS style screen scrolling
+  --hybrid          Enable fuchsia color as in Hybrid crack
 ```
 
 ## Downloads

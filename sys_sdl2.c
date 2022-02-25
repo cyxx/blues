@@ -40,6 +40,7 @@ static uint32_t _screen_palette[256];
 static uint32_t *_screen_buffer;
 static int _copper_color_key;
 static uint32_t _copper_palette[COPPER_BARS_H];
+static bool _hybrid_color;
 
 static SDL_GameController *_controller;
 static SDL_Joystick *_joystick;
@@ -108,7 +109,7 @@ static void sdl2_fini() {
 	SDL_Quit();
 }
 
-static void sdl2_set_screen_size(int w, int h, const char *caption, int scale, const char *filter, bool fullscreen) {
+static void sdl2_set_screen_size(int w, int h, const char *caption, int scale, const char *filter, bool fullscreen, bool hybrid_color) {
 	assert(_screen_w == 0 && _screen_h == 0); // abort if called more than once
 	_screen_w = w;
 	_screen_h = h;
@@ -137,6 +138,7 @@ static void sdl2_set_screen_size(int w, int h, const char *caption, int scale, c
 	_sprites_cliprect.y = 0;
 	_sprites_cliprect.w = w;
 	_sprites_cliprect.h = h;
+	_hybrid_color = hybrid_color;
 }
 
 static uint32_t convert_amiga_color(uint16_t color) {
@@ -195,6 +197,9 @@ static void sdl2_set_screen_palette(const uint8_t *colors, int offset, int count
 			r = (r << shift) | (r >> (depth - shift));
 			g = (g << shift) | (g >> (depth - shift));
 			b = (b << shift) | (b >> (depth - shift));
+		}
+		if(_hybrid_color && i < 2){
+			g = 0;
 		}
 		_screen_palette[offset + i] = SDL_MapRGB(_fmt, r, g, b);
 		palette_colors[i].r = r;
