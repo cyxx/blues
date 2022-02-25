@@ -23,6 +23,7 @@ static const char *USAGE =
 	"  --filter=NAME     Graphics scaling filter (default 'nearest')\n"
 	"  --screensize=WxH  Graphics screen size (default 320x200)\n"
 	"  --cga             Enable CGA colors\n"
+	"  --dosscroll       Enable DOS style screen scrolling\n"
 ;
 
 static struct game_t *detect_game(const char *data_path) {
@@ -80,6 +81,7 @@ int main(int argc, char *argv[]) {
 			{ "filter",     required_argument, 0, 8 },
 			{ "screensize", required_argument, 0, 9 },
 			{ "cga",        no_argument,       0, 10 },
+			{ "dosscroll",  no_argument,       0, 11 },
 			{ 0, 0, 0, 0 },
 		};
 		int index;
@@ -121,6 +123,9 @@ int main(int argc, char *argv[]) {
 			break;
 		case 10:
 			g_options.cga_colors = true;
+			break;
+		case 11:
+			g_options.dos_scrolling = true;
 			break;
 		default:
 			fprintf(stdout, USAGE, argv[0]);
