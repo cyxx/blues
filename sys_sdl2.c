@@ -181,7 +181,7 @@ static void sdl2_set_copper_bars(const uint16_t *data) {
 			*dst++ = convert_amiga_color(src[i]);
 			*dst++ = convert_amiga_color(src[j]);
 		}
-        }
+	}
 }
 
 static void sdl2_set_screen_palette(const uint8_t *colors, int offset, int count, int depth) {
@@ -252,38 +252,44 @@ static void sdl2_fade_out_palette() {
 	}
 }
 
-static void sdl2_transition_screen(enum sys_transition_e type, bool open) {
-	const int step_w = _screen_w / FADE_STEPS;
-	const int step_h = _screen_h / FADE_STEPS;
+static void sdl2_transition_screen(const struct sys_rect_t *s, enum sys_transition_e type, bool open) {
+	const int step_w = s->w / FADE_STEPS;
+	const int step_h = s->h / FADE_STEPS;
+	print_debug(DBG_SYSTEM, "sdl2_transition_screen: s->w = %d, s->h = %d, step_w = %d; step_h = %d", s->w, s->h, step_w, step_h);
+	SDL_Rect b = { .x = 0, .y = 0, .h = s->h, .w = s->w };
 	SDL_Rect r;
 	r.x = 0;
 	r.w = 0;
 	r.y = 0;
-	r.h = (type == TRANSITION_CURTAIN) ? _screen_h : 0;
+	r.h = (type == TRANSITION_CURTAIN) ? s->h : 0;
 	do {
-		r.x = (_screen_w - r.w) / 2;
-		if (r.x < 0) {
-			r.x = 0;
-		}
-		r.w += step_w;
-		if (r.x + r.w > _screen_w) {
-			r.w = _screen_w - r.x;
-		}
+		if(open) {
+			r.x = (s->w - r.w) / 2;
+			if (r.x < 0) {
+				r.x = 0;
+			}
+			r.w += step_w;
+			} else {
+				r.w = s->w;
+				r.y += step_h;
+				r.h -= r.h > step_h ? step_h * 2 : r.h;
+			}
+			SDL_RenderFillRect(_renderer, &b);
 		if (type == TRANSITION_SQUARE) {
-			r.y = (_screen_h - r.h) / 2;
+			r.y = (s->h - r.h) / 2;
 			if (r.y < 0) {
 				r.y = 0;
 			}
 			r.h += step_h;
-			if (r.y + r.h > _screen_h) {
-				r.h = _screen_h - r.y;
+			if (r.y + r.h > s->h) {
+				r.h = s->h - r.y;
 			}
 		}
-		SDL_RenderClear(_renderer);
+		print_debug(DBG_SYSTEM, "sdl2_transition_screen: %d,%d-%d,%d, %d", r.x, r.y, r.w, r.h, open);
 		SDL_RenderCopy(_renderer, _texture, &r, &r);
 		SDL_RenderPresent(_renderer);
 		SDL_Delay(30);
-	} while (r.x > 0 && (type == TRANSITION_CURTAIN || r.y > 0));
+	} while (((r.x > 0 && open) || (r.y < s->h / 2 && !open)) && (type == TRANSITION_CURTAIN || r.y > 0));
 }
 
 static void sdl2_update_screen(const uint8_t *p, int present) {

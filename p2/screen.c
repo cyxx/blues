@@ -203,9 +203,22 @@ void video_load_front_tiles() {
 }
 
 void video_transition_close() {
+		print_debug(DBG_SYSTEM, "video_transition_close");
+		struct sys_rect_t s;
+		s.h = TILEMAP_SCREEN_H;
+		s.w = TILEMAP_SCREEN_W;
+		g_sys.update_screen(g_res.vga, 0);
+		g_sys.transition_screen(&s, TRANSITION_CURTAIN, false);
+		video_clear();
 }
 
 void video_transition_open() {
+		print_debug(DBG_SYSTEM, "video_transition_open");
+		struct sys_rect_t s;
+		s.h = TILEMAP_SCREEN_H;
+		s.w = TILEMAP_SCREEN_W;
+		g_sys.update_screen(g_res.vga, 0);
+		g_sys.transition_screen(&s, TRANSITION_CURTAIN, true);
 }
 
 void video_load_sprites() {

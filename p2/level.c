@@ -599,7 +599,6 @@ static void level_update_scrolling() {
 }
 
 static void level_init_tilemap() {
-	video_transition_close();
 	g_vars.tilemap.x = 0;
 	g_vars.tilemap.y = 0;
 	g_vars.tilemap.scroll_dx = 0;
@@ -622,7 +621,7 @@ static void level_init_tilemap() {
 	g_vars.tilemap.redraw_flag2 = 1;
 	g_vars.tilemap.prev_x = _undefined;
 	g_vars.tilemap.prev_y = _undefined;
-	level_draw_tilemap();
+	level_update_tilemap();
 	video_transition_open();
 }
 
@@ -2985,7 +2984,8 @@ static void level_update_gates() {
 				g_vars.boss_level5.idle_counter = 8;
 				memset(&g_vars.objects_tbl[91], 0xFF, sizeof(struct object_t) * 6);
 			}
-			level_draw_tilemap();
+			level_update_tilemap();
+			level_update_player();
 			level_update_objects_decors();
 			level_update_objects_items();
 			level_update_objects_monsters();
@@ -3781,6 +3781,7 @@ void do_level() {
 	level_init_tilemap();
 	level_clear_panel();
 	level_draw_panel();
+	level_draw_objects();
 	level_sync();
 	g_vars.monster.type10_dist = 0;
 	g_vars.monster.type0_hdir = 0;

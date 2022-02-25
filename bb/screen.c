@@ -115,14 +115,20 @@ void screen_unk5() {
 
 void screen_do_transition1(int a) {
 	// print_warning("screen_do_transition1 %d", a);
+	struct sys_rect_t s;
+	s.h = GAME_SCREEN_H;
+	s.w = GAME_SCREEN_W;
 	if (a) {
-		g_sys.transition_screen(TRANSITION_CURTAIN, true);
+		g_sys.transition_screen(&s, TRANSITION_CURTAIN, true);
 	}
 }
 
 void screen_do_transition2() {
 	// print_warning("screen_do_transition2");
-	g_sys.transition_screen(TRANSITION_SQUARE, true);
+	struct sys_rect_t s;
+	s.h = GAME_SCREEN_H;
+	s.w = GAME_SCREEN_W;
+	g_sys.transition_screen(&s, TRANSITION_SQUARE, true);
 }
 
 void screen_clear(int a) {
