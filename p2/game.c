@@ -321,6 +321,8 @@ static void game_run(const char *data_path) {
 				do_demo_screen();
 			}
 			do_menu();
+			if (g_sys.input.quit)
+				break;
 		}
 		uint8_t level_num;
 		do {
