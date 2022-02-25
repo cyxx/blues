@@ -3768,6 +3768,27 @@ void do_demo_animation() {
 	} while (g_vars.objects_tbl[1].x_pos >= 0);
 }
 
+static void level_pause() {
+	while(1) {
+		if (!g_sys.paused) {
+			break;
+		} else {
+			print_debug(DBG_SYSTEM, "Pausing");
+			video_transition_close();
+			video_clear();
+			level_draw_panel();
+		}
+		while (g_sys.paused){
+			video_draw_string2(0xC16, "PAUSED");
+			level_sync();
+		}
+		level_update_player();
+		level_update_tilemap();
+		print_debug(DBG_SYSTEM, "Resuming");
+		video_transition_open();
+	}
+}
+
 void do_level() {
 	static const uint8_t music_tbl[] = { 9, 9, 0, 0, 0, 13, 4, 4, 10, 13, 16, 16, 16, 9, 14, 4 };
 	play_music(music_tbl[g_vars.level_num]);
@@ -3813,6 +3834,7 @@ void do_level() {
 			break;
 		}
 		level_update_panel();
+		level_pause();
 		level_sync();
 		level_update_light_palette();
 		level_update_player_bonuses();

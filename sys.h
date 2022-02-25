@@ -61,6 +61,7 @@ struct sys_t {
 	void	(*render_add_sprite)(int spr_type, int frame, int x, int y, int xflip);
 	void	(*render_clear_sprites)();
 	void	(*render_set_sprites_clipping_rect)(int x, int y, int w, int h);
+	bool	paused;
 };
 
 extern struct sys_t g_sys;

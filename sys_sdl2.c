@@ -352,7 +352,7 @@ static void sdl2_shake_screen(int dx, int dy) {
 	_shake_dy = dy;
 }
 
-static void handle_keyevent(int keysym, bool keydown, struct input_t *input) {
+static void handle_keyevent(int keysym, bool keydown, struct input_t *input, bool *paused) {
 	switch (keysym) {
 	case SDLK_LEFT:
 		if (keydown) {
@@ -397,6 +397,12 @@ static void handle_keyevent(int keysym, bool keydown, struct input_t *input) {
 		break;
 	case SDLK_3:
 		input->digit3 = keydown;
+		break;
+	case SDLK_p:
+		if (keydown) {
+			*paused = (bool)(*paused ? false : true);
+			SDL_PauseAudio(*paused);
+		}
 		break;
 	}
 }
@@ -521,7 +527,7 @@ static void handle_joystickbutton(int button, int pressed, struct input_t *input
 	}
 }
 
-static int handle_event(const SDL_Event *ev, bool *paused) {
+static int handle_event(const SDL_Event *ev) {
 	switch (ev->type) {
 	case SDL_QUIT:
 		g_sys.input.quit = true;
@@ -530,16 +536,16 @@ static int handle_event(const SDL_Event *ev, bool *paused) {
 		switch (ev->window.event) {
 		case SDL_WINDOWEVENT_FOCUS_GAINED:
 		case SDL_WINDOWEVENT_FOCUS_LOST:
-			*paused = (ev->window.event == SDL_WINDOWEVENT_FOCUS_LOST);
-			SDL_PauseAudio(*paused);
+			g_sys.paused = (ev->window.event == SDL_WINDOWEVENT_FOCUS_LOST);
+			SDL_PauseAudio(g_sys.paused);
 			break;
 		}
 		break;
 	case SDL_KEYUP:
-		handle_keyevent(ev->key.keysym.sym, 0, &g_sys.input);
+		handle_keyevent(ev->key.keysym.sym, 0, &g_sys.input, &g_sys.paused);
 		break;
 	case SDL_KEYDOWN:
-		handle_keyevent(ev->key.keysym.sym, 1, &g_sys.input);
+		handle_keyevent(ev->key.keysym.sym, 1, &g_sys.input, &g_sys.paused);
 		break;
 	case SDL_CONTROLLERDEVICEADDED:
 		if (!_controller) {
@@ -598,19 +604,12 @@ static int handle_event(const SDL_Event *ev, bool *paused) {
 }
 
 static void sdl2_process_events() {
-	bool paused = false;
-	while (1) {
-		SDL_Event ev;
-		while (SDL_PollEvent(&ev)) {
-			handle_event(&ev, &paused);
-			if (g_sys.input.quit) {
-				break;
-			}
-		}
-		if (!paused) {
+	SDL_Event ev;
+	while (SDL_PollEvent(&ev)) {
+		handle_event(&ev);
+		if (g_sys.input.quit) {
 			break;
 		}
-		SDL_Delay(100);
 	}
 }
 
