@@ -160,7 +160,6 @@ struct level_t {
 
 struct resource_t {
 	bool dos_demo;
-	uint8_t *maps;
 	uint8_t *motif;
 	uint8_t *allfonts;
 	uint8_t *sprites;
@@ -174,6 +173,7 @@ struct resource_t {
 	int levellen;
 	uint8_t *vga;
 	uint8_t *background;
+	uint8_t *map;
 	struct level_t level, restart;
 	uint8_t *samples;
 	uint16_t spr_monsters_offset;

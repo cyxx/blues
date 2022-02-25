@@ -17,6 +17,9 @@ extern struct options_t g_options;
 #define CHEATS_UNLIMITED_ENERGY (1 << 2)
 #define CHEATS_NO_WIND          (1 << 3)
 
+#define MAP_W 640
+#define MAP_H 200
+
 struct club_anim_t {
 	const uint8_t *anim; /* uint16_t[4] : player spr, club spr, x, y */
 	uint8_t a;
@@ -332,6 +335,7 @@ extern void	monster_change_prev_anim(struct object_t *obj);
 extern void	video_draw_string(int offset, int hspace, const char *s);
 extern void	video_clear();
 extern void	video_copy_img(const uint8_t *src);
+extern void	video_copy_map(const uint8_t *src);
 extern void	video_draw_panel(const uint8_t *src);
 extern void	video_draw_panel_number(int offset, int num);
 extern void	video_draw_number(int offset, int num);

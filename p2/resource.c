@@ -37,7 +37,6 @@ void res_init(const char *path, int vga_size) {
 
 	detect_dos_demo();
 
-	g_res.maps     = load_file("MAP.SQZ");
 	g_res.motif    = load_file("MOTIF.SQZ");
 	g_res.allfonts = load_file("ALLFONTS.SQZ");
 	g_res.sprites  = load_file("SPRITES.SQZ");
@@ -67,8 +66,6 @@ void res_init(const char *path, int vga_size) {
 }
 
 void res_fini() {
-	free(g_res.maps);
-	g_res.maps = 0;
 	free(g_res.motif);
 	g_res.motif = 0;
 	free(g_res.allfonts);

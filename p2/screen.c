@@ -115,6 +115,10 @@ void video_copy_img(const uint8_t *src) {
 	decode_planar(src, g_res.background, 320, 320, 200, 0xFF);
 }
 
+void video_copy_map(const uint8_t *src) {
+	decode_planar(src, g_res.map, MAP_W, MAP_W, MAP_H, 0xFF);
+}
+
 void video_draw_panel(const uint8_t *src) {
 	const int h = GAME_SCREEN_H - PANEL_H;
 	const int x = (GAME_SCREEN_W - 320) / 2;

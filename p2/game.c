@@ -147,6 +147,49 @@ static void do_castle_screen() {
 	}
 }
 
+static void do_map(){
+	static const uint16_t spr_pos[2][10] = {
+		{ 52, 62,  94, 115, 106,  81,  74, 146,  76,  48 },
+		{  0, 80, 120, 152, 232, 328, 424, 528, 600, 600 }
+	};
+	const uint8_t pal = 13;
+	const uint16_t spr = 457;
+	uint8_t *data = load_file("MAP.SQZ");
+	if (data) {
+		g_res.map = (uint8_t *)malloc(MAP_W*MAP_H);
+		video_copy_map(data);
+		video_clear();
+		if (g_res.map) {
+			const int y_offs = (GAME_SCREEN_H - 200) / 2;
+			const int x_offs = GAME_SCREEN_W;
+			const uint16_t pos_y = spr_pos[0][g_vars.level_num];
+			const uint16_t pos_x = spr_pos[1][g_vars.level_num];
+			g_sys.set_screen_palette(palettes_tbl[pal], 0, 16, 6);
+			video_load_sprites();
+			for (uint16_t x = 0; x < MAP_W; ++x) { /* 640*200*4bpp pic */
+				uint16_t pitch = x < GAME_SCREEN_W ? x : GAME_SCREEN_W;
+				uint16_t window_w = x < GAME_SCREEN_W ? 0 : x % GAME_SCREEN_W;
+				uint16_t shown_pixels = x < GAME_SCREEN_W ? x : 0;
+				video_draw_sprite(spr, GAME_SCREEN_W - x + pos_x, pos_y + y_offs, 0);
+				for (uint8_t y = 1; y < MAP_H; ++y) {
+					memcpy(g_res.vga + (y_offs + y) * GAME_SCREEN_W + x_offs - shown_pixels,
+						g_res.map + y * MAP_W + window_w,
+						pitch);
+				}
+				g_sys.update_screen(g_res.vga, 1);
+				g_sys.render_clear_sprites();
+				wait_input(-1);
+				g_sys.sleep(10);
+			}
+			wait_input(10);
+			g_sys.update_screen(g_res.vga, 0);
+			g_sys.fade_out_palette();
+			free(g_res.map);
+		}
+		free(data);
+	}
+}
+
 static void do_menu() {
 	uint8_t *data = load_file("MENU.SQZ");
 	if (data) {
@@ -284,6 +327,8 @@ static void game_run(const char *data_path) {
 				do_castle_screen();
 				break;
 			}
+			if (g_vars.level_num < 10)
+				do_map();
 			do_level();
 			print_debug(DBG_GAME, "previous level %d current %d", level_num, g_vars.level_num);
 		} while (!g_res.dos_demo && g_vars.level_num != level_num);
