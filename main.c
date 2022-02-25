@@ -25,6 +25,7 @@ static const char *USAGE =
 	"  --cga             Enable CGA colors\n"
 	"  --dosscroll       Enable DOS style screen scrolling\n"
 	"  --hybrid          Enable fuchsia color as in Hybrid crack\n"
+	"  --palette=NUM     Pick palette NUM for screen colors\n"
 ;
 
 static struct game_t *detect_game(const char *data_path) {
@@ -85,6 +86,7 @@ int main(int argc, char *argv[]) {
 			{ "cga",        no_argument,       0, 10 },
 			{ "dosscroll",  no_argument,       0, 11 },
 			{ "hybrid",     no_argument,       0, 12 },
+			{ "palette",    required_argument, 0, 13 },
 			{ 0, 0, 0, 0 },
 		};
 		int index;
@@ -132,6 +134,10 @@ int main(int argc, char *argv[]) {
 			break;
 		case 12:
 			g_options.hybrid_color = true;
+			break;
+		case 13:
+			sscanf(optarg, "%hhd", &g_options.palette);
+			fprintf(stdout, "Using palette #%d\n", g_options.palette);
 			break;
 		default:
 			fprintf(stdout, USAGE, argv[0]);

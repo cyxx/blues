@@ -62,6 +62,7 @@ Usage: blues [OPTIONS]...
   --cga             Enable CGA colors
   --dosscroll       Enable DOS style screen scrolling
   --hybrid          Enable fuchsia color as in Hybrid crack
+  --palette=NUM     Pick palette NUM for screen colors
 ```
 
 ## Downloads

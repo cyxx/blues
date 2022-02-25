@@ -57,6 +57,7 @@ struct options_t {
 	bool dos_scrolling;
 	bool cga_colors;
 	bool hybrid_color;
+	int8_t palette;
 };
 
 struct game_t {

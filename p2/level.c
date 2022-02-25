@@ -23,7 +23,7 @@ static void level_player_death_animation();
 static const uint8_t next_level_tbl[] = { 0xFF, 0x0C, 0x0B, 0x0A, 0xFF, 0xFF, 0x00, 0xFF, 0xFF, 0x0E };
 
 static void set_level_palette() {
-	g_sys.set_screen_palette(palettes_tbl[g_vars.level_num], 0, 16, 6);
+	g_sys.set_screen_palette(palettes_tbl[(g_options.palette ? g_options.palette : g_vars.level_num)], 0, 16, 6);
 }
 
 static int load_level_data_get_tilemap_size(int num, const uint8_t *lev, const uint8_t *uni) {
