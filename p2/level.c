@@ -1421,7 +1421,7 @@ static void level_update_objects_axe() {
 
 
 static int level_get_tile_monster_offset(uint8_t tile_num, struct object_t *obj) {
-	const uint8_t attr = g_res.level.tile_attributes1[tile_num];
+	const uint8_t attr = g_res.level.tile_attributes3[tile_num];
 	if ((attr & 0x30) == 0) {
 		return attr;
 	}
@@ -1458,7 +1458,7 @@ static void level_update_monster_pos(struct object_t *obj, struct level_monster_
 			if (m->flags & 0x40) {
 				monster_change_next_anim(obj);
 				m->flags |= 0x80;
-				obj->data.m.y_velocity &= ~15;
+				obj->data.m.y_velocity = -16;
 				obj->x_pos += obj->data.m.x_velocity >> 2;
 				return;
 			}
