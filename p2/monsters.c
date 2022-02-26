@@ -176,7 +176,7 @@ static void monster_func1_type3(struct object_t *obj) {
 	} else if (state == 1) {
 		monster_add_orb(m, 0, obj->y_pos - m->y_pos);
 		const uint16_t pos = ((obj->y_pos >> 4) << 8) | (obj->x_pos >> 4);
-		const uint8_t tile_num = g_res.leveldat[pos];
+		const uint8_t tile_num = level_get_tile(pos);
 		if (g_res.level.tile_attributes1[tile_num] == 0) {
 			return;
 		}
@@ -184,8 +184,7 @@ static void monster_func1_type3(struct object_t *obj) {
 		obj->data.m.y_velocity = 0;
 		obj->data.m.state = 2;
 		m->flags |= 0x48;
-		const int dx = (g_vars.objects_tbl[1].x_pos >= obj->x_pos) ? 48 : -48;
-		obj->data.m.x_velocity = dx;
+		obj->data.m.x_velocity = (g_vars.objects_tbl[1].x_pos >= obj->x_pos) ? 48 : -48;
 		monster_change_next_anim(obj);
 	} else if (state == 2) {
 		if (obj->x_pos < 0) {
@@ -777,15 +776,15 @@ static bool monster_func2_type10(struct level_monster_t *m) {
 	uint16_t pos = (bh << 8) | bl;
 	for (int i = 0; i < 10 && pos >= 0x300; ++i, pos -= 0x100) {
 		if (pos < (g_vars.tilemap.h << 8)) {
-			const uint8_t tile_num0 = g_res.leveldat[pos];
+			const uint8_t tile_num0 = level_get_tile(pos);
 			if (g_res.level.tile_attributes1[tile_num0] == 0) {
 				continue;
 			}
-			const uint8_t tile_num1 = g_res.leveldat[pos - 0x100];
+			const uint8_t tile_num1 = level_get_tile(pos - 0x100);
 			if (g_res.level.tile_attributes1[tile_num1] != 0) {
 				continue;
 			}
-			const uint8_t tile_num2 = g_res.leveldat[pos - 0x200];
+			const uint8_t tile_num2 = level_get_tile(pos - 0x200);
 			if (g_res.level.tile_attributes1[tile_num2] == 0) {
 				obj->y_pos = (pos >> 8) << 4;
 				obj->spr_num = m->spr_num;

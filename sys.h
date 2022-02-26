@@ -18,7 +18,6 @@
 struct input_t {
 	uint8_t direction;
 	bool quit;
-	bool escape;
 	bool space;
 	bool digit1, digit2, digit3;
 };

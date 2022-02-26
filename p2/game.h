@@ -285,6 +285,8 @@ extern struct vars_t g_vars;
 extern const uint8_t *palettes_tbl[16];
 extern const uint8_t credits_palette_data[16 * 3];
 extern const uint8_t light_palette_data[16 * 3];
+extern const uint8_t present_palette_data[256 * 3];
+extern const uint8_t menu_palette_data[16 * 3];
 extern const uint8_t spr_offs_tbl[922];
 extern const uint8_t spr_size_tbl[922];
 extern const uint16_t score_tbl[17];

@@ -381,7 +381,9 @@ static void handle_keyevent(int keysym, bool keydown, struct input_t *input) {
 		input->space = keydown;
 		break;
 	case SDLK_ESCAPE:
-		input->escape = keydown;
+		if (keydown) {
+			g_sys.input.quit = true;
+		}
 		break;
 	case SDLK_1:
 		input->digit1 = keydown;
@@ -436,7 +438,6 @@ static void handle_controllerbutton(int button, bool pressed, struct input_t *in
 		input->space = pressed;
 		break;
 	case SDL_CONTROLLER_BUTTON_BACK:
-		input->escape = pressed;
 		break;
 	case SDL_CONTROLLER_BUTTON_START:
 		break;

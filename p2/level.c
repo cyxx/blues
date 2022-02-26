@@ -671,12 +671,12 @@ static void level_init_object_hit_from_xy_pos(int16_t x_pos, int16_t y_pos) {
 	g_vars.current_hit_object = obj;
 }
 
-static void level_update_tile_type_2() {
+static void level_update_tile_type_2(bool tile_flag) {
 	if (g_vars.level_num == 14) {
 		g_vars.player_death_flag = 0xFF;
 		return;
 	}
-	if (g_options.cheats & CHEATS_NO_HIT) {
+	if (tile_flag && (g_options.cheats & CHEATS_NO_HIT) != 0) {
 		return;
 	}
 	level_player_die();
@@ -866,7 +866,7 @@ static void level_update_tile0(uint16_t offset) {
 		break;
 	case 6:
 		/* spikes */
-		level_update_tile_type_2();
+		level_update_tile_type_2(1);
 		break;
 	default:
 		print_warning("Unhandled level_update_tile0 attr1 %d", attr1);
@@ -888,7 +888,7 @@ static void level_update_tile0(uint16_t offset) {
 		level_update_tile_attr2_type1();
 		break;
 	case 2:
-		level_update_tile_type_2();
+		level_update_tile_type_2(1);
 		break;
 	default:
 		print_warning("Unhandled level_update_tile0 attr2 %d", al);
@@ -948,7 +948,7 @@ static void level_update_tile1(uint16_t offset) {
 		level_update_tile_type_1(offset);
 		break;
 	case 2:
-		level_update_tile_type_2();
+		level_update_tile_type_2(1);
 		break;
 	default:
 		print_warning("Unhandled level_update_tile1 type %d", type);
@@ -962,7 +962,7 @@ static void level_update_tile2(uint16_t offset) {
 	if (type == 2 || type == 4) {
 		switch (type) {
 		case 2:
-			level_update_tile_type_2();
+			level_update_tile_type_2(1);
 			break;
 		default:
 			print_warning("Unhandled level_update_tile2 type %d", type);
@@ -991,6 +991,8 @@ static void level_reset() {
 	g_vars.level_completed_flag = 0;
 	g_vars.light.palette_flag1 = 0;
 	g_vars.light.palette_flag2 = 0;
+	g_vars.player_flying_flag = 0;
+	g_vars.player_gravity_flag = 0;
 
 	g_vars.objects_tbl[1].data.p.special_anim_num = 0;
 	g_vars.tilemap.prev_x = _undefined;
@@ -1422,7 +1424,7 @@ static void level_update_objects_axe() {
 
 
 static int level_get_tile_monster_offset(uint8_t tile_num, struct object_t *obj) {
-	const uint8_t attr = g_res.level.tile_attributes1[tile_num];
+	const uint8_t attr = g_res.level.tile_attributes3[tile_num];
 	if ((attr & 0x30) == 0) {
 		return attr;
 	}
@@ -1459,7 +1461,7 @@ static void level_update_monster_pos(struct object_t *obj, struct level_monster_
 			if (m->flags & 0x40) {
 				monster_change_next_anim(obj);
 				m->flags |= 0x80;
-				obj->data.m.y_velocity &= ~15;
+				obj->data.m.y_velocity = -16;
 				obj->x_pos += obj->data.m.x_velocity >> 2;
 				return;
 			}
@@ -2185,17 +2187,9 @@ static void level_update_player_anim_1(uint8_t al) {
 	level_update_object_anim(p);
 }
 
-static void level_update_player_anim_2(uint8_t al) {
-	if (g_vars.player_anim_0x40_flag != 0) {
-		level_update_player_anim_3_6_7(g_vars.objects_tbl[1].data.p.current_anim_num);
-		return;
-	}
-	if (g_vars.player_nojump_counter != 0) {
-		level_update_player_anim_0(al);
-		return;
-	}
+static void level_update_player_anim_2_helper(uint8_t al) {
 	g_vars.level_force_x_scroll_flag = 0;
-	uint8_t value = g_vars.player_anim2_counter;
+	const uint8_t value = g_vars.player_anim2_counter;
 	++g_vars.player_anim2_counter;
 	if (value < 9) {
 		static const int8_t y_tbl[] = { -65, -51, -35, -20, -10, -5, -2, -1, 0 };
@@ -2216,6 +2210,16 @@ static void level_update_player_anim_2(uint8_t al) {
 	level_update_object_anim(p);
 	level_update_screen_x_velocity();
 	level_update_screen_x_velocity();
+}
+
+static void level_update_player_anim_2(uint8_t al) {
+	if (g_vars.player_anim_0x40_flag != 0) {
+		level_update_player_anim_3_6_7(g_vars.objects_tbl[1].data.p.current_anim_num);
+	} else if (g_vars.player_nojump_counter != 0) {
+		level_update_player_anim_0(al);
+	} else {
+		level_update_player_anim_2_helper(al);
+	}
 }
 
 static void level_update_player_club_power() {
@@ -2263,6 +2267,19 @@ static void level_update_player_anim_8(uint8_t al) {
 	level_update_object_anim(p);
 }
 
+static void level_update_player_anim_34(uint8_t al) {
+	if (g_vars.player_unk_counter1 < 24) {
+		level_update_player_anim_2_helper(al);
+	} else {
+		g_vars.player_gravity_flag = 1;
+		g_vars.player_flying_counter = 24;
+		g_vars.objects_tbl[1].y_pos -= 3;
+		g_vars.player_unk_counter1 = 0;
+		level_update_screen_x_velocity();
+		level_update_screen_x_velocity();
+	}
+}
+
 static void level_update_player_decor() {
 	const int y_pos = (g_vars.objects_tbl[1].y_pos >> 4) - 1;
 	const int spr_num = g_vars.objects_tbl[1].spr_num & 0x1FFF;
@@ -2276,15 +2293,15 @@ static void level_update_player_decor() {
 	const int x_pos = g_vars.objects_tbl[1].x_pos >> 4;
 	const int player_ypos_diff = abs((g_vars.objects_tbl[1].y_pos >> 4) - g_vars.tilemap.y);
 	if (player_ypos_diff > (TILEMAP_SCREEN_H / 16)) {
-		level_update_tile_type_2();
+		level_update_tile_type_2(0);
 	} else {
 		const int player_xpos_diff = abs((g_vars.objects_tbl[1].x_pos >> 4) - g_vars.tilemap.x);
 		if (player_xpos_diff > (TILEMAP_SCREEN_W / 16)) {
-			level_update_tile_type_2();
+			level_update_tile_type_2(0);
 		} else if ((g_res.level.scrolling_mask & 4) != 0 && g_vars.objects_tbl[1].y_pos < (g_vars.tilemap.y << 4)) {
-			level_update_tile_type_2();
+			level_update_tile_type_2(0);
 		} else if (g_vars.objects_tbl[1].y_pos >= 0 && g_vars.objects_tbl[1].y_pos > ((g_vars.tilemap.h + 1) << 4)) {
-			level_update_tile_type_2();
+			level_update_tile_type_2(0);
 		}
 	}
 	g_vars.player_tile_flags = 0;
@@ -2325,7 +2342,6 @@ static void level_update_player_flying() {
 		return;
 	}
 	if (g_vars.player_gravity_flag != 0) {
-		g_vars.objects_tbl[1].spr_num &= 0x8000;
 		const int x_vel = abs(g_vars.objects_tbl[1].x_velocity);
 		int num = 48;
 		if (x_vel < 64) {
@@ -2337,7 +2353,7 @@ static void level_update_player_flying() {
 		if (g_vars.player_flying_anim_index < 3) {
 			num = 51 - g_vars.player_flying_anim_index;
 		}
-		g_vars.objects_tbl[1].spr_num |= num;
+		g_vars.objects_tbl[1].spr_num = (g_vars.objects_tbl[1].spr_num & 0x8000) | num;
 	}
 	const uint8_t *p = &player_flying_anim_data[14];
 	if ((g_vars.input.key_up | g_vars.input.key_down) == 0 && g_vars.player_flying_anim_index != 3) {
@@ -2365,8 +2381,8 @@ static void level_update_player_flying() {
 			++spr_num;
 		}
 		g_vars.objects_tbl[0].spr_num = spr_num;
-		g_vars.objects_tbl[0].x_pos += x_delta;
-		g_vars.objects_tbl[0].y_pos += (int8_t)p[5];
+		g_vars.objects_tbl[0].x_pos = g_vars.objects_tbl[1].x_pos + x_delta;
+		g_vars.objects_tbl[0].y_pos = g_vars.objects_tbl[1].y_pos + (int8_t)p[5];
 		break;
 	}
 }
@@ -2453,8 +2469,8 @@ static void level_update_player() {
 		++g_vars.player_update_counter;
 	}
 	if (g_vars.player_flying_flag != 0) {
-		mask += 0x40;
-		if ((g_vars.player_flying_flag &= 1) != 0) {
+		al += 0x20;
+		if ((g_vars.player_gravity_flag &= 1) != 0) {
 			if (g_vars.input.key_up) {
 				if (g_vars.player_flying_anim_index == 6) {
 					if (g_vars.objects_tbl[1].data.p.y_velocity > 16) {
@@ -2491,7 +2507,7 @@ static void level_update_player() {
 			}
 		} else {
 			if (g_vars.objects_tbl[1].data.p.y_velocity > 160) {
-				g_vars.player_flying_flag = 1;
+				g_vars.player_gravity_flag = 1;
 			}
 		}
 	}
@@ -2518,6 +2534,20 @@ static void level_update_player() {
 		break;
 	case 8:
 		level_update_player_anim_8(al);
+		break;
+	case 32:
+	case 35:
+	case 36:
+	case 37:
+	case 38:
+	case 39:
+		level_update_player_anim_5(al);
+		break;
+	case 33:
+		level_update_player_anim_1(al);
+		break;
+	case 34:
+		level_update_player_anim_34(al);
 		break;
 	default:
 		print_warning("Unhandled anim_lut %d mask %d", al, mask);
