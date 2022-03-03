@@ -26,6 +26,7 @@ static const char *USAGE =
 	"  --dosscroll       Enable DOS style screen scrolling\n"
 	"  --hybrid          Enable fuchsia color as in Hybrid crack\n"
 	"  --palette=NUM     Pick palette NUM for screen colors\n"
+	"  --nomap           Do not scroll map before each level\n"
 ;
 
 static struct game_t *detect_game(const char *data_path) {
@@ -62,6 +63,7 @@ int main(int argc, char *argv[]) {
 	g_options.cga_colors = false;
 	g_options.dos_scrolling = false;
 	g_options.hybrid_color = false;
+	g_options.show_map = true;
 	const char *data_path = DEFAULT_DATA_PATH;
 	int scale_factor = DEFAULT_SCALE_FACTOR;
 	const char *scale_filter = DEFAULT_SCALE_FILTER;
@@ -87,6 +89,7 @@ int main(int argc, char *argv[]) {
 			{ "dosscroll",  no_argument,       0, 11 },
 			{ "hybrid",     no_argument,       0, 12 },
 			{ "palette",    required_argument, 0, 13 },
+			{ "nomap",      no_argument,       0, 14 },
 			{ 0, 0, 0, 0 },
 		};
 		int index;
@@ -138,6 +141,9 @@ int main(int argc, char *argv[]) {
 		case 13:
 			sscanf(optarg, "%hhd", &g_options.palette);
 			fprintf(stdout, "Using palette #%d\n", g_options.palette);
+			break;
+		case 14:
+			g_options.show_map = false;
 			break;
 		default:
 			fprintf(stdout, USAGE, argv[0]);

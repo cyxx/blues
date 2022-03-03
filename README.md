@@ -63,6 +63,7 @@ Usage: blues [OPTIONS]...
   --dosscroll       Enable DOS style screen scrolling
   --hybrid          Enable fuchsia color as in Hybrid crack
   --palette=NUM     Pick palette NUM for screen colors
+  --nomap           Do not scroll map before each level
 ```
 
 ## Downloads

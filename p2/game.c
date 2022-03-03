@@ -331,7 +331,7 @@ static void game_run(const char *data_path) {
 				do_castle_screen();
 				break;
 			}
-			if (g_vars.level_num < 10)
+			if (g_vars.level_num < 10 && g_options.show_map)
 				do_map();
 			do_level();
 			print_debug(DBG_GAME, "previous level %d current %d", level_num, g_vars.level_num);

@@ -58,6 +58,7 @@ struct options_t {
 	bool cga_colors;
 	bool hybrid_color;
 	int8_t palette;
+	bool show_map;
 };
 
 struct game_t {
