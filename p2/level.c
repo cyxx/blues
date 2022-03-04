@@ -1139,10 +1139,10 @@ bool level_objects_collide(const struct object_t *si, const struct object_t *di)
 	d = si->x_pos - spr_offs_tbl[(si->spr_num & 0x1FFF) * 2];
 	a = di->x_pos - spr_offs_tbl[(di->spr_num & 0x1FFF) * 2];
 	b = spr_size_tbl[(di->spr_num & 0x1FFF) * 2];
-        if (a >= d) {
-                SWAP(a, d);
-                b = spr_size_tbl[(si->spr_num & 0x1FFF) * 2];
-        }
+	if (a >= d) {
+		SWAP(a, d);
+		b = spr_size_tbl[(si->spr_num & 0x1FFF) * 2];
+	}
 	if (g_vars.player_using_club_flag == 0) {
 		b >>= 1;
 	}
