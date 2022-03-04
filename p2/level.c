@@ -128,13 +128,13 @@ static void load_level_data_fix_items_spr_num() {
 	for (int i = 0; i < MAX_LEVEL_ITEMS; ++i) {
 		const uint16_t num = g_res.level.items_tbl[i].spr_num;
 		if (num != 0xFFFF) {
-			g_res.level.items_tbl[i].spr_num = num - offset + 53;
+			g_res.level.items_tbl[i].spr_num = num - offset + SPRITES_OFFSET;
 		}
 	}
 	for (int i = 0; i < MAX_LEVEL_PLATFORMS; ++i) {
 		const uint16_t num = g_res.level.platforms_tbl[i].spr_num;
 		if (num != 0xFFFF) {
-			g_res.level.platforms_tbl[i].spr_num = num - offset + 53;
+			g_res.level.platforms_tbl[i].spr_num = num - offset + SPRITES_OFFSET;
 		}
 	}
 }
@@ -150,13 +150,13 @@ static void load_level_data_fix_monsters_spr_num() {
 					g_res.level.monsters_tbl[i].spr_num = num;
 				} else if (num >= g_res.level.items_spr_num_offset) {
 					num -= g_res.level.items_spr_num_offset;
-					num += 53;
+					num += SPRITES_OFFSET;
 					g_res.level.monsters_tbl[i].spr_num = num;
 				}
 			}
 		}
 	}
-	g_res.level.items_spr_num_offset = 53;
+	g_res.level.items_spr_num_offset = SPRITES_OFFSET;
 	g_res.level.monsters_spr_num_offset = g_res.spr_monsters_offset;
 }
 
@@ -253,7 +253,7 @@ static void load_level_data(int num) {
 		video_copy_img(data);
 		free(data);
 	}
-	memset(&g_vars.objects_tbl[0], 0, sizeof(struct object_t) * OBJECTS_COUNT);
+	memset(&g_vars.objects_tbl[CLUB_OFFSET], 0, sizeof(struct object_t) * OBJECTS_COUNT);
 	const int level = (num < 9) ? ('1' + num) : ('A' + num - 9);
 	snprintf(name, sizeof(name), "LEVEL%c.SQZ", level);
 	free(g_res.leveldat);
@@ -383,7 +383,7 @@ static bool level_adjust_hscroll_left() {
 }
 
 static uint16_t tilemap_end_xpos() {
-	int end_x = (g_vars.objects_tbl[1].x_pos >> 4) - (TILEMAP_SCREEN_W / 16);
+	int end_x = (g_vars.objects_tbl[PLAYER_OFFSET].x_pos >> 4) - (TILEMAP_SCREEN_W / 16);
 	if (g_res.level.tilemap_w < end_x) {
 		end_x = 256 - (TILEMAP_SCREEN_W / 16);
 	} else {
@@ -405,7 +405,7 @@ static void level_adjust_x_scroll() {
 		const int x1 = TILEMAP_SCROLL_W * 2;
 		const int x2 = TILEMAP_SCREEN_W - TILEMAP_SCROLL_W * 2;
 		int tilemap_xpos = (g_vars.tilemap.x << 4) + g_vars.tilemap.scroll_dx;
-		const int player_xpos = g_vars.objects_tbl[1].x_pos - tilemap_xpos;
+		const int player_xpos = g_vars.objects_tbl[PLAYER_OFFSET].x_pos - tilemap_xpos;
 		if (player_xpos > x2) {
 			tilemap_xpos += (player_xpos - x2);
 			const int tilemap_xend = tilemap_end_xpos() << 4;
@@ -425,8 +425,8 @@ static void level_adjust_x_scroll() {
 		return;
 	}
 
-	const int x_pos = (g_vars.objects_tbl[1].x_pos >> 4) - g_vars.tilemap.x;
-	if (x_pos >= (TILEMAP_SCREEN_W / 16) || g_vars.level_force_x_scroll_flag != 0 || g_vars.objects_tbl[1].x_velocity != 0) {
+	const int x_pos = (g_vars.objects_tbl[PLAYER_OFFSET].x_pos >> 4) - g_vars.tilemap.x;
+	if (x_pos >= (TILEMAP_SCREEN_W / 16) || g_vars.level_force_x_scroll_flag != 0 || g_vars.objects_tbl[PLAYER_OFFSET].x_velocity != 0) {
 		if (g_vars.level_xscroll_center_flag != 0) {
 			if (g_vars.level_xscroll_center_flag != 1) {
 				if (x_pos < 15) {
@@ -443,8 +443,8 @@ static void level_adjust_x_scroll() {
 			}
 			g_vars.level_xscroll_center_flag = 0;
 		} else {
-			if (g_vars.objects_tbl[1].x_velocity != 0) {
-				if (g_vars.objects_tbl[1].x_velocity < 0) {
+			if (g_vars.objects_tbl[PLAYER_OFFSET].x_velocity != 0) {
+				if (g_vars.objects_tbl[PLAYER_OFFSET].x_velocity < 0) {
 					if (x_pos <= 4) {
 						g_vars.level_xscroll_center_flag = 2;
 					}
@@ -507,11 +507,11 @@ static void level_adjust_y_scroll() {
 		level_adjust_vscroll_down(1);
 		return;
 	}
-	if (g_vars.objects_tbl[1].data.p.y_velocity == 0) {
+	if (g_vars.objects_tbl[PLAYER_OFFSET].data.p.y_velocity == 0) {
 		g_vars.level_yscroll_center_flag = 0;
 	}
-	const int player_yorigin_diff = (g_vars.objects_tbl[1].y_pos >> 4) - g_vars.tilemap.y;
-	if (g_vars.objects_tbl[1].data.p.y_velocity != 0) {
+	const int player_yorigin_diff = (g_vars.objects_tbl[PLAYER_OFFSET].y_pos >> 4) - g_vars.tilemap.y;
+	if (g_vars.objects_tbl[PLAYER_OFFSET].data.p.y_velocity != 0) {
 		if (player_yorigin_diff >= 9) {
 			g_vars.tilemap_yscroll_diff = 3;
 			++g_vars.level_yscroll_center_flag;
@@ -542,7 +542,7 @@ static void level_adjust_y_scroll() {
 		return;
 	}
 	const int bottom = (g_res.level.scrolling_top + (TILEMAP_SCREEN_H / 16)) << 4;
-	if (g_vars.objects_tbl[1].y_pos > bottom || g_res.level.scrolling_top >= g_vars.tilemap.y - 1) {
+	if (g_vars.objects_tbl[PLAYER_OFFSET].y_pos > bottom || g_res.level.scrolling_top >= g_vars.tilemap.y - 1) {
 		if (g_vars.level_yscroll_center_flag == 0) {
 			return;
 		}
@@ -551,13 +551,13 @@ static void level_adjust_y_scroll() {
 			return;
 		}
 		if (g_vars.tilemap_yscroll_diff < player_yorigin_diff) {
-			if (g_vars.objects_tbl[1].y_pos <= bottom && g_vars.tilemap.y > g_res.level.scrolling_top) {
+			if (g_vars.objects_tbl[PLAYER_OFFSET].y_pos <= bottom && g_vars.tilemap.y > g_res.level.scrolling_top) {
 				g_vars.level_yscroll_center_flag = 0;
 				return;
 			}
 			int dl = 16;
 			if (!g_vars.tilemap_adjust_player_pos_flag) {
-				const int dy = g_vars.objects_tbl[1].y_pos - g_vars.tilemap.scroll_dy;
+				const int dy = g_vars.objects_tbl[PLAYER_OFFSET].y_pos - g_vars.tilemap.scroll_dy;
 				const int index = dy - ((g_vars.tilemap.y + g_vars.tilemap_yscroll_diff) << 4);
 				if (index >= 0 && index < 132) {
 					dl = vscroll_offsets_data[index];
@@ -574,7 +574,7 @@ static void level_adjust_y_scroll() {
 	}
 	int dl = 16;
 	if (!g_vars.tilemap_adjust_player_pos_flag) {
-		const int dy = g_vars.objects_tbl[1].y_pos - g_vars.tilemap.scroll_dy;
+		const int dy = g_vars.objects_tbl[PLAYER_OFFSET].y_pos - g_vars.tilemap.scroll_dy;
 		const int index = ((g_vars.tilemap.y + g_vars.tilemap_yscroll_diff) << 4) - dy;
 		if (index >= 0 && index < 132) {
 			dl = vscroll_offsets_data[index];
@@ -611,7 +611,7 @@ static void level_init_tilemap() {
 	} while ((g_vars.level_yscroll_center_flag | g_vars.level_xscroll_center_flag) != 0);
 	print_debug(DBG_GAME, "init_tilemap x_pos %d y_pos %d scrolling 0x%x", g_vars.tilemap.x, g_vars.tilemap.y, g_res.level.scrolling_mask);
 	if ((g_res.level.scrolling_mask & 2) == 0) {
-		const int x = (g_vars.objects_tbl[1].x_pos >> 4) - g_vars.tilemap.x;
+		const int x = (g_vars.objects_tbl[PLAYER_OFFSET].x_pos >> 4) - g_vars.tilemap.x;
 		if (x >= 12) {
 			for (int i = 0; i < 10; ++i) {
 				level_adjust_hscroll_right();
@@ -643,17 +643,17 @@ static void level_player_reset() {
 	}
 	g_vars.player_anim2_counter = 0;
 	g_vars.player_tile_flags = 2;
-	g_vars.player_prev_y_pos = g_vars.objects_tbl[1].y_pos;
+	g_vars.player_prev_y_pos = g_vars.objects_tbl[PLAYER_OFFSET].y_pos;
 }
 
 static void level_init_object_hit_from_player_pos() {
 	struct object_t *obj = g_vars.current_hit_object;
-	obj->x_pos = g_vars.objects_tbl[1].x_pos;
-	obj->y_pos = g_vars.objects_tbl[1].y_pos;
-	obj->spr_num = 53;
+	obj->x_pos = g_vars.objects_tbl[PLAYER_OFFSET].x_pos;
+	obj->y_pos = g_vars.objects_tbl[PLAYER_OFFSET].y_pos;
+	obj->spr_num = SPRITES_OFFSET;
 	--obj;
-	if (obj < &g_vars.objects_tbl[6]) {
-		obj = &g_vars.objects_tbl[10];
+	if (obj < &g_vars.objects_tbl[CLUBS_OFFSET]) {
+		obj = &g_vars.objects_tbl[CLUBS_OFFSET + 4];
 	}
 	g_vars.current_hit_object = obj;
 }
@@ -662,10 +662,10 @@ static void level_init_object_hit_from_xy_pos(int16_t x_pos, int16_t y_pos) {
 	struct object_t *obj = g_vars.current_hit_object;
 	obj->x_pos = x_pos;
 	obj->y_pos = y_pos;
-	obj->spr_num = 53;
+	obj->spr_num = SPRITES_OFFSET;
 	--obj;
-	if (obj < &g_vars.objects_tbl[6]) {
-		obj = &g_vars.objects_tbl[10];
+	if (obj < &g_vars.objects_tbl[CLUBS_OFFSET]) {
+		obj = &g_vars.objects_tbl[CLUBS_OFFSET + 4];
 	}
 	g_vars.current_hit_object = obj;
 }
@@ -686,7 +686,7 @@ static int level_get_tile_player_offset(uint8_t attr) {
 	if ((attr & 0x30) == 0) {
 		return attr;
 	}
-	int x = (g_vars.objects_tbl[1].x_pos & 15) / 3;
+	int x = (g_vars.objects_tbl[PLAYER_OFFSET].x_pos & 15) / 3;
 	if (attr & 0x10) {
 		x = (attr & 15) + x;
 	} else {
@@ -696,22 +696,22 @@ static int level_get_tile_player_offset(uint8_t attr) {
 }
 
 static void level_update_tile_attr1_helper(uint16_t offset) {
-	g_vars.objects_tbl[1].x_friction = 0;
-	if (g_vars.objects_tbl[1].data.p.y_velocity < 0) {
+	g_vars.objects_tbl[PLAYER_OFFSET].x_friction = 0;
+	if (g_vars.objects_tbl[PLAYER_OFFSET].data.p.y_velocity < 0) {
 		g_vars.player_tile_flags |= 1;
 		return;
 	}
 	g_vars.player_gravity_flag = 0;
-	g_vars.objects_tbl[1].y_pos &= ~15;
+	g_vars.objects_tbl[PLAYER_OFFSET].y_pos &= ~15;
 	uint8_t al = level_get_tile(offset);
 	al = g_res.level.tile_attributes3[al];
 	if (al != 0) {
 		int dy = level_get_tile_player_offset(al);
-		int bx = g_vars.objects_tbl[1].data.p.y_velocity >> 4;
+		int bx = g_vars.objects_tbl[PLAYER_OFFSET].data.p.y_velocity >> 4;
 		if (bx > 0 && dy >= bx) {
 			dy = bx;
 		}
-		g_vars.objects_tbl[1].y_pos += dy;
+		g_vars.objects_tbl[PLAYER_OFFSET].y_pos += dy;
 	} else {
 		al = level_get_tile(offset - 0x100);
 		al = g_res.level.tile_attributes3[al];
@@ -719,29 +719,29 @@ static void level_update_tile_attr1_helper(uint16_t offset) {
 			int ax = level_get_tile_player_offset(al);
 			if (ax < 16) {
 				ax -= 16;
-				g_vars.objects_tbl[1].y_pos += ax;
+				g_vars.objects_tbl[PLAYER_OFFSET].y_pos += ax;
 			}
 		}
 	}
 	if (g_vars.player_jumping_counter > 4) {
 		level_init_object_hit_from_player_pos();
-		const int dy = g_vars.objects_tbl[1].y_pos - g_vars.player_prev_y_pos;
-		if (dy >= 32 && g_vars.objects_tbl[1].data.p.y_velocity >= 80) {
-			g_vars.player_prev_y_pos = g_vars.objects_tbl[1].y_pos;
-			if (g_vars.player_jumping_counter >= 20 && g_vars.objects_tbl[1].data.p.y_velocity > 160) {
+		const int dy = g_vars.objects_tbl[PLAYER_OFFSET].y_pos - g_vars.player_prev_y_pos;
+		if (dy >= 32 && g_vars.objects_tbl[PLAYER_OFFSET].data.p.y_velocity >= 80) {
+			g_vars.player_prev_y_pos = g_vars.objects_tbl[PLAYER_OFFSET].y_pos;
+			if (g_vars.player_jumping_counter >= 20 && g_vars.objects_tbl[PLAYER_OFFSET].data.p.y_velocity > 160) {
 				g_vars.shake_screen_counter = 8;
 			}
 			if (g_vars.player_jumping_counter > 10) {
 				if ((g_res.level.scrolling_mask & 1) == 0) {
-					g_vars.objects_tbl[1].data.p.y_velocity = -32;
+					g_vars.objects_tbl[PLAYER_OFFSET].data.p.y_velocity = -32;
 				}
-				g_vars.objects_tbl[1].spr_num = (g_vars.objects_tbl[1].spr_num & 0xE000) | 12;
+				g_vars.objects_tbl[PLAYER_OFFSET].spr_num = (g_vars.objects_tbl[PLAYER_OFFSET].spr_num & 0xE000) | 12;
 				g_vars.player_jumping_counter = 0;
 				return;
 			}
 		}
 	}
-	g_vars.objects_tbl[1].data.p.y_velocity = 0;
+	g_vars.objects_tbl[PLAYER_OFFSET].data.p.y_velocity = 0;
 	level_player_reset();
 }
 
@@ -751,21 +751,21 @@ static void level_update_tile_attr1_type_1(uint16_t offset) {
 
 static void level_update_tile_attr1_type_2(uint16_t offset) {
 	level_update_tile_attr1_helper(offset);
-	g_vars.objects_tbl[1].x_friction = 1;
+	g_vars.objects_tbl[PLAYER_OFFSET].x_friction = 1;
 }
 
 static void level_update_tile_attr1_type_3(uint16_t offset) {
 	level_update_tile_attr1_helper(offset);
-	g_vars.objects_tbl[1].x_friction = 2;
+	g_vars.objects_tbl[PLAYER_OFFSET].x_friction = 2;
 }
 
 static void level_update_tile_attr1_type_4(uint16_t offset) {
 	level_update_tile_attr1_helper(offset);
-	g_vars.objects_tbl[1].x_friction = 3;
+	g_vars.objects_tbl[PLAYER_OFFSET].x_friction = 3;
 }
 
 static void level_update_tile_attr1_type_5(uint16_t offset) {
-	g_vars.objects_tbl[1].x_friction = 0;
+	g_vars.objects_tbl[PLAYER_OFFSET].x_friction = 0;
 	if (g_vars.player_action_counter == 0) {
 		level_update_tile_attr1_helper(offset);
 	} else {
@@ -774,12 +774,12 @@ static void level_update_tile_attr1_type_5(uint16_t offset) {
 }
 
 static void level_update_tile_attr1_type_0(uint16_t offset) {
-	if (g_vars.objects_tbl[1].data.p.y_velocity == 0) {
+	if (g_vars.objects_tbl[PLAYER_OFFSET].data.p.y_velocity == 0) {
 		uint8_t al = level_get_tile(offset + 0x100);
 		al = g_res.level.tile_attributes3[al];
 		if (al != 0 && level_get_tile_player_offset(al) < 16) {
 			offset += 0x100;
-			g_vars.objects_tbl[1].y_pos += 16;
+			g_vars.objects_tbl[PLAYER_OFFSET].y_pos += 16;
 			level_update_tile_attr1_type_1(offset);
 			return;
 		}
@@ -788,13 +788,13 @@ static void level_update_tile_attr1_type_0(uint16_t offset) {
 }
 
 static void level_update_tile_attr2_type1() {
-	if (g_vars.objects_tbl[1].data.p.y_velocity != 0) {
-		g_vars.objects_tbl[1].data.p.y_velocity = 0;
-		g_vars.objects_tbl[1].y_pos &= ~15;
-		g_vars.objects_tbl[1].y_pos += 16;
+	if (g_vars.objects_tbl[PLAYER_OFFSET].data.p.y_velocity != 0) {
+		g_vars.objects_tbl[PLAYER_OFFSET].data.p.y_velocity = 0;
+		g_vars.objects_tbl[PLAYER_OFFSET].y_pos &= ~15;
+		g_vars.objects_tbl[PLAYER_OFFSET].y_pos += 16;
 		return;
 	}
-	const uint8_t spr_num = g_vars.objects_tbl[1].spr_num;
+	const uint8_t spr_num = g_vars.objects_tbl[PLAYER_OFFSET].spr_num;
 	if (spr_num == 10 || spr_num == 21) {
 		return;
 	}
@@ -816,7 +816,7 @@ static void level_update_tile_attr2_type1() {
 static void level_update_player_jump();
 
 static void level_update_tile0(uint16_t offset) {
-	if (g_vars.objects_tbl[1].y_pos <= -1) {
+	if (g_vars.objects_tbl[PLAYER_OFFSET].y_pos <= -1) {
 		level_update_player_jump();
 		g_vars.player_tile_flags = 0xFF;
 		return;
@@ -871,7 +871,7 @@ static void level_update_tile0(uint16_t offset) {
 		print_warning("Unhandled level_update_tile0 attr1 %d", attr1);
 		break;
 	}
-	if (offset < 0x100 || g_vars.objects_tbl[1].data.p.y_velocity >= 0) {
+	if (offset < 0x100 || g_vars.objects_tbl[PLAYER_OFFSET].data.p.y_velocity >= 0) {
 		return;
 	}
 	offset -= 0x100;
@@ -893,10 +893,10 @@ static void level_update_tile0(uint16_t offset) {
 		print_warning("Unhandled level_update_tile0 attr2 %d", al);
 		break;
 	}
-	if ((ah & 1) == 0 || g_vars.objects_tbl[1].y_pos <= 0) {
+	if ((ah & 1) == 0 || g_vars.objects_tbl[PLAYER_OFFSET].y_pos <= 0) {
 		return;
 	}
-	int dx = (g_vars.objects_tbl[1].x_velocity > 0) ? -1 : 1;
+	int dx = (g_vars.objects_tbl[PLAYER_OFFSET].x_velocity > 0) ? -1 : 1;
 	offset += dx;
 	al = level_get_tile(offset + 0x100);
 	al = g_res.level.tile_attributes0[al];
@@ -909,7 +909,7 @@ static void level_update_tile0(uint16_t offset) {
 			return;
 		}
 	}
-	g_vars.objects_tbl[1].x_pos += 2 * dx;
+	g_vars.objects_tbl[PLAYER_OFFSET].x_pos += 2 * dx;
 }
 
 static void level_update_tile_type_0(uint16_t offset) {
@@ -922,8 +922,8 @@ static void level_update_tile_type_0(uint16_t offset) {
 		if (p->x_pos != _undefined) {
 			continue;
 		}
-		p->x_pos = g_vars.objects_tbl[1].x_pos << 3;
-		p->y_pos = g_vars.objects_tbl[1].y_pos << 3;
+		p->x_pos = g_vars.objects_tbl[PLAYER_OFFSET].x_pos << 3;
+		p->y_pos = g_vars.objects_tbl[PLAYER_OFFSET].y_pos << 3;
 		p->x_delta = 0;
 		p->y_delta = 0;
 		p->unk7 = 0;
@@ -932,8 +932,8 @@ static void level_update_tile_type_0(uint16_t offset) {
 }
 
 static void level_update_tile_type_1(uint16_t offset) {
-	g_vars.objects_tbl[1].x_pos -= g_vars.objects_tbl[1].x_velocity >> 4;
-	g_vars.objects_tbl[1].x_velocity = 0;
+	g_vars.objects_tbl[PLAYER_OFFSET].x_pos -= g_vars.objects_tbl[PLAYER_OFFSET].x_velocity >> 4;
+	g_vars.objects_tbl[PLAYER_OFFSET].x_velocity = 0;
 }
 
 static void level_update_tile1(uint16_t offset) {
@@ -971,14 +971,14 @@ static void level_update_tile2(uint16_t offset) {
 }
 
 static void level_reset_objects() {
-	memset(&g_vars.objects_tbl[1], 0, sizeof(struct object_t) * (OBJECTS_COUNT - 1));
+	memset(&g_vars.objects_tbl[PLAYER_OFFSET], 0, sizeof(struct object_t) * (OBJECTS_COUNT - 1));
 	for (int i = 0; i < OBJECTS_COUNT; ++i) {
 		struct object_t *obj = &g_vars.objects_tbl[i];
 		obj->spr_num = 0xFFFF;
 		obj->hit_counter = 0;
 	}
-	g_vars.objects_tbl[1].x_pos = (g_options.start_xpos16 < 0) ? g_res.level.start_x_pos : (g_options.start_xpos16 << 4);
-	g_vars.objects_tbl[1].y_pos = (g_options.start_ypos16 < 0) ? g_res.level.start_y_pos : (g_options.start_ypos16 << 4);
+	g_vars.objects_tbl[PLAYER_OFFSET].x_pos = (g_options.start_xpos16 < 0) ? g_res.level.start_x_pos : (g_options.start_xpos16 << 4);
+	g_vars.objects_tbl[PLAYER_OFFSET].y_pos = (g_options.start_ypos16 < 0) ? g_res.level.start_y_pos : (g_options.start_ypos16 << 4);
 }
 
 static void level_reset() {
@@ -991,9 +991,9 @@ static void level_reset() {
 	g_vars.light.palette_flag1 = 0;
 	g_vars.light.palette_flag2 = 0;
 
-	g_vars.objects_tbl[1].data.p.special_anim_num = 0;
+	g_vars.objects_tbl[PLAYER_OFFSET].data.p.special_anim_num = 0;
 	g_vars.tilemap.prev_x = _undefined;
-	g_vars.current_hit_object = &g_vars.objects_tbl[6];
+	g_vars.current_hit_object = &g_vars.objects_tbl[CLUBS_OFFSET];
 	level_reset_objects();
 	set_level_palette();
 	for (int i = 0; i < 256; ++i) {
@@ -1018,8 +1018,8 @@ static void level_reset() {
 }
 
 static uint16_t level_get_player_tile_pos() {
-	const int y = (g_vars.objects_tbl[1].y_pos) >> 4;
-	const int x = (g_vars.objects_tbl[1].x_pos) >> 4;
+	const int y = (g_vars.objects_tbl[PLAYER_OFFSET].y_pos) >> 4;
+	const int x = (g_vars.objects_tbl[PLAYER_OFFSET].x_pos) >> 4;
 	return (y << 8) | x;
 }
 
@@ -1028,14 +1028,14 @@ static struct object_t *level_add_object75_score(struct object_t *ref_obj, int n
 	if (score_index >= 0 && score_index <= 16) {
 		g_vars.score += score_tbl[score_index];
 	}
-	for (int i = 0; i < 16; ++i) {
-		struct object_t *obj = &g_vars.objects_tbl[75 + i];
+	for (int i = 0; i < SCORES_COUNT; ++i) {
+		struct object_t *obj = &g_vars.objects_tbl[SCORES_OFFSET + i];
 		if (obj->spr_num == 0xFFFF) {
 			obj->spr_num = num;
 			obj->x_pos = ref_obj->x_pos;
 			obj->y_pos = ref_obj->y_pos;
 			obj->data.t.counter = 44;
-			if (ref_obj >= &g_vars.objects_tbl[23]) {
+			if (ref_obj >= &g_vars.objects_tbl[BONUSES_OFFSET]) {
 				struct level_item_t *item = ref_obj->data.t.ref;
 				if (item) {
 					assert(item >= &g_res.level.items_tbl[0] && item < &g_res.level.items_tbl[MAX_LEVEL_ITEMS]);
@@ -1055,13 +1055,13 @@ static void level_update_object_anim(const uint8_t *anim) {
 		num = READ_LE_UINT16(anim);
 	}
 	g_vars.player_current_anim_type = num >> 8;
-	g_vars.objects_tbl[1].spr_num = (num & 0x1FFF) | ((g_vars.objects_tbl[1].data.p.hdir < 0) ? 0x8000 : 0);
-	g_vars.objects_tbl[1].data.p.anim = anim + 2;
+	g_vars.objects_tbl[PLAYER_OFFSET].spr_num = (num & 0x1FFF) | ((g_vars.objects_tbl[PLAYER_OFFSET].data.p.hdir < 0) ? 0x8000 : 0);
+	g_vars.objects_tbl[PLAYER_OFFSET].data.p.anim = anim + 2;
 }
 
 static void level_update_objects_hit_animation() {
 	struct object_t *obj = g_vars.current_hit_object;
-	for (int i = 0; i < 5; ++i) {
+	for (int i = 0; i < CLUBS_COUNT; ++i) {
 		const int num = (obj->spr_num & 0x1FFF) + 1;
 		--obj->y_pos;
 		if (num < 58) {
@@ -1070,16 +1070,16 @@ static void level_update_objects_hit_animation() {
 			obj->spr_num = 0xFFFF;
 		}
 		--obj;
-		if (obj < &g_vars.objects_tbl[6]) {
-			obj = &g_vars.objects_tbl[10];
+		if (obj < &g_vars.objects_tbl[CLUBS_OFFSET]) {
+			obj = &g_vars.objects_tbl[CLUBS_OFFSET + 4];
 		}
 	}
 }
 
 void level_add_object23_bonus(int x_vel, int y_vel, int count) {
 	int counter = 0;
-	for (int i = 0; i < 32; ++i) {
-		struct object_t *obj = &g_vars.objects_tbl[23 + i];
+	for (int i = 0; i < BONUSES_COUNT; ++i) {
+		struct object_t *obj = &g_vars.objects_tbl[BONUSES_OFFSET + i];
 		if (obj->spr_num == 0xFFFF) {
 			obj->spr_num = g_vars.current_bonus.spr_num;
 			obj->hit_counter = 0;
@@ -1110,7 +1110,7 @@ bool level_objects_collide(const struct object_t *si, const struct object_t *di)
 	const int dx = abs(si->x_pos - di->x_pos);
 	if (dx >= 64) {
 		return false;
-        }
+	}
 	const int dy = abs(si->y_pos - di->y_pos);
 	if (dy >= 70) {
 		return false;
@@ -1131,7 +1131,7 @@ bool level_objects_collide(const struct object_t *si, const struct object_t *di)
 	}
 	if (g_vars.player_using_club_flag == 0) {
 		d -= a;
-		if (g_vars.objects_tbl[1].data.p.y_velocity >= 128 || (d <= (b >> 1) && si != &g_vars.objects_tbl[1])) {
+		if (g_vars.objects_tbl[PLAYER_OFFSET].data.p.y_velocity >= 128 || (d <= (b >> 1) && si != &g_vars.objects_tbl[PLAYER_OFFSET])) {
 			++g_vars.player_jump_monster_flag;
 			g_vars.monster.collide_y_dist = d;
 		}
@@ -1197,7 +1197,7 @@ static void level_monster_die(struct object_t *obj, struct level_monster_t *m, s
 
 static bool level_collide_axe_monsters(struct object_t *axe_obj) {
 	for (int i = 0; i < MONSTERS_COUNT; ++i) {
-		struct object_t *obj = &g_vars.objects_tbl[11 + i];
+		struct object_t *obj = &g_vars.objects_tbl[MONSTERS_OFFSET + i];
 		if (obj->spr_num == 0xFFFF) {
 			continue;
 		}
@@ -1331,8 +1331,8 @@ static bool level_handle_bonuses_found(struct object_t *obj, struct level_bonus_
 			g_vars.current_bonus.spr_num = level_get_random_bonus_spr_num();
 		}
 		x_vel = 48;
-		if (obj < &g_vars.objects_tbl[1]) {
-			if (g_vars.objects_tbl[1].data.p.hdir >= 0) {
+		if (obj < &g_vars.objects_tbl[PLAYER_OFFSET]) {
+			if (g_vars.objects_tbl[PLAYER_OFFSET].data.p.hdir >= 0) {
 				x_vel = -x_vel;
 			}
 		} else if (obj->x_velocity >= 0) {
@@ -1397,8 +1397,8 @@ static bool level_collide_axe_bonuses(struct object_t *obj) {
 
 static void level_update_objects_axe() {
 	g_vars.player_using_club_flag = true;
-	for (int i = 0; i < 4; ++i) {
-		struct object_t *obj = &g_vars.objects_tbl[2 + i];
+	for (int i = 0; i < AXE_COUNT; ++i) {
+		struct object_t *obj = &g_vars.objects_tbl[AXE_OFFSET + i];
 		if (obj->spr_num == 0xFFFF) {
 			continue;
 		}
@@ -1407,11 +1407,11 @@ static void level_update_objects_axe() {
 		}
 	}
 	if (g_vars.player_flying_flag == 0) {
-		struct object_t *obj = &g_vars.objects_tbl[0];
+		struct object_t *obj = &g_vars.objects_tbl[CLUB_OFFSET];
 		if (obj->spr_num != 0xFFFF) {
 			if (level_collide_axe_monsters(obj) || level_collide_axe_bonuses(obj)) {
-				if (g_vars.objects_tbl[1].data.p.y_velocity != 0) {
-					g_vars.objects_tbl[1].data.p.y_velocity = -80;
+				if (g_vars.objects_tbl[PLAYER_OFFSET].data.p.y_velocity != 0) {
+					g_vars.objects_tbl[PLAYER_OFFSET].data.p.y_velocity = -80;
 				}
 			}
 		}
@@ -1502,7 +1502,7 @@ extern bool monster_func2(int type, struct level_monster_t *m); /* init */
 static void level_update_objects_monsters() {
 	boss_update();
 	for (int i = 0; i < MONSTERS_COUNT; ++i) {
-		struct object_t *obj = &g_vars.objects_tbl[11 + i];
+		struct object_t *obj = &g_vars.objects_tbl[MONSTERS_OFFSET + i];
 		if (obj->spr_num == 0xFFFF) {
 			continue;
 		}
@@ -1541,7 +1541,7 @@ static void level_update_objects_monsters() {
 					break;
 				}
 				if (dx <= q[1]) {
-					dx = q[2] + 53;
+					dx = q[2] + SPRITES_OFFSET;
 					break;
 				}
 				q += 3;
@@ -1589,8 +1589,8 @@ static void level_update_objects_monsters() {
 }
 
 static void level_update_objects_club_projectiles() {
-	for (int i = 0; i < 4; ++i) {
-		struct object_t *obj = &g_vars.objects_tbl[2 + i];
+	for (int i = 0; i < AXE_COUNT; ++i) {
+		struct object_t *obj = &g_vars.objects_tbl[AXE_OFFSET + i];
 		if (obj->spr_num == 0xFFFF) {
 			continue;
 		}
@@ -1623,8 +1623,8 @@ static void level_update_objects_club_projectiles() {
 }
 
 static void level_update_objects_bonuses() {
-	for (int i = 0; i < 32; ++i) {
-		struct object_t *obj = &g_vars.objects_tbl[23 + i];
+	for (int i = 0; i < BONUSES_COUNT; ++i) {
+		struct object_t *obj = &g_vars.objects_tbl[BONUSES_OFFSET + i];
 		if (obj->spr_num == 0xFFFF) {
 			continue;
 		}
@@ -1697,8 +1697,8 @@ static void level_update_objects_bonuses() {
 }
 
 static void level_update_objects_bonus_scores() {
-	for (int i = 0; i < 16; ++i) {
-		struct object_t *obj = &g_vars.objects_tbl[75 + i];
+	for (int i = 0; i < SCORES_COUNT; ++i) {
+		struct object_t *obj = &g_vars.objects_tbl[SCORES_OFFSET + i];
 		if (obj->spr_num != 0xFFFF) {
 			--obj->y_pos;
 			--obj->data.t.counter;
@@ -1713,39 +1713,39 @@ static bool level_update_objects_decors_helper(struct object_t *obj) {
 	if (g_vars.level_force_x_scroll_flag != 0) {
 		return false;
 	}
-	if (obj->y_pos <= g_vars.objects_tbl[1].y_pos) {
+	if (obj->y_pos <= g_vars.objects_tbl[PLAYER_OFFSET].y_pos) {
 		return false;
 	}
-	const int prev_y_pos = g_vars.objects_tbl[1].y_pos;
+	const int prev_y_pos = g_vars.objects_tbl[PLAYER_OFFSET].y_pos;
 	if (g_vars.current_platform_dy >= 0) {
-		g_vars.objects_tbl[1].y_pos += g_vars.current_platform_dy;
+		g_vars.objects_tbl[PLAYER_OFFSET].y_pos += g_vars.current_platform_dy;
 	}
-	const int prev_spr_num = g_vars.objects_tbl[1].spr_num;
-	g_vars.objects_tbl[1].spr_num = 7;
-	const bool ret = level_objects_collide(&g_vars.objects_tbl[1], obj);
-	g_vars.objects_tbl[1].y_pos = prev_y_pos;
-	g_vars.objects_tbl[1].spr_num = prev_spr_num;
+	const int prev_spr_num = g_vars.objects_tbl[PLAYER_OFFSET].spr_num;
+	g_vars.objects_tbl[PLAYER_OFFSET].spr_num = 7;
+	const bool ret = level_objects_collide(&g_vars.objects_tbl[PLAYER_OFFSET], obj);
+	g_vars.objects_tbl[PLAYER_OFFSET].y_pos = prev_y_pos;
+	g_vars.objects_tbl[PLAYER_OFFSET].spr_num = prev_spr_num;
 	if (!ret) {
 		return false;
 	}
 	g_vars.level_force_x_scroll_flag = 1;
-	g_vars.objects_tbl[1].x_friction = 0;
-	g_vars.objects_tbl[1].x_pos += g_vars.current_platform_dx;
+	g_vars.objects_tbl[PLAYER_OFFSET].x_friction = 0;
+	g_vars.objects_tbl[PLAYER_OFFSET].x_pos += g_vars.current_platform_dx;
 	level_player_reset();
 	const int y = obj->y_pos - spr_size_tbl[(obj->spr_num & 0x1FFF) * 2 + 1];
-	if (g_vars.objects_tbl[1].y_pos > y) {
-		g_vars.objects_tbl[1].y_pos = y + 1;
-		g_vars.objects_tbl[1].data.p.y_velocity = 1;
+	if (g_vars.objects_tbl[PLAYER_OFFSET].y_pos > y) {
+		g_vars.objects_tbl[PLAYER_OFFSET].y_pos = y + 1;
+		g_vars.objects_tbl[PLAYER_OFFSET].data.p.y_velocity = 1;
 	} else {
-		g_vars.objects_tbl[1].data.p.y_velocity = g_vars.current_platform_dy << 4;
+		g_vars.objects_tbl[PLAYER_OFFSET].data.p.y_velocity = g_vars.current_platform_dy << 4;
 	}
 	return true;
 }
 
 static void level_update_objects_decors() {
 	g_vars.level_force_x_scroll_flag = 0;
-	int count = 7;
-	struct object_t *obj = &g_vars.objects_tbl[91];
+	int count = DECOR_COUNT;
+	struct object_t *obj = &g_vars.objects_tbl[DECOR_OFFSET];
 	for (int i = 0; i < MAX_LEVEL_PLATFORMS; ++i) {
 		struct level_platform_t *platform = &g_res.level.platforms_tbl[i];
 		if (platform->spr_num == 0xFFFF) {
@@ -1854,7 +1854,7 @@ static void level_update_objects_decors() {
 		obj->y_pos = platform->y_pos;
 		obj->spr_num = platform->spr_num;
 		obj->data.t.ref = platform;
-		if (g_vars.objects_tbl[1].data.p.y_velocity > -16) {
+		if (g_vars.objects_tbl[PLAYER_OFFSET].data.p.y_velocity > -16) {
 			platform->flags |= 0x40;
 			if (level_update_objects_decors_helper(obj)) {
 				++obj;
@@ -1881,43 +1881,43 @@ static void level_update_objects_decors() {
 
 static void level_update_player_x_velocity() {
 	bool left = false;
-	int x_vel = g_vars.objects_tbl[1].x_velocity;
+	int x_vel = g_vars.objects_tbl[PLAYER_OFFSET].x_velocity;
 	if (x_vel < 0) {
 		x_vel = -x_vel;
 		left = true;
 	}
-	x_vel -= 12 >> g_vars.objects_tbl[1].x_friction;
+	x_vel -= 12 >> g_vars.objects_tbl[PLAYER_OFFSET].x_friction;
 	if (x_vel < 0) {
 		x_vel = 0;
 	}
 	if (left) {
 		x_vel = -x_vel;
 	}
-	g_vars.objects_tbl[1].x_velocity = x_vel;
+	g_vars.objects_tbl[PLAYER_OFFSET].x_velocity = x_vel;
 }
 
 static void level_update_player_hdir_x_velocity(int x_vel) {
 	int16_t f = 0;
 	if (g_vars.input.key_hdir) {
-		f = g_vars.objects_tbl[1].data.p.hdir << 4;
+		f = g_vars.objects_tbl[PLAYER_OFFSET].data.p.hdir << 4;
 	}
-	f >>= g_vars.objects_tbl[1].x_friction;
-	const int16_t dx = g_vars.objects_tbl[1].x_velocity + f;
+	f >>= g_vars.objects_tbl[PLAYER_OFFSET].x_friction;
+	const int16_t dx = g_vars.objects_tbl[PLAYER_OFFSET].x_velocity + f;
 	if (dx < x_vel) {
 		x_vel = -x_vel;
 		if (dx > x_vel) {
 			x_vel = dx;
 		}
 	}
-	g_vars.objects_tbl[1].x_velocity = x_vel;
+	g_vars.objects_tbl[PLAYER_OFFSET].x_velocity = x_vel;
 }
 
 static void level_update_screen_x_velocity() {
 	if ((g_options.cheats & CHEATS_NO_WIND) == 0) {
-		g_vars.objects_tbl[1].x_velocity -= g_vars.snow.value >> 3;
+		g_vars.objects_tbl[PLAYER_OFFSET].x_velocity -= g_vars.snow.value >> 3;
 	}
-	if (g_vars.objects_tbl[1].x_velocity < -96) {
-		g_vars.objects_tbl[1].x_velocity = -96;
+	if (g_vars.objects_tbl[PLAYER_OFFSET].x_velocity < -96) {
+		g_vars.objects_tbl[PLAYER_OFFSET].x_velocity = -96;
 	}
 }
 
@@ -1927,11 +1927,11 @@ static void level_update_player_y_velocity(int y_vel) {
 		f = 4;
 		y_vel >>= 3;
 	}
-	const int y = g_vars.objects_tbl[1].data.p.y_velocity + f;
+	const int y = g_vars.objects_tbl[PLAYER_OFFSET].data.p.y_velocity + f;
 	if (y < y_vel) {
 		y_vel = y;
 	}
-	g_vars.objects_tbl[1].data.p.y_velocity = y_vel;
+	g_vars.objects_tbl[PLAYER_OFFSET].data.p.y_velocity = y_vel;
 }
 
 static void level_update_player_jump() {
@@ -1940,11 +1940,11 @@ static void level_update_player_jump() {
 	uint8_t num;
 	if (g_vars.player_flying_flag != 0) {
 		num = 45;
-		if (g_vars.objects_tbl[1].data.p.y_velocity >= 0) {
+		if (g_vars.objects_tbl[PLAYER_OFFSET].data.p.y_velocity >= 0) {
 			++num;
 		}
 	} else {
-		if (g_vars.objects_tbl[1].data.p.y_velocity <= 0) {
+		if (g_vars.objects_tbl[PLAYER_OFFSET].data.p.y_velocity <= 0) {
 			return;
 		}
 		g_vars.player_nojump_counter = 6;
@@ -1956,32 +1956,32 @@ static void level_update_player_jump() {
 			++num;
 		}
 	}
-	g_vars.objects_tbl[1].spr_num = num | ((g_vars.objects_tbl[1].data.p.hdir < 0) ? 0x8000 : 0);
+	g_vars.objects_tbl[PLAYER_OFFSET].spr_num = num | ((g_vars.objects_tbl[PLAYER_OFFSET].data.p.hdir < 0) ? 0x8000 : 0);
 }
 
 static const uint8_t *level_update_player_anim1_num(uint8_t num, uint16_t anim) {
 	assert((anim & 1) == 0);
 	assert(anim == num * 2);
-	if (g_vars.objects_tbl[1].data.p.special_anim_num != num) {
-		g_vars.objects_tbl[1].data.p.special_anim_num = num;
-		g_vars.objects_tbl[1].data.p.anim = object_anim_tbl[anim / 2];
+	if (g_vars.objects_tbl[PLAYER_OFFSET].data.p.special_anim_num != num) {
+		g_vars.objects_tbl[PLAYER_OFFSET].data.p.special_anim_num = num;
+		g_vars.objects_tbl[PLAYER_OFFSET].data.p.anim = object_anim_tbl[anim / 2];
 	}
-	return g_vars.objects_tbl[1].data.p.anim;
+	return g_vars.objects_tbl[PLAYER_OFFSET].data.p.anim;
 }
 
 static const uint8_t *level_update_player_anim2_num(uint8_t num, uint16_t anim) {
 	assert((anim & 1) == 0);
 	assert(anim == num * 2);
-	if (g_vars.objects_tbl[1].data.p.current_anim_num != num) {
-		g_vars.objects_tbl[1].data.p.current_anim_num = num;
-		g_vars.objects_tbl[1].data.p.anim = object_anim_tbl[anim / 2];
+	if (g_vars.objects_tbl[PLAYER_OFFSET].data.p.current_anim_num != num) {
+		g_vars.objects_tbl[PLAYER_OFFSET].data.p.current_anim_num = num;
+		g_vars.objects_tbl[PLAYER_OFFSET].data.p.anim = object_anim_tbl[anim / 2];
 	}
-	return g_vars.objects_tbl[1].data.p.anim;
+	return g_vars.objects_tbl[PLAYER_OFFSET].data.p.anim;
 }
 
 static struct object_t *level_find_object_club_projectile() {
-	for (int i = 0; i < 4; ++i) {
-		struct object_t *obj = &g_vars.objects_tbl[2 + i];
+	for (int i = 0; i < AXE_COUNT; ++i) {
+		struct object_t *obj = &g_vars.objects_tbl[AXE_OFFSET + i];
 		if (obj->spr_num == 0xFFFF) {
 			return obj;
 		}
@@ -2012,7 +2012,7 @@ static void level_update_player_anim_3_6_7(uint8_t al) {
 			play_sound(10);
 		}
 		int16_t dy = 0;
-		al = g_vars.objects_tbl[1].data.p.current_anim_num;
+		al = g_vars.objects_tbl[PLAYER_OFFSET].data.p.current_anim_num;
 		if (al != 6) {
 			dy = -32;
 			if (al != 3) {
@@ -2024,7 +2024,7 @@ static void level_update_player_anim_3_6_7(uint8_t al) {
 		}
 		if (g_vars.level_force_x_scroll_flag == 0) {
 			/* off the ground when using the club */
-			g_vars.objects_tbl[1].data.p.y_velocity += dy;
+			g_vars.objects_tbl[PLAYER_OFFSET].data.p.y_velocity += dy;
 		}
 		al = club_anim_tbl[g_vars.player_club_type].c;
 		if (al & 1) {
@@ -2043,24 +2043,24 @@ static void level_update_player_anim_3_6_7(uint8_t al) {
 				int16_t x_vel = READ_LE_UINT16(p - 4);
 
 				obj->data.c.y_velocity = y_vel;
-				if (g_vars.objects_tbl[1].data.p.hdir < 0) {
+				if (g_vars.objects_tbl[PLAYER_OFFSET].data.p.hdir < 0) {
 					num |= 0x8000;
 					x_vel = -x_vel;
 				}
 				obj->spr_num = num;
 				obj->x_velocity = x_vel;
-				obj->x_pos = g_vars.objects_tbl[1].x_pos + (x_vel >> 4);
-				obj->y_pos = g_vars.objects_tbl[1].y_pos + (y_vel >> 4);
-				g_vars.objects_tbl[0].spr_num = 0xFFFF;
+				obj->x_pos = g_vars.objects_tbl[PLAYER_OFFSET].x_pos + (x_vel >> 4);
+				obj->y_pos = g_vars.objects_tbl[PLAYER_OFFSET].y_pos + (y_vel >> 4);
+				g_vars.objects_tbl[CLUB_OFFSET].spr_num = 0xFFFF;
 				return;
 			}
 		}
 		if (g_vars.player_jumping_counter != 0) {
-			g_vars.objects_tbl[0].spr_num = 0xFFFF;
+			g_vars.objects_tbl[CLUB_OFFSET].spr_num = 0xFFFF;
 			return;
 		}
 	}
-	const uint16_t spr_num = g_vars.objects_tbl[1].spr_num;
+	const uint16_t spr_num = g_vars.objects_tbl[PLAYER_OFFSET].spr_num;
 	p = club_anim_tbl[g_vars.player_club_type].anim;
 	while (READ_LE_UINT16(p) != 0x55AA) {
 		if (READ_LE_UINT16(p) == (spr_num & 0x1FFF)) {
@@ -2070,9 +2070,9 @@ static void level_update_player_anim_3_6_7(uint8_t al) {
 				x = -x;
 			}
 			int16_t y = READ_LE_UINT16(p + 6);
-			g_vars.objects_tbl[0].spr_num = num | (spr_num & 0x8000);
-			g_vars.objects_tbl[0].x_pos = g_vars.objects_tbl[1].x_pos + (g_vars.objects_tbl[1].x_velocity >> 4) - x;
-			g_vars.objects_tbl[0].y_pos = g_vars.objects_tbl[1].y_pos + (g_vars.objects_tbl[1].data.p.y_velocity >> 4) - y;
+			g_vars.objects_tbl[CLUB_OFFSET].spr_num = num | (spr_num & 0x8000);
+			g_vars.objects_tbl[CLUB_OFFSET].x_pos = g_vars.objects_tbl[PLAYER_OFFSET].x_pos + (g_vars.objects_tbl[PLAYER_OFFSET].x_velocity >> 4) - x;
+			g_vars.objects_tbl[CLUB_OFFSET].y_pos = g_vars.objects_tbl[PLAYER_OFFSET].y_pos + (g_vars.objects_tbl[PLAYER_OFFSET].data.p.y_velocity >> 4) - y;
 			break;
 		}
 		p += 8;
@@ -2081,28 +2081,28 @@ static void level_update_player_anim_3_6_7(uint8_t al) {
 
 static void level_update_player_anim_0(uint8_t al) {
 	if (g_vars.player_anim_0x40_flag != 0) {
-		level_update_player_anim_3_6_7(g_vars.objects_tbl[1].data.p.current_anim_num);
+		level_update_player_anim_3_6_7(g_vars.objects_tbl[PLAYER_OFFSET].data.p.current_anim_num);
 		return;
 	}
 	g_vars.player_unk_counter1 = 0;
 	level_update_screen_x_velocity();
 	level_update_player_x_velocity();
-	if (g_vars.level_force_x_scroll_flag == 0 && g_vars.objects_tbl[1].data.p.y_velocity != 0) {
+	if (g_vars.level_force_x_scroll_flag == 0 && g_vars.objects_tbl[PLAYER_OFFSET].data.p.y_velocity != 0) {
 		if (g_vars.player_anim2_counter > 4) {
 			level_update_screen_x_velocity();
 		}
 		return;
 	}
-	const int x_vel = abs(g_vars.objects_tbl[1].x_velocity);
+	const int x_vel = abs(g_vars.objects_tbl[PLAYER_OFFSET].x_velocity);
 	if (x_vel >= 8) {
-		const bool same_direction = ((g_vars.objects_tbl[1].spr_num & 0x8000) != 0) && (g_vars.objects_tbl[1].x_velocity < 0);
+		const bool same_direction = ((g_vars.objects_tbl[PLAYER_OFFSET].spr_num & 0x8000) != 0) && (g_vars.objects_tbl[PLAYER_OFFSET].x_velocity < 0);
 		if (same_direction) {
 			const uint8_t *anim = level_update_player_anim1_num(18, 36);
 			level_update_object_anim(anim);
 			if ((g_vars.level_draw_counter & 3) == 0) {
 				level_init_object_hit_from_player_pos();
 			}
-			g_vars.objects_tbl[1].data.p.current_anim_num = 0;
+			g_vars.objects_tbl[PLAYER_OFFSET].data.p.current_anim_num = 0;
 			return;
 		}
 
@@ -2113,7 +2113,7 @@ static void level_update_player_anim_0(uint8_t al) {
 				g_vars.player_moving_counter -= 3;
 				const uint8_t *anim = level_update_player_anim1_num(16, 32);
 				level_update_object_anim(anim);
-				g_vars.objects_tbl[1].data.p.current_anim_num = 0;
+				g_vars.objects_tbl[PLAYER_OFFSET].data.p.current_anim_num = 0;
 				return;
 			}
 		} else {
@@ -2121,8 +2121,8 @@ static void level_update_player_anim_0(uint8_t al) {
 				const uint8_t *anim = level_update_player_anim1_num(19, 38);
 				level_update_object_anim(anim);
 				if ((g_res.level.scrolling_mask & 2) == 0 && g_vars.tilemap_noscroll_flag == 0) {
-					const int dx = (g_vars.objects_tbl[1].x_pos >> 4) - g_vars.tilemap.x;
-					if ((g_vars.objects_tbl[1].spr_num & 0x8000) == 0) {
+					const int dx = (g_vars.objects_tbl[PLAYER_OFFSET].x_pos >> 4) - g_vars.tilemap.x;
+					if ((g_vars.objects_tbl[PLAYER_OFFSET].spr_num & 0x8000) == 0) {
 						if (dx > 2) {
 							level_adjust_hscroll_right();
 						}
@@ -2132,7 +2132,7 @@ static void level_update_player_anim_0(uint8_t al) {
 						}
 					}
 				}
-				g_vars.objects_tbl[1].data.p.current_anim_num = 0;
+				g_vars.objects_tbl[PLAYER_OFFSET].data.p.current_anim_num = 0;
 				return;
 			}
 			/* show idle animation */
@@ -2147,7 +2147,7 @@ static void level_update_player_anim_0(uint8_t al) {
 				if (timer < data[offset]) {
 					const uint8_t *anim = level_update_player_anim1_num(17, 34);
 					level_update_object_anim(anim);
-					g_vars.objects_tbl[1].data.p.current_anim_num = 0;
+					g_vars.objects_tbl[PLAYER_OFFSET].data.p.current_anim_num = 0;
 					return;
 				}
 				++offset;
@@ -2155,18 +2155,18 @@ static void level_update_player_anim_0(uint8_t al) {
 		}
 	}
 	const uint8_t *p = object_anim_tbl[al];
-	g_vars.objects_tbl[1].data.p.anim = p;
-	g_vars.objects_tbl[1].spr_num = READ_LE_UINT16(p) | ((g_vars.objects_tbl[1].data.p.hdir < 0) ? 0x8000 : 0);
-	g_vars.objects_tbl[1].data.p.special_anim_num = 0;
-	g_vars.objects_tbl[1].data.p.current_anim_num = 0;
+	g_vars.objects_tbl[PLAYER_OFFSET].data.p.anim = p;
+	g_vars.objects_tbl[PLAYER_OFFSET].spr_num = READ_LE_UINT16(p) | ((g_vars.objects_tbl[PLAYER_OFFSET].data.p.hdir < 0) ? 0x8000 : 0);
+	g_vars.objects_tbl[PLAYER_OFFSET].data.p.special_anim_num = 0;
+	g_vars.objects_tbl[PLAYER_OFFSET].data.p.current_anim_num = 0;
 }
 
 static void level_update_player_anim_1(uint8_t al) {
 	if (g_vars.player_anim_0x40_flag != 0) {
-		level_update_player_anim_3_6_7(g_vars.objects_tbl[1].data.p.current_anim_num);
+		level_update_player_anim_3_6_7(g_vars.objects_tbl[PLAYER_OFFSET].data.p.current_anim_num);
 		return;
 	}
-	const int x_vel = abs(g_vars.objects_tbl[1].x_velocity);
+	const int x_vel = abs(g_vars.objects_tbl[PLAYER_OFFSET].x_velocity);
 	if (x_vel >= 64 && g_vars.player_flying_flag != 0) {
 		if (g_vars.player_unk_counter1 < UCHAR_MAX) {
 			++g_vars.player_unk_counter1;
@@ -2186,7 +2186,7 @@ static void level_update_player_anim_1(uint8_t al) {
 
 static void level_update_player_anim_2(uint8_t al) {
 	if (g_vars.player_anim_0x40_flag != 0) {
-		level_update_player_anim_3_6_7(g_vars.objects_tbl[1].data.p.current_anim_num);
+		level_update_player_anim_3_6_7(g_vars.objects_tbl[PLAYER_OFFSET].data.p.current_anim_num);
 		return;
 	}
 	if (g_vars.player_nojump_counter != 0) {
@@ -2202,11 +2202,11 @@ static void level_update_player_anim_2(uint8_t al) {
 		if (g_vars.player_flying_flag != 0) {
 			ax >>= 1;
 		}
-		g_vars.objects_tbl[1].data.p.y_velocity += ax;
+		g_vars.objects_tbl[PLAYER_OFFSET].data.p.y_velocity += ax;
 	} else {
 		level_update_player_y_velocity(192);
 	}
-	if (g_vars.objects_tbl[1].x_velocity >= 48) {
+	if (g_vars.objects_tbl[PLAYER_OFFSET].x_velocity >= 48) {
 		level_update_player_x_velocity();
 	} else {
 		level_update_player_hdir_x_velocity(48);
@@ -2225,13 +2225,13 @@ static void level_update_player_club_power() {
 
 static void level_update_player_anim_4(uint8_t al) {
 	if (g_vars.player_anim_0x40_flag != 0) {
-		level_update_player_anim_3_6_7(g_vars.objects_tbl[1].data.p.current_anim_num);
+		level_update_player_anim_3_6_7(g_vars.objects_tbl[PLAYER_OFFSET].data.p.current_anim_num);
 		return;
 	}
 	g_vars.player_moving_counter = 0;
 	g_vars.player_action_counter = 4;
 	level_update_player_club_power();
-	const int x_vel = abs(g_vars.objects_tbl[1].x_velocity);
+	const int x_vel = abs(g_vars.objects_tbl[PLAYER_OFFSET].x_velocity);
 	if (x_vel > 32) {
 		level_update_player_anim_0(al);
 	} else {
@@ -2243,7 +2243,7 @@ static void level_update_player_anim_4(uint8_t al) {
 
 static void level_update_player_anim_5(uint8_t al) {
 	if (g_vars.player_anim_0x40_flag != 0) {
-		level_update_player_anim_3_6_7(g_vars.objects_tbl[1].data.p.current_anim_num);
+		level_update_player_anim_3_6_7(g_vars.objects_tbl[PLAYER_OFFSET].data.p.current_anim_num);
 		return;
 	}
 	g_vars.player_unk_counter1 = 0;
@@ -2263,26 +2263,26 @@ static void level_update_player_anim_8(uint8_t al) {
 }
 
 static void level_update_player_decor() {
-	const int y_pos = (g_vars.objects_tbl[1].y_pos >> 4) - 1;
-	const int spr_num = g_vars.objects_tbl[1].spr_num & 0x1FFF;
+	const int y_pos = (g_vars.objects_tbl[PLAYER_OFFSET].y_pos >> 4) - 1;
+	const int spr_num = g_vars.objects_tbl[PLAYER_OFFSET].spr_num & 0x1FFF;
 	int spr_h = spr_size_tbl[spr_num * 2 + 1];
 	int dx = 9;
-	if (g_vars.objects_tbl[1].x_velocity < 0) {
+	if (g_vars.objects_tbl[PLAYER_OFFSET].x_velocity < 0) {
 		dx = -9;
-	} else if (g_vars.objects_tbl[1].x_velocity == 0) {
+	} else if (g_vars.objects_tbl[PLAYER_OFFSET].x_velocity == 0) {
 		dx = 0;
 	}
-	const int x_pos = g_vars.objects_tbl[1].x_pos >> 4;
-	const int player_ypos_diff = abs((g_vars.objects_tbl[1].y_pos >> 4) - g_vars.tilemap.y);
+	const int x_pos = g_vars.objects_tbl[PLAYER_OFFSET].x_pos >> 4;
+	const int player_ypos_diff = abs((g_vars.objects_tbl[PLAYER_OFFSET].y_pos >> 4) - g_vars.tilemap.y);
 	if (player_ypos_diff > (TILEMAP_SCREEN_H / 16)) {
 		level_update_tile_type_2();
 	} else {
-		const int player_xpos_diff = abs((g_vars.objects_tbl[1].x_pos >> 4) - g_vars.tilemap.x);
+		const int player_xpos_diff = abs((g_vars.objects_tbl[PLAYER_OFFSET].x_pos >> 4) - g_vars.tilemap.x);
 		if (player_xpos_diff > (TILEMAP_SCREEN_W / 16)) {
 			level_update_tile_type_2();
-		} else if ((g_res.level.scrolling_mask & 4) != 0 && g_vars.objects_tbl[1].y_pos < (g_vars.tilemap.y << 4)) {
+		} else if ((g_res.level.scrolling_mask & 4) != 0 && g_vars.objects_tbl[PLAYER_OFFSET].y_pos < (g_vars.tilemap.y << 4)) {
 			level_update_tile_type_2();
-		} else if (g_vars.objects_tbl[1].y_pos >= 0 && g_vars.objects_tbl[1].y_pos > ((g_vars.tilemap.h + 1) << 4)) {
+		} else if (g_vars.objects_tbl[PLAYER_OFFSET].y_pos >= 0 && g_vars.objects_tbl[PLAYER_OFFSET].y_pos > ((g_vars.tilemap.h + 1) << 4)) {
 			level_update_tile_type_2();
 		}
 	}
@@ -2294,17 +2294,17 @@ static void level_update_player_decor() {
 			g_vars.player_jumping_counter = 0;
 		} else {
 			level_update_player_jump();
-			if (g_vars.objects_tbl[1].data.p.y_velocity > 0) {
+			if (g_vars.objects_tbl[PLAYER_OFFSET].data.p.y_velocity > 0) {
 				++g_vars.player_jumping_counter;
 			}
 		}
 	} else {
 		g_vars.player_jumping_counter = 0;
 	}
-	if (g_vars.objects_tbl[1].y_pos <= 0) {
+	if (g_vars.objects_tbl[PLAYER_OFFSET].y_pos <= 0) {
 		return;
 	}
-	int pos = (y_pos << 8) | ((dx + g_vars.objects_tbl[1].x_pos) >> 4);
+	int pos = (y_pos << 8) | ((dx + g_vars.objects_tbl[PLAYER_OFFSET].x_pos) >> 4);
 	level_update_tile1(pos);
 	while (1) {
 		pos -= 0x100;
@@ -2324,8 +2324,8 @@ static void level_update_player_flying() {
 		return;
 	}
 	if (g_vars.player_gravity_flag != 0) {
-		g_vars.objects_tbl[1].spr_num &= 0x8000;
-		const int x_vel = abs(g_vars.objects_tbl[1].x_velocity);
+		g_vars.objects_tbl[PLAYER_OFFSET].spr_num &= 0x8000;
+		const int x_vel = abs(g_vars.objects_tbl[PLAYER_OFFSET].x_velocity);
 		int num = 48;
 		if (x_vel < 64) {
 			++num;
@@ -2336,7 +2336,7 @@ static void level_update_player_flying() {
 		if (g_vars.player_flying_anim_index < 3) {
 			num = 51 - g_vars.player_flying_anim_index;
 		}
-		g_vars.objects_tbl[1].spr_num |= num;
+		g_vars.objects_tbl[PLAYER_OFFSET].spr_num |= num;
 	}
 	const uint8_t *p = &player_flying_anim_data[14];
 	if ((g_vars.input.key_up | g_vars.input.key_down) == 0 && g_vars.player_flying_anim_index != 3) {
@@ -2346,7 +2346,7 @@ static void level_update_player_flying() {
 			--g_vars.player_flying_anim_index;
 		}
 	}
-	const uint16_t player_spr_num = g_vars.objects_tbl[1].spr_num;
+	const uint16_t player_spr_num = g_vars.objects_tbl[PLAYER_OFFSET].spr_num;
 	for (uint16_t num; (num = READ_LE_UINT16(p)) != 0; p += 6) {
 		if (num != (player_spr_num & 0x1FFF)) {
 			continue;
@@ -2363,15 +2363,15 @@ static void level_update_player_flying() {
 		if (g_vars.player_unk_counter1 > 24 && (spr_num & 0x1FFF) < 121) {
 			++spr_num;
 		}
-		g_vars.objects_tbl[0].spr_num = spr_num;
-		g_vars.objects_tbl[0].x_pos += x_delta;
-		g_vars.objects_tbl[0].y_pos += (int8_t)p[5];
+		g_vars.objects_tbl[CLUB_OFFSET].spr_num = spr_num;
+		g_vars.objects_tbl[CLUB_OFFSET].x_pos += x_delta;
+		g_vars.objects_tbl[CLUB_OFFSET].y_pos += (int8_t)p[5];
 		break;
 	}
 }
 
 static void level_update_player() {
-	g_vars.objects_tbl[0].spr_num = 0xFFFF;
+	g_vars.objects_tbl[CLUB_OFFSET].spr_num = 0xFFFF;
 	if (g_vars.input.keystate[0x3B]) {
 		if (g_vars.restart_level_flag == 0) {
 			level_player_die();
@@ -2412,15 +2412,15 @@ static void level_update_player() {
 	g_vars.input.key_hdir = g_vars.input.key_left | g_vars.input.key_right;
 	if (g_vars.input.key_right != 0) {
 		if (g_vars.input.key_left == 0) {
-			if (g_vars.objects_tbl[1].data.p.hdir != 1) {
-				g_vars.objects_tbl[1].data.p.hdir = 1;
+			if (g_vars.objects_tbl[PLAYER_OFFSET].data.p.hdir != 1) {
+				g_vars.objects_tbl[PLAYER_OFFSET].data.p.hdir = 1;
 				g_vars.player_update_counter = 0;
 			}
 		}
 	} else {
 		if (g_vars.input.key_left != 0) {
-			if (g_vars.objects_tbl[1].data.p.hdir != -1) {
-				g_vars.objects_tbl[1].data.p.hdir = -1;
+			if (g_vars.objects_tbl[PLAYER_OFFSET].data.p.hdir != -1) {
+				g_vars.objects_tbl[PLAYER_OFFSET].data.p.hdir = -1;
 				g_vars.player_update_counter = 0;
 			}
 		}
@@ -2438,15 +2438,15 @@ static void level_update_player() {
 	if (g_vars.player_club_anim_duration != 0) {
 		mask = 0;
 	}
-	uint8_t dl = g_vars.objects_tbl[1].hit_counter;
-	g_vars.objects_tbl[0].hit_counter = dl;
+	uint8_t dl = g_vars.objects_tbl[PLAYER_OFFSET].hit_counter;
+	g_vars.objects_tbl[CLUB_OFFSET].hit_counter = dl;
 	uint8_t al = player_anim_lut[mask];
 	if (dl >= 22) {
 		al = 8;
 	}
-	if (g_vars.objects_tbl[1].data.p.current_anim_num != al) {
+	if (g_vars.objects_tbl[PLAYER_OFFSET].data.p.current_anim_num != al) {
 		g_vars.player_update_counter = 0;
-		g_vars.objects_tbl[1].data.p.special_anim_num = 0;
+		g_vars.objects_tbl[PLAYER_OFFSET].data.p.special_anim_num = 0;
 	}
 	if (g_vars.player_update_counter < USHRT_MAX) {
 		++g_vars.player_update_counter;
@@ -2456,7 +2456,7 @@ static void level_update_player() {
 		if ((g_vars.player_flying_flag &= 1) != 0) {
 			if (g_vars.input.key_up) {
 				if (g_vars.player_flying_anim_index == 6) {
-					if (g_vars.objects_tbl[1].data.p.y_velocity > 16) {
+					if (g_vars.objects_tbl[PLAYER_OFFSET].data.p.y_velocity > 16) {
 						g_vars.player_flying_flag |= 2;
 					}
 				} else {
@@ -2465,7 +2465,7 @@ static void level_update_player() {
 				if (g_vars.player_flying_counter != 0) {
 					--g_vars.player_flying_counter;
 					if (g_vars.player_flying_anim_index >= 4) {
-						g_vars.objects_tbl[1].data.p.y_velocity = -64;
+						g_vars.objects_tbl[PLAYER_OFFSET].data.p.y_velocity = -64;
 					}
 					goto update_pos;
 				}
@@ -2481,7 +2481,7 @@ static void level_update_player() {
 				}
 				g_vars.player_flying_flag |= 2;
 				if (g_vars.player_flying_anim_index <= 1) {
-					const int x = abs(g_vars.objects_tbl[1].x_velocity >> 4);
+					const int x = abs(g_vars.objects_tbl[PLAYER_OFFSET].x_velocity >> 4);
 					if (g_vars.player_flying_counter < x * 5) {
 						g_vars.player_flying_counter += x;
 					}
@@ -2489,7 +2489,7 @@ static void level_update_player() {
 				goto update_pos;
 			}
 		} else {
-			if (g_vars.objects_tbl[1].data.p.y_velocity > 160) {
+			if (g_vars.objects_tbl[PLAYER_OFFSET].data.p.y_velocity > 160) {
 				g_vars.player_flying_flag = 1;
 			}
 		}
@@ -2524,13 +2524,13 @@ static void level_update_player() {
 	}
 update_pos:
 	{
-		const int x_pos = (g_vars.objects_tbl[1].x_velocity >> 4) + g_vars.objects_tbl[1].x_pos;
+		const int x_pos = (g_vars.objects_tbl[PLAYER_OFFSET].x_velocity >> 4) + g_vars.objects_tbl[PLAYER_OFFSET].x_pos;
 		const int end_x = (g_res.level.tilemap_w + 20) << 4;
 		if (end_x > x_pos && x_pos >= 8 && x_pos < 511 * 8) {
-			g_vars.objects_tbl[1].x_pos = x_pos;
+			g_vars.objects_tbl[PLAYER_OFFSET].x_pos = x_pos;
 		}
 	}
-	g_vars.objects_tbl[1].y_pos += g_vars.objects_tbl[1].data.p.y_velocity >> 4;
+	g_vars.objects_tbl[PLAYER_OFFSET].y_pos += g_vars.objects_tbl[PLAYER_OFFSET].data.p.y_velocity >> 4;
 	level_update_player_decor();
 	level_update_player_flying();
 	if (g_vars.player_club_powerup_duration > 0) {
@@ -2557,8 +2557,8 @@ update_pos:
 }
 
 static void level_add_object23_bones() {
-	g_vars.current_bonus.x_pos = g_vars.objects_tbl[1].x_pos;
-	g_vars.current_bonus.y_pos = g_vars.objects_tbl[1].y_pos - 48;
+	g_vars.current_bonus.x_pos = g_vars.objects_tbl[PLAYER_OFFSET].x_pos;
+	g_vars.current_bonus.y_pos = g_vars.objects_tbl[PLAYER_OFFSET].y_pos - 48;
 	const int count = g_vars.player_energy * 6 + g_vars.bonus_energy_counter;
 	if (count != 0) {
 		g_vars.player_energy = 0;
@@ -2570,18 +2570,18 @@ static void level_add_object23_bones() {
 
 static void level_clear_item(struct object_t *obj) {
 	struct level_item_t *item = obj->data.t.ref;
-	if (item) {
+	if (item) {;
 		assert(item >= &g_res.level.items_tbl[0] && item < &g_res.level.items_tbl[MAX_LEVEL_ITEMS]);
 		item->spr_num = 0xFFFF;
 	}
 }
 
 static void level_update_player_collision() {
-	struct object_t *obj_player = &g_vars.objects_tbl[1];
+	struct object_t *obj_player = &g_vars.objects_tbl[PLAYER_OFFSET];
 	/* monsters */
-	if (g_vars.objects_tbl[1].hit_counter == 0) {
+	if (g_vars.objects_tbl[PLAYER_OFFSET].hit_counter == 0) {
 		for (int i = 0; i < MONSTERS_COUNT; ++i) {
-			struct object_t *obj = &g_vars.objects_tbl[11 + i];
+			struct object_t *obj = &g_vars.objects_tbl[MONSTERS_OFFSET + i];
 			if (obj->spr_num == 0xFFFF || (obj->spr_num & 0x2000) == 0) {
 				continue;
 			}
@@ -2599,16 +2599,16 @@ static void level_update_player_collision() {
 				continue;
 			}
 			if (g_vars.player_hit_monster_counter != 0) {
-				level_monster_die(obj, m, &g_vars.objects_tbl[1]);
+				level_monster_die(obj, m, &g_vars.objects_tbl[PLAYER_OFFSET]);
 				continue;
 			}
-			if (!g_vars.player_jump_monster_flag || g_vars.objects_tbl[1].data.p.y_velocity < 0) {
+			if (!g_vars.player_jump_monster_flag || g_vars.objects_tbl[PLAYER_OFFSET].data.p.y_velocity < 0) {
 				play_sound(9);
 				m->flags &= ~1;
-				g_vars.objects_tbl[1].hit_counter = 44;
+				g_vars.objects_tbl[PLAYER_OFFSET].hit_counter = 44;
 				g_vars.player_anim_0x40_flag = 0;
-				g_vars.objects_tbl[1].data.p.y_velocity = -128;
-				g_vars.objects_tbl[1].x_velocity = -(g_vars.objects_tbl[1].x_velocity << 2);
+				g_vars.objects_tbl[PLAYER_OFFSET].data.p.y_velocity = -128;
+				g_vars.objects_tbl[PLAYER_OFFSET].x_velocity = -(g_vars.objects_tbl[PLAYER_OFFSET].x_velocity << 2);
 				g_vars.player_gravity_flag = 0;
 				if (g_vars.player_flying_flag != 0) {
 					g_vars.player_flying_flag = 0;
@@ -2634,13 +2634,13 @@ static void level_update_player_collision() {
 						level_add_object75_score(obj_player, (int16_t)data[num >> 1]);
 					}
 				}
-				g_vars.objects_tbl[1].data.p.y_velocity = (g_vars.input.key_up != 0) ? -224 : -64;
+				g_vars.objects_tbl[PLAYER_OFFSET].data.p.y_velocity = (g_vars.input.key_up != 0) ? -224 : -64;
 				g_vars.player_jumping_counter = 0;
-				g_vars.objects_tbl[1].y_pos -= g_vars.monster.collide_y_dist;
-			} else if (g_vars.objects_tbl[1].data.p.y_velocity <= 32) {
-				g_vars.objects_tbl[1].data.p.y_velocity = -96;
+				g_vars.objects_tbl[PLAYER_OFFSET].y_pos -= g_vars.monster.collide_y_dist;
+			} else if (g_vars.objects_tbl[PLAYER_OFFSET].data.p.y_velocity <= 32) {
+				g_vars.objects_tbl[PLAYER_OFFSET].data.p.y_velocity = -96;
 				g_vars.player_jumping_counter = 0;
-				g_vars.objects_tbl[1].y_pos -= g_vars.monster.collide_y_dist;
+				g_vars.objects_tbl[PLAYER_OFFSET].y_pos -= g_vars.monster.collide_y_dist;
 			} else {
 				int num = (obj->data.m.hit_jump_counter) & 3;
 				level_add_object75_score(obj_player, 82 + (num << 1));
@@ -2650,24 +2650,24 @@ static void level_update_player_collision() {
 					level_monster_update_anim(obj);
 					m->flags &= ~8;
 					obj->data.m.y_velocity = -200;
-					int delta = abs(g_vars.objects_tbl[1].data.p.y_velocity);
-					if (obj->x_pos <= g_vars.objects_tbl[1].x_pos) {
+					int delta = abs(g_vars.objects_tbl[PLAYER_OFFSET].data.p.y_velocity);
+					if (obj->x_pos <= g_vars.objects_tbl[PLAYER_OFFSET].x_pos) {
 						delta = -delta;
 					}
 					obj->data.m.x_velocity = delta * 3;
 				} else {
 					++obj->data.m.hit_jump_counter;
-					g_vars.objects_tbl[1].data.p.y_velocity = -96;
+					g_vars.objects_tbl[PLAYER_OFFSET].data.p.y_velocity = -96;
 					g_vars.player_jumping_counter = 0;
-					g_vars.objects_tbl[1].y_pos -= g_vars.monster.collide_y_dist;
+					g_vars.objects_tbl[PLAYER_OFFSET].y_pos -= g_vars.monster.collide_y_dist;
 				}
 			}
 			return;
 		}
 	}
-	/* bonuses */
-	for (int i = 0; i < 52; ++i) {
-		struct object_t *obj = &g_vars.objects_tbl[23 + i];
+	/* bonuses & items */
+	for (int i = 0; i < BONUSES_COUNT + ITEMS_COUNT; ++i) {
+		struct object_t *obj = &g_vars.objects_tbl[BONUSES_OFFSET + i];
 		if (obj->spr_num == 0xFFFF || (obj->spr_num & 0x2000) == 0) {
 			continue;
 		}
@@ -2678,7 +2678,7 @@ static void level_update_player_collision() {
 			continue;
 		}
 		g_vars.current_bonus.spr_num = obj->spr_num;
-		const int num = (obj->spr_num & 0x1FFF) - 53;
+		const int num = (obj->spr_num & 0x1FFF) - SPRITES_OFFSET;
 		obj->spr_num = 0xFFFF;
 		if (num == 226) { /* end of level semaphore */
 			if (g_vars.level_num == 2) {
@@ -2696,8 +2696,8 @@ static void level_update_player_collision() {
 			g_vars.level_completed_flag = 0xFF; /* game completed */
 			return;
 		} else if (num == 228) { /* checkpoint */
-			g_vars.tilemap_start_x_pos = g_vars.objects_tbl[1].x_pos;
-			g_vars.tilemap_start_y_pos = g_vars.objects_tbl[1].y_pos;
+			g_vars.tilemap_start_x_pos = g_vars.objects_tbl[PLAYER_OFFSET].x_pos;
+			g_vars.tilemap_start_y_pos = g_vars.objects_tbl[PLAYER_OFFSET].y_pos;
 			for (int i = 0; i < MAX_LEVEL_ITEMS; ++i) {
 				struct level_item_t *item = &g_res.level.items_tbl[i];
 				if (item->spr_num == 280) {
@@ -2712,7 +2712,7 @@ static void level_update_player_collision() {
 		} else if (num == 174) {
 			++g_vars.player_lifes;
 			play_sound(4);
-			level_add_object75_score(&g_vars.objects_tbl[1], 227);
+			level_add_object75_score(&g_vars.objects_tbl[PLAYER_OFFSET], 227);
 			level_clear_item(obj);
 		} else if (num == 13) {
 			play_sound(8);
@@ -2784,7 +2784,7 @@ static void level_update_player_collision() {
 			play_sound(8);
 			if (g_vars.player_flying_flag == 0) {
 				g_vars.player_flying_flag = 1;
-				g_vars.objects_tbl[1].data.p.current_anim_num = 0xFF;
+				g_vars.objects_tbl[PLAYER_OFFSET].data.p.current_anim_num = 0xFF;
 				level_clear_item(obj);
 			}
 		} else if (num <= 166) {
@@ -2800,9 +2800,9 @@ static void level_update_player_collision() {
 			level_add_object75_score(obj, score_spr_lut[index] + 74);
 		} else if (num == 167 || num == 168) {
 			play_sound(1);
-			g_vars.objects_tbl[1].hit_counter = 44;
-			g_vars.objects_tbl[1].data.p.special_anim_num = 0;
-			g_vars.objects_tbl[1].data.p.current_anim_num = 8;
+			g_vars.objects_tbl[PLAYER_OFFSET].hit_counter = 44;
+			g_vars.objects_tbl[PLAYER_OFFSET].data.p.special_anim_num = 0;
+			g_vars.objects_tbl[PLAYER_OFFSET].data.p.current_anim_num = 8;
 			level_add_object23_bones();
 			g_vars.shake_screen_counter = 7;
 			level_clear_item(obj);
@@ -2816,7 +2816,7 @@ static void level_update_player_collision() {
 		} else if (num == 169) {
 			play_sound(0);
 			for (int i = 0; i < MONSTERS_COUNT; ++i) {
-				struct object_t *obj = &g_vars.objects_tbl[11 + i];
+				struct object_t *obj = &g_vars.objects_tbl[MONSTERS_OFFSET + i];
 				if (obj->spr_num == 0xFFFF) {
 					continue;
 				}
@@ -2835,7 +2835,7 @@ static void level_update_player_collision() {
 		} else if (num == 170) { /* bomb */
 			play_sound(0);
 			for (int i = 0; i < MONSTERS_COUNT; ++i) {
-				struct object_t *obj = &g_vars.objects_tbl[11 + i];
+				struct object_t *obj = &g_vars.objects_tbl[MONSTERS_OFFSET + i];
 				if (obj->spr_num == 0xFFFF) {
 					continue;
 				}
@@ -2878,9 +2878,9 @@ static void level_update_player_collision() {
 				level_player_die();
 			} else {
 				play_sound(1);
-				g_vars.objects_tbl[1].hit_counter = 44;
-				g_vars.objects_tbl[1].data.p.special_anim_num = 0;
-				g_vars.objects_tbl[1].data.p.current_anim_num = 8;
+				g_vars.objects_tbl[PLAYER_OFFSET].hit_counter = 44;
+				g_vars.objects_tbl[PLAYER_OFFSET].data.p.special_anim_num = 0;
+				g_vars.objects_tbl[PLAYER_OFFSET].data.p.current_anim_num = 8;
 				--g_vars.player_energy;
 				const uint8_t energy = g_vars.player_energy;
 				g_vars.player_energy = 1;
@@ -2892,8 +2892,8 @@ static void level_update_player_collision() {
 }
 
 static void level_update_objects_items() {
-	struct object_t *obj = &g_vars.objects_tbl[55];
-	int count = 20;
+	struct object_t *obj = &g_vars.objects_tbl[ITEMS_OFFSET];
+	int count = ITEMS_COUNT;
 	for (int i = 0; i < MAX_LEVEL_ITEMS; ++i) {
 		struct level_item_t *level_item = &g_res.level.items_tbl[i];
 		if (level_item->spr_num == 0xFFFF) {
@@ -2943,15 +2943,15 @@ static void level_update_gates() {
 	for (int i = 0; i < MAX_LEVEL_GATES; ++i) {
 		struct level_gate_t *gate = &g_res.level.gates_tbl[i];
 		if (gate->enter_pos == pos && g_vars.input.key_down) {
-			g_vars.objects_tbl[1].x_velocity = 0;
-			g_vars.objects_tbl[1].data.p.y_velocity = 0;
+			g_vars.objects_tbl[PLAYER_OFFSET].x_velocity = 0;
+			g_vars.objects_tbl[PLAYER_OFFSET].data.p.y_velocity = 0;
 			video_transition_close();
 			g_vars.tilemap.scroll_dy = 0;
 			const uint8_t tmp = g_res.level.tilemap_w;
 			g_res.level.tilemap_w = 256 - 20;
 			const uint16_t dst_pos = gate->dst_pos;
-			g_vars.objects_tbl[1].x_pos = (dst_pos & 255) << 4;
-			g_vars.objects_tbl[1].y_pos = (dst_pos >>  8) << 4;
+			g_vars.objects_tbl[PLAYER_OFFSET].x_pos = (dst_pos & 255) << 4;
+			g_vars.objects_tbl[PLAYER_OFFSET].y_pos = (dst_pos >>  8) << 4;
 			const uint8_t tilemap_y = gate->tilemap_pos >> 8;
 			while (g_vars.tilemap.y != tilemap_y) {
 				if (g_vars.tilemap.y > tilemap_y) {
@@ -2982,7 +2982,7 @@ static void level_update_gates() {
 				g_vars.boss_level5.unk6 = 0;
 				g_vars.boss_level5.tick_counter = 110;
 				g_vars.boss_level5.idle_counter = 8;
-				memset(&g_vars.objects_tbl[91], 0xFF, sizeof(struct object_t) * 6);
+				memset(&g_vars.objects_tbl[DECOR_OFFSET], 0xFF, sizeof(struct object_t) * 6);
 			}
 			level_update_tilemap();
 			level_update_player();
@@ -3099,12 +3099,12 @@ static bool level_update_objects_anim() {
 				g_vars.level_bonuses_count_tbl[i] = (g_res.level.bonuses_tbl[i].pos != 0xFFFF) ? 1 : 0;
 			}
 			level_reset();
-			g_vars.objects_tbl[1].x_pos = g_vars.tilemap_start_x_pos;
-			g_vars.objects_tbl[1].y_pos = g_vars.tilemap_start_y_pos;
+			g_vars.objects_tbl[PLAYER_OFFSET].x_pos = g_vars.tilemap_start_x_pos;
+			g_vars.objects_tbl[PLAYER_OFFSET].y_pos = g_vars.tilemap_start_y_pos;
 			level_init_tilemap();
 			for (int i = 0; i < MAX_LEVEL_ITEMS; ++i) {
 				const uint16_t spr_num = spr_num_tbl[i];
-				const uint16_t num = spr_num - 53;
+				const uint16_t num = spr_num - SPRITES_OFFSET;
 				if (num == 13 || num == 44 || num == 65 || num == 169 || num == 170 || num == 182 || num == 224) {
 					continue;
 				}
@@ -3128,7 +3128,7 @@ static bool level_update_objects_anim() {
 	}
 	input_check_ctrl_alt_e();
 	play_music(17);
-	g_vars.objects_tbl[1].spr_num = 13;
+	g_vars.objects_tbl[PLAYER_OFFSET].spr_num = 13;
 	g_vars.level_num = 0;
 	g_vars.score = 0;
 	g_vars.score_extra_life = 0;
@@ -3198,7 +3198,7 @@ static void level_update_panel() {
 	if (count != 0) {
 		g_vars.score_extra_life += count;
 		g_vars.player_lifes += count;
-		level_add_object75_score(&g_vars.objects_tbl[1], 227);
+		level_add_object75_score(&g_vars.objects_tbl[PLAYER_OFFSET], 227);
 	}
 	level_draw_panel();
 }
@@ -3315,14 +3315,14 @@ static void level_draw_flies() {
 			p->unk6 = (random_get_number2() & 7) + 3;
 		}
 		int x_vel = random_get_number() & 15;
-		if (g_vars.objects_tbl[1].x_pos < (p->x_pos >> 3)) {
+		if (g_vars.objects_tbl[PLAYER_OFFSET].x_pos < (p->x_pos >> 3)) {
 			x_vel = -x_vel;
 		}
 		if (p->unk7 & 7) {
 			x_vel = -x_vel;
 		}
 		int y_vel = random_get_number() & 15;
-		if (g_vars.objects_tbl[1].y_pos < (p->y_pos >> 3)) {
+		if (g_vars.objects_tbl[PLAYER_OFFSET].y_pos < (p->y_pos >> 3)) {
 			y_vel = -y_vel;
 		}
 		if (p->unk7 & 7) {
@@ -3403,8 +3403,8 @@ static void level_draw_snow() {
 
 static void level_update_player_bonuses() {
 	if (g_vars.player_bonus_letters_mask == 0x1F) { /* found the 5 bonuses */
-		g_vars.current_bonus.x_pos = g_vars.objects_tbl[1].x_pos;
-		g_vars.current_bonus.y_pos = g_vars.objects_tbl[1].y_pos - 112;
+		g_vars.current_bonus.x_pos = g_vars.objects_tbl[PLAYER_OFFSET].x_pos;
+		g_vars.current_bonus.y_pos = g_vars.objects_tbl[PLAYER_OFFSET].y_pos - 112;
 		g_vars.current_bonus.spr_num = 110;
 		level_add_object23_bonus(0, 0, 1);
 		g_vars.player_bonus_letters_mask = 0;
@@ -3423,8 +3423,8 @@ static void level_shake_screen() {
 	} else if ((g_vars.level_draw_counter & 1) == 0) {
 		g_vars.shake_screen_voffset = 0;
 	} else {
-		if (g_vars.objects_tbl[1].data.p.current_anim_num != 5 && g_vars.objects_tbl[1].data.p.current_anim_num != 32) {
-			g_vars.objects_tbl[1].y_pos -= 12;
+		if (g_vars.objects_tbl[PLAYER_OFFSET].data.p.current_anim_num != 5 && g_vars.objects_tbl[PLAYER_OFFSET].data.p.current_anim_num != 32) {
+			g_vars.objects_tbl[PLAYER_OFFSET].y_pos -= 12;
 		}
 		++g_vars.shake_screen_counter;
 		g_vars.shake_screen_voffset = g_vars.shake_screen_counter;
@@ -3434,12 +3434,12 @@ static void level_shake_screen() {
 
 static void level_player_death_animation() {
 	play_sound(7);
-	g_vars.objects_tbl[1].hit_counter = 0;
-	g_vars.objects_tbl[1].spr_num = 33;
-	g_vars.objects_tbl[1].data.p.y_velocity = 15;
-	g_vars.objects_tbl[1].x_velocity = (g_vars.objects_tbl[1].x_pos < ((g_vars.tilemap.x + 10) << 4)) ? 5 : -5;
+	g_vars.objects_tbl[PLAYER_OFFSET].hit_counter = 0;
+	g_vars.objects_tbl[PLAYER_OFFSET].spr_num = 33;
+	g_vars.objects_tbl[PLAYER_OFFSET].data.p.y_velocity = 15;
+	g_vars.objects_tbl[PLAYER_OFFSET].x_velocity = (g_vars.objects_tbl[PLAYER_OFFSET].x_pos < ((g_vars.tilemap.x + 10) << 4)) ? 5 : -5;
 	for (int i = 0; i < 60; ++i) {
-		g_vars.objects_tbl[0].spr_num = 0xFFFF;
+		g_vars.objects_tbl[CLUB_OFFSET].spr_num = 0xFFFF;
 		level_update_objects_hit_animation();
 		level_update_objects_monsters();
 		level_update_objects_club_projectiles();
@@ -3454,10 +3454,10 @@ static void level_player_death_animation() {
 		level_draw_flies();
 		level_draw_snow();
 		level_sync();
-		g_vars.objects_tbl[1].x_pos += g_vars.objects_tbl[1].x_velocity;
-		const int y_velocity = MAX(g_vars.objects_tbl[1].data.p.y_velocity - 1, -16);
-		g_vars.objects_tbl[1].y_pos -= y_velocity;
-		g_vars.objects_tbl[1].data.p.y_velocity = y_velocity;
+		g_vars.objects_tbl[PLAYER_OFFSET].x_pos += g_vars.objects_tbl[PLAYER_OFFSET].x_velocity;
+		const int y_velocity = MAX(g_vars.objects_tbl[PLAYER_OFFSET].data.p.y_velocity - 1, -16);
+		g_vars.objects_tbl[PLAYER_OFFSET].y_pos -= y_velocity;
+		g_vars.objects_tbl[PLAYER_OFFSET].data.p.y_velocity = y_velocity;
 	}
 	video_transition_close();
 }
@@ -3496,24 +3496,24 @@ static void level_completed_bonuses_animation_fixup_object4_spr_num() {
 	if (g_vars.level_draw_counter & 3) {
 		return;
 	}
-	int spr_num = (g_vars.objects_tbl[4].spr_num & 0x1FFF) + 1;
+	int spr_num = (g_vars.objects_tbl[AXE_OFFSET + 2].spr_num & 0x1FFF) + 1;
 	if (spr_num >= 110) {
 		spr_num = 104;
 	}
-	g_vars.objects_tbl[4].spr_num = spr_num;
+	g_vars.objects_tbl[AXE_OFFSET + 2].spr_num = spr_num;
 }
 
 static int level_completed_bonuses_animation_helper() {
 	int bp = 0;
 	do {
-		level_update_object_anim(g_vars.objects_tbl[1].data.p.anim);
+		level_update_object_anim(g_vars.objects_tbl[PLAYER_OFFSET].data.p.anim);
 		video_clear();
 		level_completed_bonuses_animation_fixup_object4_spr_num();
 		level_draw_objects();
 		level_completed_bonuses_animation_draw_score();
 		level_sync();
-		for (int i = 0; i < 20; ++i) {
-			struct object_t *obj = &g_vars.objects_tbl[55 + i];
+		for (int i = 0; i < ITEMS_COUNT; ++i) {
+			struct object_t *obj = &g_vars.objects_tbl[ITEMS_OFFSET + i];
 			if (obj->spr_num == 0xFFFF) {
 				continue;
 			}
@@ -3542,43 +3542,43 @@ static void level_completed_bonuses_animation() {
 		g_vars.light.palette_counter = 0;
 	}
 	play_music(15);
-	g_vars.objects_tbl[1].y_pos -= g_vars.tilemap.y << 4;
-	g_vars.objects_tbl[1].x_pos -= g_vars.tilemap.x << 4;
+	g_vars.objects_tbl[PLAYER_OFFSET].y_pos -= g_vars.tilemap.y << 4;
+	g_vars.objects_tbl[PLAYER_OFFSET].x_pos -= g_vars.tilemap.x << 4;
 	g_vars.tilemap.y = 0;
 	g_vars.tilemap.x = 0;
-	g_vars.objects_tbl[1].data.p.hdir = 0;
-	g_vars.objects_tbl[1].x_velocity = 0;
+	g_vars.objects_tbl[PLAYER_OFFSET].data.p.hdir = 0;
+	g_vars.objects_tbl[PLAYER_OFFSET].x_velocity = 0;
 	level_completed_bonuses_animation_draw_score();
 	g_vars.player_flying_flag = 0;
-	g_vars.objects_tbl[1].data.p.anim = object_anim_tbl[1];
+	g_vars.objects_tbl[PLAYER_OFFSET].data.p.anim = object_anim_tbl[1];
 	while (1) {
-		level_update_object_anim(g_vars.objects_tbl[1].data.p.anim);
+		level_update_object_anim(g_vars.objects_tbl[PLAYER_OFFSET].data.p.anim);
 
 		bool flag = false;
 
 		int x_pos = 60;
 		int x_offs = 2;
-		const int dx = g_vars.objects_tbl[1].x_pos - x_pos;
+		const int dx = g_vars.objects_tbl[PLAYER_OFFSET].x_pos - x_pos;
 		if (dx < 0) {
 			x_offs = -x_offs;
 		}
 		if (dx >= 2) {
-			x_pos = g_vars.objects_tbl[1].x_pos - x_offs;
+			x_pos = g_vars.objects_tbl[PLAYER_OFFSET].x_pos - x_offs;
 			flag = true;
 		}
-		g_vars.objects_tbl[1].x_pos = x_pos;
+		g_vars.objects_tbl[PLAYER_OFFSET].x_pos = x_pos;
 
 		int y_pos = 175;
 		int y_offs = 2;
-		const int dy = g_vars.objects_tbl[1].y_pos - y_pos;
+		const int dy = g_vars.objects_tbl[PLAYER_OFFSET].y_pos - y_pos;
 		if (dy < 0) {
 			y_offs = -y_offs;
 		}
 		if (dy >= 2) {
-			y_pos = g_vars.objects_tbl[1].y_pos - y_offs;
+			y_pos = g_vars.objects_tbl[PLAYER_OFFSET].y_pos - y_offs;
 			flag = true;
 		}
-		g_vars.objects_tbl[1].y_pos = y_pos;
+		g_vars.objects_tbl[PLAYER_OFFSET].y_pos = y_pos;
 
 		video_clear();
 		level_completed_bonuses_animation_draw_score();
@@ -3591,17 +3591,17 @@ static void level_completed_bonuses_animation() {
 			break;
 		}
 	}
-	g_vars.objects_tbl[2].x_pos = 360;
-	g_vars.objects_tbl[2].y_pos = 175;
-	g_vars.objects_tbl[2].spr_num = 100;
-	g_vars.objects_tbl[3].x_pos = 360;
-	g_vars.objects_tbl[3].y_pos = 148;
-	g_vars.objects_tbl[3].spr_num = 98;
-	g_vars.objects_tbl[4].x_pos = 360;
-	g_vars.objects_tbl[4].y_pos = 155;
-	g_vars.objects_tbl[4].spr_num = 104;
+	g_vars.objects_tbl[AXE_OFFSET].x_pos = 360;
+	g_vars.objects_tbl[AXE_OFFSET].y_pos = 175;
+	g_vars.objects_tbl[AXE_OFFSET].spr_num = 100;
+	g_vars.objects_tbl[AXE_OFFSET + 1].x_pos = 360;
+	g_vars.objects_tbl[AXE_OFFSET + 1].y_pos = 148;
+	g_vars.objects_tbl[AXE_OFFSET + 1].spr_num = 98;
+	g_vars.objects_tbl[AXE_OFFSET + 2].x_pos = 360;
+	g_vars.objects_tbl[AXE_OFFSET + 2].y_pos = 155;
+	g_vars.objects_tbl[AXE_OFFSET + 2].spr_num = 104;
 	do {
-		level_update_object_anim(g_vars.objects_tbl[1].data.p.anim);
+		level_update_object_anim(g_vars.objects_tbl[PLAYER_OFFSET].data.p.anim);
 		video_clear();
 		level_completed_bonuses_animation_fixup_object4_spr_num();
 		level_completed_bonuses_animation_draw_score();
@@ -3610,16 +3610,16 @@ static void level_completed_bonuses_animation() {
 		if (g_sys.input.quit) {
 			return;
 		}
-		g_vars.objects_tbl[2].x_pos -= 3;
-		g_vars.objects_tbl[3].x_pos -= 3;
-		g_vars.objects_tbl[4].x_pos -= 3;
-	} while (g_vars.objects_tbl[2].x_pos > 155);
+		g_vars.objects_tbl[AXE_OFFSET].x_pos -= 3;
+		g_vars.objects_tbl[AXE_OFFSET + 1].x_pos -= 3;
+		g_vars.objects_tbl[AXE_OFFSET + 2].x_pos -= 3;
+	} while (g_vars.objects_tbl[AXE_OFFSET].x_pos > 155);
 	if (g_vars.level_items_total_count != 0) {
-		g_vars.objects_tbl[1].data.p.anim = object_anim_tbl[18];
-		g_vars.objects_tbl[1].x_velocity = 64;
-		g_vars.objects_tbl[1].x_friction = 2;
+		g_vars.objects_tbl[PLAYER_OFFSET].data.p.anim = object_anim_tbl[18];
+		g_vars.objects_tbl[PLAYER_OFFSET].x_velocity = 64;
+		g_vars.objects_tbl[PLAYER_OFFSET].x_friction = 2;
 		while (1) {
-			level_update_object_anim(g_vars.objects_tbl[1].data.p.anim);
+			level_update_object_anim(g_vars.objects_tbl[PLAYER_OFFSET].data.p.anim);
 			video_clear();
 			level_completed_bonuses_animation_fixup_object4_spr_num();
 			level_completed_bonuses_animation_draw_score();
@@ -3629,13 +3629,13 @@ static void level_completed_bonuses_animation() {
 				return;
 			}
 			level_update_player_x_velocity();
-			const int x_velocity = g_vars.objects_tbl[1].x_velocity >> 4;
-			g_vars.objects_tbl[1].x_pos += x_velocity;
+			const int x_velocity = g_vars.objects_tbl[PLAYER_OFFSET].x_velocity >> 4;
+			g_vars.objects_tbl[PLAYER_OFFSET].x_pos += x_velocity;
 			if (x_velocity == 0) {
 				break;
 			}
 		}
-		g_vars.objects_tbl[1].data.p.anim = object_anim_tbl[17];
+		g_vars.objects_tbl[PLAYER_OFFSET].data.p.anim = object_anim_tbl[17];
 		uint16_t di = 0;
 		uint16_t bp = level_completed_bonuses_animation_helper();
 		uint8_t al = 0;
@@ -3644,8 +3644,8 @@ static void level_completed_bonuses_animation() {
 				di = 0;
 			}
 			if (g_vars.level_items_count_tbl[di] != 0) {
-				for (int i = 0; i < 20; ++i) {
-					struct object_t *obj = &g_vars.objects_tbl[55 + i];
+				for (int i = 0; i < ITEMS_COUNT; ++i) {
+					struct object_t *obj = &g_vars.objects_tbl[ITEMS_OFFSET + i];
 					if (obj->spr_num == 0xFFFF) {
 						obj->spr_num = 110 + di;
 						obj->x_pos = 155;
@@ -3672,9 +3672,9 @@ static void level_completed_bonuses_animation() {
 			}
 		}
 	}
-	g_vars.objects_tbl[1].data.p.anim = object_anim_tbl[1];
+	g_vars.objects_tbl[PLAYER_OFFSET].data.p.anim = object_anim_tbl[1];
 	do {
-		level_update_object_anim(g_vars.objects_tbl[1].data.p.anim);
+		level_update_object_anim(g_vars.objects_tbl[PLAYER_OFFSET].data.p.anim);
 		video_clear();
 		level_completed_bonuses_animation_fixup_object4_spr_num();
 		level_completed_bonuses_animation_draw_score();
@@ -3683,15 +3683,15 @@ static void level_completed_bonuses_animation() {
 		if (g_sys.input.quit) {
 			return;
 		}
-		g_vars.objects_tbl[2].x_pos -= 2;
-		g_vars.objects_tbl[3].x_pos -= 2;
-		g_vars.objects_tbl[4].x_pos -= 2;
-		if (g_vars.objects_tbl[4].x_pos < 0) {
-			g_vars.objects_tbl[1].x_pos += 3;
+		g_vars.objects_tbl[AXE_OFFSET].x_pos -= 2;
+		g_vars.objects_tbl[AXE_OFFSET + 1].x_pos -= 2;
+		g_vars.objects_tbl[AXE_OFFSET + 2].x_pos -= 2;
+		if (g_vars.objects_tbl[AXE_OFFSET + 2].x_pos < 0) {
+			g_vars.objects_tbl[PLAYER_OFFSET].x_pos += 3;
 		} else {
-			g_vars.objects_tbl[1].x_pos += 2;
+			g_vars.objects_tbl[PLAYER_OFFSET].x_pos += 2;
 		}
-	} while (g_vars.objects_tbl[2].x_pos > -52);
+	} while (g_vars.objects_tbl[AXE_OFFSET].x_pos > -52);
 }
 
 static void update_object_demo_animation(struct object_t *obj) {
@@ -3710,50 +3710,50 @@ static void update_object_demo_animation(struct object_t *obj) {
 }
 
 void do_demo_animation() {
-	g_vars.objects_tbl[1].x_pos = 0;
-	g_vars.objects_tbl[1].y_pos = 169;
-	g_vars.objects_tbl[1].data.p.hdir = 0;
-	g_vars.objects_tbl[1].x_velocity = 0;
+	g_vars.objects_tbl[PLAYER_OFFSET].x_pos = 0;
+	g_vars.objects_tbl[PLAYER_OFFSET].y_pos = 169;
+	g_vars.objects_tbl[PLAYER_OFFSET].data.p.hdir = 0;
+	g_vars.objects_tbl[PLAYER_OFFSET].x_velocity = 0;
 	static const uint8_t data[] = {
 		0, 0, 0, 0, 1, 0, 1, 0, 2, 0, 2, 0, 3, 0, 3, 0,
 		4, 0, 4, 0, 5, 0, 5, 0, 0xE8, 0xFF
 	};
-	g_vars.objects_tbl[1].data.p.anim = data;
-	g_vars.objects_tbl[2].x_pos = 48;
-	g_vars.objects_tbl[2].y_pos = 169;
-	g_vars.objects_tbl[2].x_velocity = 0;
-	g_vars.objects_tbl[2].data.m.anim = &monster_anim_tbl[0x2EA];
+	g_vars.objects_tbl[PLAYER_OFFSET].data.p.anim = data;
+	g_vars.objects_tbl[AXE_OFFSET].x_pos = 48;
+	g_vars.objects_tbl[AXE_OFFSET].y_pos = 169;
+	g_vars.objects_tbl[AXE_OFFSET].x_velocity = 0;
+	g_vars.objects_tbl[AXE_OFFSET].data.m.anim = &monster_anim_tbl[0x2EA];
 	g_vars.player_flying_flag = 0;
 	int counter = 0;
 	do {
 		++counter;
-		level_update_object_anim(g_vars.objects_tbl[1].data.p.anim);
-		update_object_demo_animation(&g_vars.objects_tbl[2]);
+		level_update_object_anim(g_vars.objects_tbl[PLAYER_OFFSET].data.p.anim);
+		update_object_demo_animation(&g_vars.objects_tbl[AXE_OFFSET]);
 		level_draw_objects();
 		level_sync();
 		int dx = 5;
-		g_vars.objects_tbl[1].x_pos += dx;
+		g_vars.objects_tbl[PLAYER_OFFSET].x_pos += dx;
 		if ((counter & 3) == 0) {
 			--dx;
 		}
-		g_vars.objects_tbl[2].x_pos += dx;
-	} while ((g_vars.objects_tbl[1].spr_num & 0x2000) != 0);
-	g_vars.objects_tbl[1].data.p.hdir = -1;
-	g_vars.objects_tbl[2].data.m.x_velocity = -1;
-	g_vars.objects_tbl[2].data.m.y_velocity = 0;
-	for (int i = 1; i < 3; ++i) {
-		struct object_t *obj = &g_vars.objects_tbl[2 + i];
-		*obj = g_vars.objects_tbl[2];
+		g_vars.objects_tbl[AXE_OFFSET].x_pos += dx;
+	} while ((g_vars.objects_tbl[PLAYER_OFFSET].spr_num & 0x2000) != 0);
+	g_vars.objects_tbl[PLAYER_OFFSET].data.p.hdir = -1;
+	g_vars.objects_tbl[AXE_OFFSET].data.m.x_velocity = -1;
+	g_vars.objects_tbl[AXE_OFFSET].data.m.y_velocity = 0;
+	for (int i = 1; i < AXE_COUNT - 1; ++i) {
+		struct object_t *obj = &g_vars.objects_tbl[AXE_OFFSET + i];
+		*obj = g_vars.objects_tbl[AXE_OFFSET];
 	}
-	for (int i = 0; i < 3; ++i) {
-		struct object_t *obj = &g_vars.objects_tbl[2 + i];
-		obj->x_pos = g_vars.objects_tbl[1].x_pos + i * 30;
-		obj->y_pos = g_vars.objects_tbl[1].y_pos - i * 3;
+	for (int i = 0; i < AXE_COUNT - 1; ++i) {
+		struct object_t *obj = &g_vars.objects_tbl[AXE_OFFSET + i];
+		obj->x_pos = g_vars.objects_tbl[PLAYER_OFFSET].x_pos + i * 30;
+		obj->y_pos = g_vars.objects_tbl[PLAYER_OFFSET].y_pos - i * 3;
 	}
 	do {
-		level_update_object_anim(g_vars.objects_tbl[1].data.p.anim);
+		level_update_object_anim(g_vars.objects_tbl[PLAYER_OFFSET].data.p.anim);
 		for (int i = 0; i < 3; ++i) {
-			struct object_t *obj = &g_vars.objects_tbl[2 + i];
+			struct object_t *obj = &g_vars.objects_tbl[AXE_OFFSET + i];
 			obj->x_pos -= 5;
 			update_object_demo_animation(obj);
 			if (obj->y_pos > 169) {
@@ -3764,8 +3764,8 @@ void do_demo_animation() {
 		}
 		level_draw_objects();
 		level_sync();
-		g_vars.objects_tbl[1].x_pos -= 7;
-	} while (g_vars.objects_tbl[1].x_pos >= 0);
+		g_vars.objects_tbl[PLAYER_OFFSET].x_pos -= 7;
+	} while (g_vars.objects_tbl[PLAYER_OFFSET].x_pos >= 0);
 }
 
 static void level_pause() {
