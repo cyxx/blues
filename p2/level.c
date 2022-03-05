@@ -383,9 +383,10 @@ static bool level_adjust_hscroll_left() {
 }
 
 static uint16_t tilemap_end_xpos() {
-	int end_x = (g_vars.objects_tbl[PLAYER_OFFSET].x_pos >> 4) - (TILEMAP_SCREEN_W / 16);
-	if (g_res.level.tilemap_w < end_x) {
-		end_x = 256 - (TILEMAP_SCREEN_W / 16);
+	int end_x;
+	if (g_vars.objects_tbl[1].x_pos >> 4 > TILEMAP_SCREEN_W / 16) {
+		int level_w = g_vars.level_num != 1 ? 256 : 128;
+		end_x = level_w - (TILEMAP_SCREEN_W / 16);
 	} else {
 		end_x = g_res.level.tilemap_w;
 	}
@@ -393,7 +394,8 @@ static uint16_t tilemap_end_xpos() {
 }
 
 static bool level_adjust_hscroll_right() {
-	if (g_vars.tilemap.x >= tilemap_end_xpos()) {
+	int end_x = tilemap_end_xpos();
+	if (g_vars.tilemap.x >= end_x) {
 		return true;
 	}
 	++g_vars.tilemap.x;
@@ -471,7 +473,7 @@ static void level_adjust_x_scroll() {
 }
 
 static bool level_adjust_vscroll_down(int dl) {
-	const int end_y = g_vars.tilemap.h - (TILEMAP_SCREEN_H / 16);
+	const int end_y = abs(g_vars.tilemap.h - (TILEMAP_SCREEN_H / 16));
 	if (g_vars.tilemap.y >= end_y) {
 		return false;
 	}
@@ -2984,22 +2986,30 @@ static void level_update_gates() {
 			g_vars.objects_tbl[PLAYER_OFFSET].y_pos = (dst_pos >>  8) << 4;
 			const uint8_t tilemap_y = gate->tilemap_pos >> 8;
 			while (g_vars.tilemap.y != tilemap_y) {
+				const int end_y = abs(g_vars.tilemap.h - (TILEMAP_SCREEN_H / 16));
 				if (g_vars.tilemap.y > tilemap_y) {
 					level_adjust_vscroll_up(16);
-				} else {
+				} else if (end_y != g_vars.tilemap.y) {
 					level_adjust_vscroll_down(16);
+				} else {
+					break;
 				}
 			}
 			const uint8_t tilemap_x = gate->tilemap_pos & 255;
 			while (g_vars.tilemap.x != tilemap_x) {
+				const int end_x = tilemap_end_xpos();
 				if (g_vars.tilemap.x > tilemap_x) {
 					level_adjust_hscroll_left();
-				} else {
+				} else if (end_x > g_vars.tilemap.x) {
 					level_adjust_hscroll_right();
+				} else {
+					break;
 				}
 			}
 			g_res.level.tilemap_w = tmp;
-			g_vars.tilemap_noscroll_flag = gate->scroll_flag;
+			if (GAME_SCREEN_H <= 200) { /* allow scrolling in gates for non-standard height */
+				g_vars.tilemap_noscroll_flag = gate->scroll_flag;
+			}
 			g_vars.player_action_counter = 0;
 			if (g_vars.level_num == 5) {
 				/* exit to boss (tree) */
