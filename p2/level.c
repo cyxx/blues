@@ -611,6 +611,10 @@ static void level_init_tilemap() {
 		level_update_scrolling();
 		g_vars.tilemap_adjust_player_pos_flag = false;
 	} while ((g_vars.level_yscroll_center_flag | g_vars.level_xscroll_center_flag) != 0);
+	if (g_vars.level_num == 9 && GAME_SCREEN_H > 200) {
+		/* don't scroll in boss */
+		g_res.level.scrolling_mask &= 0;
+	}
 	print_debug(DBG_GAME, "init_tilemap x_pos %d y_pos %d scrolling 0x%x", g_vars.tilemap.x, g_vars.tilemap.y, g_res.level.scrolling_mask);
 	if ((g_res.level.scrolling_mask & 2) == 0) {
 		const int x = (g_vars.objects_tbl[PLAYER_OFFSET].x_pos >> 4) - g_vars.tilemap.x;
