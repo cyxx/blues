@@ -222,6 +222,9 @@ static void do_map(){
 				g_sys.update_screen(g_res.vga, 1);
 				g_sys.render_clear_sprites();
 				wait_input(1);
+				if (g_sys.input.quit || g_sys.input.space) {
+					break;
+				}
 			}
 			wait_input(1000);
 			g_sys.update_screen(g_res.vga, 0);
