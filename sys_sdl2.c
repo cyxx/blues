@@ -4,7 +4,7 @@
 #include "util.h"
 
 #define COPPER_BARS_H 80
-#define MAX_SPRITES 256
+#define MAX_SPRITES 512
 #define MAX_SPRITESHEETS 3
 
 static const int FADE_STEPS = 16;
@@ -694,7 +694,7 @@ static void render_unload_sprites(int spr_type) {
 }
 
 static void render_add_sprite(int spr_type, int frame, int x, int y, int xflip) {
-	assert(_sprites_count < ARRAYSIZE(_sprites));
+	assert(_sprites_count < MAX_SPRITES);
 	struct sprite_t *spr = &_sprites[_sprites_count];
 	spr->sheet = spr_type;
 	spr->num = frame;

@@ -2936,11 +2936,11 @@ static void level_update_objects_items() {
 			continue;
 		}
 		const int16_t x = (level_item->x_pos >> 4) - g_vars.tilemap.x;
-		if (x < 0 || x > 22) {
+		if (x < 0 || x > TILEMAP_SCREEN_W / 16) {
 			continue;
 		}
 		const int16_t y = (level_item->y_pos >> 4) - g_vars.tilemap.y;
-		if (y < 0 || y > 43) {
+		if (y < 0 || y > TILEMAP_SCREEN_H / 16) {
 			continue;
 		}
 		obj->x_pos = level_item->x_pos;
