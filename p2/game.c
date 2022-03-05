@@ -15,7 +15,6 @@ void update_input() {
 	g_vars.input.key_up    = (g_sys.input.direction & INPUT_DIRECTION_UP) != 0    ? 0xFF : 0;
 	g_vars.input.key_down  = (g_sys.input.direction & INPUT_DIRECTION_DOWN) != 0  ? 0xFF : 0;
 	g_vars.input.key_space = g_sys.input.space ? 0xFF : 0;
-	g_sys.input.quit       = g_sys.input.escape;
 
 	g_vars.input.keystate[2] = g_sys.input.digit1;
 	g_vars.input.keystate[3] = g_sys.input.digit2;
@@ -80,12 +79,12 @@ static void do_credits() {
 	g_sys.update_screen(g_res.vga, 1);
 }
 
-static void update_screen_img(const uint8_t *src) {
+static void update_screen_img(const uint8_t *src, int present) {
 	const int size = GAME_SCREEN_W * GAME_SCREEN_H;
 	if (size < 64000) {
 		return;
 	} else if (size == 64000) {
-		g_sys.update_screen(src, 0);
+		g_sys.update_screen(src, present);
 	} else {
 		memset(g_res.vga, 0, size);
 		const int y_offs = (GAME_SCREEN_H - 200) / 2;
@@ -93,7 +92,7 @@ static void update_screen_img(const uint8_t *src) {
 		for (int y = 0; y < 200; ++y) {
 			memcpy(g_res.vga + (y_offs + y) * GAME_SCREEN_W + x_offs, src + y * 320, 320);
 		}
-		g_sys.update_screen(g_res.vga, 0);
+		g_sys.update_screen(g_res.vga, present);
 	}
 }
 
@@ -101,7 +100,7 @@ static void do_titus_screen() {
 	uint8_t *data = load_file("TITUS.SQZ");
 	if (data) {
 		g_sys.set_screen_palette(data, 0, 256, 6);
-		update_screen_img(data + 768);
+		update_screen_img(data + 768, 0);
 		g_sys.fade_in_palette();
 		wait_input(700);
 		g_sys.fade_out_palette();
@@ -109,13 +108,48 @@ static void do_titus_screen() {
 	}
 }
 
+static bool fade_palettes(const uint8_t *target, uint8_t *current) {
+	bool flag = false;
+	for (int i = 0; i < 768; ++i) {
+		int al = current[i];
+		const int bh = target[i] - al;
+		if (bh != 0) {
+			if (abs(bh) < 2) {
+				flag = true;
+				al = target[i];
+			} else {
+				if (target[i] < al) {
+					al -= 2;
+				} else {
+					al += 2;
+				}
+			}
+			current[i] = al;
+		}
+	}
+	return flag;
+}
+
 static void do_present_screen() {
 	uint8_t *data = load_file("PRESENT.SQZ");
 	if (data) {
-		g_sys.set_screen_palette(data, 0, 256, 6);
-		update_screen_img(data + 768);
-		g_sys.fade_in_palette();
-		wait_input(700);
+		if (g_uncompressed_size == 65536 + 768) { /* demo version */
+			g_sys.set_screen_palette(data, 0, 256, 6);
+			update_screen_img(data + 768, 0);
+			g_sys.fade_in_palette();
+		} else {
+			memmove(data + 768, data + 0x1030 * 16, 93 * 320);
+			g_sys.set_screen_palette(data, 0, 256, 6);
+			update_screen_img(data + 768, 0);
+			g_sys.fade_in_palette();
+			uint8_t palette[256 * 3];
+			memcpy(palette, data, 256 * 3);
+			while (fade_palettes(present_palette_data, palette) && !g_sys.input.quit) {
+				g_sys.set_screen_palette(palette, 0, 256, 6);
+				update_screen_img(data + 768, 1);
+				wait_input(100);
+			}
+		}
 		g_sys.fade_out_palette();
 		free(data);
 	}
@@ -132,7 +166,7 @@ static void do_demo_screen() {
 	if (data) {
 		video_copy_img(data);
 		g_sys.set_screen_palette(joystick_palette_data, 0, 16, 6);
-		update_screen_img(g_res.background);
+		update_screen_img(g_res.background, 0);
 		g_sys.fade_in_palette();
 		free(data);
 		wait_input(10000);
@@ -143,7 +177,7 @@ static void do_castle_screen() {
 	uint8_t *data = load_file("CASTLE.SQZ");
 	if (data) {
 		g_sys.set_screen_palette(data, 0, 256, 6);
-		update_screen_img(data + 768);
+		update_screen_img(data + 768, 0);
 		g_sys.fade_in_palette();
 		free(data);
 		wait_input(10000);
@@ -196,7 +230,7 @@ static void do_menu() {
 	uint8_t *data = load_file("MENU.SQZ");
 	if (data) {
 		g_sys.set_screen_palette(data, 0, 256, 6);
-		update_screen_img(data + 768);
+		update_screen_img(data + 768, 0);
 		g_sys.fade_in_palette();
 		free(data);
 		memset(g_vars.input.keystate, 0, sizeof(g_vars.input.keystate));
@@ -236,7 +270,7 @@ void do_theend_screen() {
 	uint8_t *data = load_file("THEEND.SQZ");
 	if (data) {
 		g_sys.set_screen_palette(data, 0, 256, 6);
-		update_screen_img(data + 768);
+		update_screen_img(data + 768, 0);
 		g_sys.fade_in_palette();
 		free(data);
 		wait_input(10000);
@@ -321,8 +355,9 @@ static void game_run(const char *data_path) {
 				do_demo_screen();
 			}
 			do_menu();
-			if (g_sys.input.quit)
+			if (g_sys.input.quit) {
 				break;
+			}
 		}
 		uint8_t level_num;
 		do {
