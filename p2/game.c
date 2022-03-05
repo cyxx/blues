@@ -203,15 +203,21 @@ static void do_map(){
 			const uint16_t pos_x = spr_pos[1][g_vars.level_num];
 			g_sys.set_screen_palette(palettes_tbl[pal], 0, 16, 6);
 			video_load_sprites();
-			for (uint16_t x = 0; x < MAP_W; ++x) { /* 640*200*4bpp pic */
-				uint16_t pitch = x < GAME_SCREEN_W ? x : GAME_SCREEN_W;
+			uint16_t pad_w = GAME_SCREEN_W < MAP_W ? 0 : (GAME_SCREEN_W - MAP_W) / 2;
+			for (uint16_t x = 0; x < MAP_W + pad_w; ++x) { /* 640*200*4bpp pic */
+				uint16_t pitch = x < GAME_SCREEN_W ? x : MAP_W;
 				uint16_t window_w = x < GAME_SCREEN_W ? 0 : x % GAME_SCREEN_W;
 				uint16_t shown_pixels = x < GAME_SCREEN_W ? x : 0;
 				video_draw_sprite(spr, GAME_SCREEN_W - x + pos_x, pos_y + y_offs, 0);
 				for (uint8_t y = 1; y < MAP_H; ++y) {
-					memcpy(g_res.vga + (y_offs + y) * GAME_SCREEN_W + x_offs - shown_pixels,
-						g_res.map + y * MAP_W + window_w,
-						pitch);
+						memcpy(g_res.vga + (y_offs + y) * GAME_SCREEN_W + x_offs - shown_pixels,
+							g_res.map + y * MAP_W + window_w,
+							pitch);
+						if (x > MAP_W) {
+							memset(g_res.vga + (y_offs + y) * GAME_SCREEN_W + x_offs + MAP_W - x,
+								0,
+								x % MAP_W);
+						}
 				}
 				g_sys.update_screen(g_res.vga, 1);
 				g_sys.render_clear_sprites();
