@@ -564,7 +564,11 @@ static void level_adjust_y_scroll() {
 				if (index >= 0 && index < 132) {
 					dl = vscroll_offsets_data[index];
 				} else {
-					print_warning("Invalid scroll down delta %d", index);
+					if (GAME_SCREEN_H > 200) {
+						print_debug(DBG_GAME, "Invalid scroll down delta %d", index);
+					} else {
+						print_warning("Invalid scroll down delta %d", index);
+					}
 					return;
 				}
 			}
