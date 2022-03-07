@@ -443,6 +443,7 @@ static void handle_controllerbutton(int button, bool pressed, struct input_t *in
 		input->space = pressed;
 		break;
 	case SDL_CONTROLLER_BUTTON_BACK:
+		g_sys.input.quit = true;
 		break;
 	case SDL_CONTROLLER_BUTTON_START:
 		break;
