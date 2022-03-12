@@ -66,4 +66,10 @@ struct game_t {
 	void (*run)(const char *data_path);
 };
 
+#ifdef _WIN32
+#define EXPORT_SYMBOL __attribute__((dllexport))
+#else
+#define EXPORT_SYMBOL __attribute__((visibility("default")))
+#endif
+
 #endif

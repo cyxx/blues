@@ -175,7 +175,7 @@ struct vars_t {
 	uint8_t level_items_count_tbl[140]; /* bonuses and items collected in the level */
 	uint8_t level_items_total_count;
 	uint8_t level_bonuses_count_tbl[80];
-	uint8_t bonus_energy_counter;
+	int8_t bonus_energy_counter;
 
 	int16_t current_platform_dx, current_platform_dy;
 	uint16_t decor_tile0_offset; /* decor tile below the player */

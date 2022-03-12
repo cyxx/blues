@@ -28,8 +28,27 @@ static const char *USAGE =
 ;
 
 static struct game_t *detect_game(const char *data_path) {
-	extern struct game_t game;
-	return &game;
+	extern struct game_t game_bb;
+	extern struct game_t game_ja;
+	extern struct game_t game_p2;
+	static struct {
+		struct game_t *game;
+		const char *filename;
+		uint16_t size;
+	} games[] = {
+		{ &game_bb, "AVTMAG.SQV",  3069 },
+		{ &game_ja, "JARDIN.EAT", 24876 },
+		{ &game_p2, "MOTIF.SQZ",   9396 },
+		{ 0, 0, 0 }
+	};
+	for (int i = 0; games[i].game; ++i) {
+		FILE *fp = fopen_nocase(data_path, games[i].filename);
+		if (fp) {
+			fclose(fp);
+			return games[i].game;
+		}
+	}
+	return 0;
 }
 
 #if defined(PSP)

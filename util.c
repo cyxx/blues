@@ -7,7 +7,7 @@
 
 int g_debug_mask = 0;
 
-void string_lower(char *p) {
+static void string_lower(char *p) {
 	for (; *p; ++p) {
 		if (*p >= 'A' && *p <= 'Z') {
 			*p += 'a' - 'A';
@@ -15,7 +15,7 @@ void string_lower(char *p) {
 	}
 }
 
-void string_upper(char *p) {
+static void string_upper(char *p) {
 	for (; *p; ++p) {
 		if (*p >= 'a' && *p <= 'z') {
 			*p += 'A' - 'a';
@@ -76,6 +76,11 @@ FILE *fopen_nocase(const char *path, const char *filename) {
 		char *p = buf + strlen(path) + 1;
 		string_upper(p);
 		fp = fopen(buf, "rb");
+		if (!fp) {
+			char *p = buf + strlen(path) + 1;
+			string_lower(p);
+			fp = fopen(buf, "rb");
+		}
 	}
 	return fp;
 }

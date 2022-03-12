@@ -151,7 +151,6 @@ void play_music(int num) {
 			memcpy(samples[i].name, &buf[offset], 22);
 			samples[i].name[22] = 0;
 			samples[i].size = READ_BE_UINT16(&buf[offset + 22]) * 2;
-			string_lower(samples[i].name);
 			samples_size += samples[i].size;
 		}
 		buf = (uint8_t *)realloc(buf, size + samples_size);

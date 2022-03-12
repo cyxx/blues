@@ -63,7 +63,3 @@ Usage: blues [OPTIONS]...
   --dosscroll       Enable DOS style screen scrolling
   --hybrid          Enable fuchsia color as in Hybrid crack
 ```
-
-## Downloads
-
-[blues-sdl2-win32.zip](https://www.dropbox.com/s/rybnnn4s3rmicva/blues-gh-sdl2-win32.zip?dl=0) - Win32 executable

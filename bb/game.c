@@ -359,7 +359,7 @@ static void game_run(const char *data_path) {
 	res_fini();
 }
 
-struct game_t game = {
+EXPORT_SYMBOL struct game_t game_bb = {
 	"Blues Brothers",
 	game_run
 };

@@ -363,7 +363,7 @@ static void game_run(const char *data_path) {
 	res_fini();
 }
 
-struct game_t game = {
+EXPORT_SYMBOL struct game_t game_p2 = {
 	"Prehistorik 2",
 	game_run
 };

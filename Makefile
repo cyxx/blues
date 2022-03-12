@@ -15,17 +15,29 @@ SRCS := $(BB_SRCS) $(JA_SRCS) $(P2_SRCS)
 OBJS := $(SRCS:.c=.o)
 DEPS := $(SRCS:.c=.d)
 
-CPPFLAGS += -Wall -Wpedantic -MMD $(SDL_CFLAGS) -I. -g
+CPPFLAGS += -Wall -Wextra -Wno-unused-parameter -Wno-sign-compare -Wpedantic -MMD $(SDL_CFLAGS) -I. -g
 
-all: blues bbja pre2
+all: blues
 
-blues: main.o sys_sdl2.o util.o $(BB_SRCS:.c=.o)
-	$(CC) $(LDFLAGS) -o $@ $^ $(SDL_LIBS) $(MODPLUG_LIBS)
+game_bb.o: CPPFLAGS += -fvisibility=hidden
 
-bbja: main.o sys_sdl2.o util.o $(JA_SRCS:.c=.o)
-	$(CC) $(LDFLAGS) -o $@ $^ $(SDL_LIBS) $(MODPLUG_LIBS)
+game_bb.o: $(BB_SRCS:.c=.o)
+	ld -r -o $@ $^
+	objcopy --localize-hidden $@
 
-pre2: main.o sys_sdl2.o util.o $(P2_SRCS:.c=.o)
+game_ja.o: CPPFLAGS += -fvisibility=hidden
+
+game_ja.o: $(JA_SRCS:.c=.o)
+	ld -r -o $@ $^
+	objcopy --localize-hidden $@
+
+game_p2.o: CPPFLAGS += -fvisibility=hidden
+
+game_p2.o: $(P2_SRCS:.c=.o)
+	ld -r -o $@ $^
+	objcopy --localize-hidden $@
+
+blues: main.o sys_sdl2.o util.o game_bb.o game_ja.o game_p2.o
 	$(CC) $(LDFLAGS) -o $@ $^ $(SDL_LIBS) $(MODPLUG_LIBS)
 
 clean:

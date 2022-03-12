@@ -14,9 +14,6 @@
 
 extern int g_debug_mask;
 
-extern void	string_lower(char *p);
-extern void	string_upper(char *p);
-
 extern void	print_debug(int debug_channel, const char *msg, ...);
 extern void	print_warning(const char *msg, ...);
 extern void	print_error(const char *msg, ...);
