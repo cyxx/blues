@@ -55,11 +55,11 @@ int main(int argc, char *argv[]) {
 	g_options.start_ypos16 = -1;
 	g_options.screen_w = 320;
 	g_options.screen_h = 200;
+	g_options.dos_scrolling = false;
 	g_options.amiga_copper_bars = true;
 	g_options.amiga_colors = true;
 	// g_options.amiga_status_bar = true;
 	g_options.cga_colors = false;
-	g_options.dos_scrolling = false;
 	g_options.hybrid_color = false;
 	const char *data_path = DEFAULT_DATA_PATH;
 	int scale_factor = DEFAULT_SCALE_FACTOR;
@@ -143,7 +143,7 @@ int main(int argc, char *argv[]) {
 		fprintf(stdout, "No data files found\n");
 	} else {
 		g_sys.init();
-		g_sys.set_screen_size(GAME_SCREEN_W, GAME_SCREEN_H, game->name, scale_factor, scale_filter, fullscreen, g_options.hybrid_color);
+		g_sys.set_screen_size(GAME_SCREEN_W, GAME_SCREEN_H, game->name, scale_factor, scale_filter, fullscreen);
 		game->run(data_path);
 		g_sys.fini();
 	}

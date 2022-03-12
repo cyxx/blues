@@ -38,7 +38,7 @@ struct sys_t {
 	struct input_t	input;
 	int	(*init)();
 	void	(*fini)();
-	void	(*set_screen_size)(int w, int h, const char *caption, int scale, const char *filter, bool fullscreen, bool hybrid_color);
+	void	(*set_screen_size)(int w, int h, const char *caption, int scale, const char *filter, bool fullscreen);
 	void	(*set_screen_palette)(const uint8_t *colors, int offset, int count, int depth);
 	void	(*set_palette_amiga)(const uint16_t *colors, int offset);
 	void	(*set_copper_bars)(const uint16_t *data);

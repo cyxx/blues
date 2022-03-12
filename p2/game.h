@@ -146,13 +146,13 @@ struct vars_t {
 	uint8_t player_lifes;
 	int8_t player_energy;
 	uint8_t player_death_flag;
-	uint8_t player_flying_flag;
+	bool player_flying_flag;
 	uint8_t player_flying_counter;
 	uint8_t player_flying_anim_index;
 	uint8_t player_bonus_letters_mask;
 	uint8_t player_utensils_mask;
 	uint8_t player_gravity_flag; /* 0, 1 or 2 */
-	uint8_t player_unk_counter1;
+	uint8_t player_runup_counter;
 	uint8_t player_moving_counter;
 	uint8_t player_anim_0x40_flag;
 	uint8_t player_anim2_counter;
@@ -287,6 +287,7 @@ extern const uint8_t credits_palette_data[16 * 3];
 extern const uint8_t light_palette_data[16 * 3];
 extern const uint8_t present_palette_data[256 * 3];
 extern const uint8_t menu_palette_data[16 * 3];
+extern const uint8_t gameover_palette_data[16 * 3];
 extern const uint8_t spr_offs_tbl[922];
 extern const uint8_t spr_size_tbl[922];
 extern const uint16_t score_tbl[17];
@@ -305,12 +306,17 @@ extern const uint16_t boss_gorilla_data[19 * 10];
 extern const uint16_t boss_gorilla_spr_tbl[46 * 3]; /* uint16_t: spr1_num, uint16_t: spr2_num, int8_t: dx, int8_t: dy */
 extern const uint16_t snow_pattern1_data[1];
 extern const uint16_t snow_pattern2_data[10];
+extern const uint8_t demo_anim_data[26];
+extern const uint8_t gameover_anim1_data[18];
+extern const uint8_t gameover_anim2_data[34];
+extern const uint8_t gameover_anim3_data[20];
 
 /* game.c */
 extern void	update_input();
 extern void	input_check_ctrl_alt_e();
 extern void	input_check_ctrl_alt_w();
 extern void	do_theend_screen();
+extern void	do_gameover_screen();
 extern uint32_t	timer_get_counter();
 extern void	random_reset();
 extern uint8_t	random_get_number();
@@ -334,6 +340,7 @@ extern void	monster_change_prev_anim(struct object_t *obj);
 extern void	video_draw_string(int offset, int hspace, const char *s);
 extern void	video_clear();
 extern void	video_copy_img(const uint8_t *src);
+extern void	video_copy_background();
 extern void	video_draw_panel(const uint8_t *src);
 extern void	video_draw_panel_number(int offset, int num);
 extern void	video_draw_number(int offset, int num);

@@ -61,10 +61,15 @@ void video_copy_vga(int size) {
 }
 
 void video_copy_backbuffer(int h) {
-	for (int y = 0; y < MIN(200, GAME_SCREEN_H) - h; ++y) {
+	int y = 0;
+	for (; y < MIN(200, GAME_SCREEN_H) - h; ++y) {
 		for (int x = 0; x < GAME_SCREEN_W; x += 320) {
 			memcpy(g_res.vga + y * GAME_SCREEN_W + x, g_res.background + y * 320, MIN(320, GAME_SCREEN_W - x));
 		}
+	}
+	h = GAME_SCREEN_H - y;
+	if (h > 0) {
+		memset(g_res.vga + y * GAME_SCREEN_W, 0, GAME_SCREEN_W * h);
 	}
 }
 

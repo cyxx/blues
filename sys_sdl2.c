@@ -40,7 +40,6 @@ static uint32_t _screen_palette[256];
 static uint32_t *_screen_buffer;
 static int _copper_color_key;
 static uint32_t _copper_palette[COPPER_BARS_H];
-static bool _hybrid_color;
 
 static SDL_GameController *_controller;
 static SDL_Joystick *_joystick;
@@ -109,7 +108,7 @@ static void sdl2_fini() {
 	SDL_Quit();
 }
 
-static void sdl2_set_screen_size(int w, int h, const char *caption, int scale, const char *filter, bool fullscreen, bool hybrid_color) {
+static void sdl2_set_screen_size(int w, int h, const char *caption, int scale, const char *filter, bool fullscreen) {
 	assert(_screen_w == 0 && _screen_h == 0); // abort if called more than once
 	_screen_w = w;
 	_screen_h = h;
@@ -138,7 +137,6 @@ static void sdl2_set_screen_size(int w, int h, const char *caption, int scale, c
 	_sprites_cliprect.y = 0;
 	_sprites_cliprect.w = w;
 	_sprites_cliprect.h = h;
-	_hybrid_color = hybrid_color;
 }
 
 static uint32_t convert_amiga_color(uint16_t color) {
@@ -197,9 +195,6 @@ static void sdl2_set_screen_palette(const uint8_t *colors, int offset, int count
 			r = (r << shift) | (r >> (depth - shift));
 			g = (g << shift) | (g >> (depth - shift));
 			b = (b << shift) | (b >> (depth - shift));
-		}
-		if(_hybrid_color && i < 2){
-			g = 0;
 		}
 		_screen_palette[offset + i] = SDL_MapRGB(_fmt, r, g, b);
 		palette_colors[i].r = r;
@@ -351,7 +346,7 @@ static void sdl2_shake_screen(int dx, int dy) {
 	_shake_dy = dy;
 }
 
-static void handle_keyevent(int keysym, bool keydown, struct input_t *input) {
+static void handle_keyevent(int keysym, bool keydown, struct input_t *input, bool *paused) {
 	switch (keysym) {
 	case SDLK_LEFT:
 		if (keydown) {
@@ -399,6 +394,11 @@ static void handle_keyevent(int keysym, bool keydown, struct input_t *input) {
 	case SDLK_3:
 		input->digit3 = keydown;
 		break;
+	case SDLK_p:
+		if (!keydown) {
+			*paused = !*paused;
+		}
+		break;
 	}
 }
 
@@ -434,7 +434,7 @@ static void handle_controlleraxis(int axis, int value, struct input_t *input) {
 	}
 }
 
-static void handle_controllerbutton(int button, bool pressed, struct input_t *input) {
+static void handle_controllerbutton(int button, bool pressed, struct input_t *input, bool *paused) {
 	switch (button) {
 	case SDL_CONTROLLER_BUTTON_A:
 	case SDL_CONTROLLER_BUTTON_B:
@@ -446,6 +446,9 @@ static void handle_controllerbutton(int button, bool pressed, struct input_t *in
 		g_sys.input.quit = true;
 		break;
 	case SDL_CONTROLLER_BUTTON_START:
+		if (!pressed) {
+			*paused = !*paused;
+		}
 		break;
 	case SDL_CONTROLLER_BUTTON_DPAD_UP:
 		if (pressed) {
@@ -532,15 +535,14 @@ static int handle_event(const SDL_Event *ev, bool *paused) {
 		case SDL_WINDOWEVENT_FOCUS_GAINED:
 		case SDL_WINDOWEVENT_FOCUS_LOST:
 			*paused = (ev->window.event == SDL_WINDOWEVENT_FOCUS_LOST);
-			SDL_PauseAudio(*paused);
 			break;
 		}
 		break;
 	case SDL_KEYUP:
-		handle_keyevent(ev->key.keysym.sym, 0, &g_sys.input);
+		handle_keyevent(ev->key.keysym.sym, 0, &g_sys.input, paused);
 		break;
 	case SDL_KEYDOWN:
-		handle_keyevent(ev->key.keysym.sym, 1, &g_sys.input);
+		handle_keyevent(ev->key.keysym.sym, 1, &g_sys.input, paused);
 		break;
 	case SDL_CONTROLLERDEVICEADDED:
 		if (!_controller) {
@@ -559,12 +561,12 @@ static int handle_event(const SDL_Event *ev, bool *paused) {
 		break;
 	case SDL_CONTROLLERBUTTONUP:
 		if (_controller) {
-			handle_controllerbutton(ev->cbutton.button, 0, &g_sys.input);
+			handle_controllerbutton(ev->cbutton.button, 0, &g_sys.input, paused);
 		}
 		break;
 	case SDL_CONTROLLERBUTTONDOWN:
 		if (_controller) {
-			handle_controllerbutton(ev->cbutton.button, 1, &g_sys.input);
+			handle_controllerbutton(ev->cbutton.button, 1, &g_sys.input, paused);
 		}
 		break;
 	case SDL_CONTROLLERAXISMOTION:
@@ -603,9 +605,13 @@ static void sdl2_process_events() {
 	while (1) {
 		SDL_Event ev;
 		while (SDL_PollEvent(&ev)) {
+			const bool prev = paused;
 			handle_event(&ev, &paused);
 			if (g_sys.input.quit) {
 				break;
+			}
+			if (prev != paused) {
+				SDL_PauseAudio(paused);
 			}
 		}
 		if (!paused) {

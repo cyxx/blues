@@ -193,7 +193,7 @@ static void level_update_boss_gorilla_helper2() {
 		for (int j = 103; j <= 107; ++j) {
 			g_vars.objects_tbl[j].spr_num |= 0x4000;
 		}
-		g_vars.player_flying_flag = 0;
+		g_vars.player_flying_flag = false;
 		level_update_boss_gorilla_tick();
 		g_res.level.boss_energy -= g_vars.player_club_power;
 		if (g_res.level.boss_energy < 0) {
@@ -651,9 +651,9 @@ static void level_update_boss_tree() {
 			if (_di->spr_num == 0xFFFF || _di == obj_player) {
 				continue;
 			}
-			g_vars.player_using_club_flag = 1;
+			g_vars.player_using_club_flag = true;
 			const bool ret = level_objects_collide(_si, _di);
-			g_vars.player_using_club_flag = 0;
+			g_vars.player_using_club_flag = false;
 			if (ret) {
 				_si->spr_num ^= 0x4000;
 				if (g_vars.boss_level5.state != 0) {

@@ -115,6 +115,19 @@ void video_copy_img(const uint8_t *src) {
 	decode_planar(src, g_res.background, 320, 320, 200, 0xFF);
 }
 
+void video_copy_background() {
+	if (GAME_SCREEN_W * GAME_SCREEN_H == 64000) {
+		memcpy(g_res.vga, g_res.background, 320 * 200);
+	} else {
+		memset(g_res.vga, 0, GAME_SCREEN_W * GAME_SCREEN_H);
+		for (int y = 0; y < MIN(200, GAME_SCREEN_H); ++y) {
+			for (int x = 0; x < GAME_SCREEN_W; x += 320) {
+				memcpy(g_res.vga + y * GAME_SCREEN_W + x, g_res.background + y * 320, MIN(320, GAME_SCREEN_W - x));
+			}
+		}
+	}
+}
+
 void video_draw_panel(const uint8_t *src) {
 	const int h = GAME_SCREEN_H - PANEL_H;
 	const int x = (GAME_SCREEN_W - 320) / 2;

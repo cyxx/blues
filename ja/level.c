@@ -135,9 +135,16 @@ static void level_draw_tilemap() {
 		g_vars.tilemap_current_lut = current_lut;
 	}
 	for (int y = 0; y < TILEMAP_SCREEN_H / 16 + 1; ++y) {
+		const int y_offset = g_vars.tilemap_y + y;
+		if (!(y_offset >= 0 && y_offset < g_vars.tilemap_h)) {
+			continue;
+		}
 		for (int x = 0; x < TILEMAP_SCREEN_W / 16 + 1; ++x) {
-			const int offset = (g_vars.tilemap_y + y) * g_vars.tilemap_w + (g_vars.tilemap_x + x);
-			const uint8_t num = g_vars.tilemap_data[offset];
+			const int x_offset = g_vars.tilemap_x + x;
+			if (!(x_offset >= 0 && x_offset < g_vars.tilemap_w)) {
+				continue;
+			}
+			const uint8_t num = g_vars.tilemap_data[y_offset * g_vars.tilemap_w + x_offset];
 			level_draw_tile(num, x, y, g_vars.tilemap_scroll_dx << 2, g_vars.tilemap_scroll_dy);
 		}
 	}
@@ -2925,6 +2932,7 @@ static void level_player_draw_powerdown_animation(struct player_t *player) {
 		};
 		for (int i = 0; data[i] != 0xFF; ++i) {
 			level_draw_tilemap();
+			draw_panel();
 			level_draw_objects();
 			level_sync();
 			player_obj->spr_num = data[i];
@@ -2953,6 +2961,7 @@ static void level_player_draw_powerup_animation(struct player_t *player, struct 
 		struct object_t *player_obj = &g_vars.objects_table[player_obj_num(&player->obj)];
 		for (int i = 0; data[i] != 0xFF; ++i) {
 			level_draw_tilemap();
+			draw_panel();
 			level_draw_objects();
 			level_sync();
 			player_obj->spr_num = data[i];

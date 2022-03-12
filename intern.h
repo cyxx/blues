@@ -50,12 +50,13 @@ struct options_t {
 	int start_ypos16;
 	int screen_w;
 	int screen_h;
+	bool dos_scrolling;
 	// 'bb' only options
 	bool amiga_copper_bars;
 	bool amiga_colors;
 	bool amiga_status_bar;
-	bool dos_scrolling;
 	bool cga_colors;
+	// 'p2' only options
 	bool hybrid_color;
 };
 
