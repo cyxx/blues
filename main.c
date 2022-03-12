@@ -2,6 +2,7 @@
 #include <getopt.h>
 #include <sys/stat.h>
 #include "sys.h"
+#include "mixer.h"
 #include "util.h"
 
 struct options_t g_options;
@@ -36,9 +37,9 @@ static struct game_t *detect_game(const char *data_path) {
 		const char *filename;
 		uint16_t size;
 	} games[] = {
-		{ &game_bb, "AVTMAG.SQV",  3069 },
-		{ &game_ja, "JARDIN.EAT", 24876 },
-		{ &game_p2, "MOTIF.SQZ",   9396 },
+		{ &game_bb, "MAGASIN.BIN",  2560 },
+		{ &game_ja, "JARDIN.EAT",  24876 },
+		{ &game_p2, "MOTIF.SQZ",    9396 },
 		{ 0, 0, 0 }
 	};
 	for (int i = 0; games[i].game; ++i) {
@@ -50,18 +51,6 @@ static struct game_t *detect_game(const char *data_path) {
 	}
 	return 0;
 }
-
-#if defined(PSP)
-/* stubs */
-void sound_init() {
-}
-void sound_fini() {
-}
-void play_sound(int num) {
-}
-void play_music(int num) {
-}
-#endif
 
 int main(int argc, char *argv[]) {
 	const char *data_path = DEFAULT_DATA_PATH;
@@ -168,7 +157,13 @@ int main(int argc, char *argv[]) {
 	} else {
 		g_sys.init();
 		g_sys.set_screen_size(GAME_SCREEN_W, GAME_SCREEN_H, game->name, scale_factor, scale_filter, fullscreen);
-		game->run(data_path);
+		game->res_init(data_path, GAME_SCREEN_W * GAME_SCREEN_H);
+		game->snd_init();
+		g_mix.init();
+		game->run();
+		g_mix.fini();
+		game->snd_fini();
+		game->res_fini();
 		g_sys.fini();
 	}
 	if (data_path != DEFAULT_DATA_PATH) {

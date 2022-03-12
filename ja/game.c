@@ -309,7 +309,7 @@ void do_game_win_screen() {
 	}
 }
 
-void game_main() {
+static void game_run() {
 	play_music(0);
 	do_splash_screen();
 	g_sys.set_screen_palette(common_palette_data, 0, 128, 6);
@@ -343,15 +343,11 @@ void game_main() {
 	}
 }
 
-static void game_run(const char *data_path) {
-	res_init(data_path, GAME_SCREEN_W * GAME_SCREEN_H);
-	sound_init();
-	game_main();
-	sound_fini();
-	res_fini();
-}
-
 EXPORT_SYMBOL struct game_t game_ja = {
-	"Blues Brothers : Jukebox Adventure",
+	"Blues Brothers: Jukebox Adventure",
+	res_init,
+	res_fini,
+	sound_init,
+	sound_fini,
 	game_run
 };

@@ -119,7 +119,6 @@ struct vars_t {
 		uint16_t d, e;
 	} random;
 	struct {
-		bool keystate[128];
 		uint8_t key_left, key_right, key_down, key_up, key_space, key_jump;
 		uint8_t key_vdir, key_hdir;
 		uint16_t demo_offset;
@@ -322,7 +321,6 @@ extern void	random_reset();
 extern uint8_t	random_get_number();
 extern uint16_t	random_get_number2();
 extern uint16_t	random_get_number3(uint16_t x);
-extern void	game_main();
 
 /* level.c */
 extern void	do_level();
@@ -337,6 +335,7 @@ extern void	monster_change_next_anim(struct object_t *obj);
 extern void	monster_change_prev_anim(struct object_t *obj);
 
 /* screen.c */
+extern void	video_init();
 extern void	video_draw_string(int offset, int hspace, const char *s);
 extern void	video_clear();
 extern void	video_copy_img(const uint8_t *src);
@@ -352,6 +351,7 @@ extern void	video_load_front_tiles();
 extern void	video_transition_close();
 extern void	video_transition_open();
 extern void	video_load_sprites();
+extern void	video_set_sprite_pos_flags(int flag);
 extern void	video_draw_sprite(int num, int x, int y, int flag);
 extern void	video_put_pixel(int x, int y, uint8_t color);
 

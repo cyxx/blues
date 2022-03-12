@@ -63,7 +63,11 @@ struct options_t {
 
 struct game_t {
 	const char *name;
-	void (*run)(const char *data_path);
+	void (*res_init)(const char *data_path, int vga_size);
+	void (*res_fini)();
+	void (*snd_init)();
+	void (*snd_fini)();
+	void (*run)();
 };
 
 #ifdef _WIN32

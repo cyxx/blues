@@ -73,13 +73,17 @@ FILE *fopen_nocase(const char *path, const char *filename) {
 	snprintf(buf, sizeof(buf), "%s/%s", path, filename);
 	FILE *fp = fopen(buf, "rb");
 	if (!fp) {
+		static void (*const str[3])(char *) = {
+			string_upper,
+			string_lower,
+			0
+		};
 		char *p = buf + strlen(path) + 1;
-		string_upper(p);
-		fp = fopen(buf, "rb");
-		if (!fp) {
-			char *p = buf + strlen(path) + 1;
-			string_lower(p);
-			fp = fopen(buf, "rb");
+		for (int i = 0; str[i] && !fp; ++i) {
+			(str[i])(p);
+			if (strcmp(filename, p) != 0) {
+				fp = fopen(buf, "rb");
+			}
 		}
 	}
 	return fp;

@@ -12,7 +12,6 @@ static const bool _demo_inputs = false;
 
 static const bool _expert = true;
 
-static const bool _redraw_tilemap = true;
 static const bool _redraw_panel = true;
 
 static const uint16_t _undefined = 0x55AA;
@@ -323,51 +322,23 @@ static void level_update_tilemap() {
 		} else if (g_vars.level_animated_tiles_current_tbl == g_vars.tile_tbl3) {
 			g_vars.level_animated_tiles_current_tbl = g_vars.tile_tbl1;
 		}
-	} else {
-		if (!_redraw_tilemap) {
-			return;
-		}
 	}
 	video_copy_background();
 	g_vars.tile_attr2_flags = 0;
 	uint16_t offset = (g_vars.tilemap.y << 8) | g_vars.tilemap.x;
-	for (int y = 0; y < (TILEMAP_SCREEN_H / 16) + 1; ++y) {
-		for (int x = 0; x < (TILEMAP_SCREEN_W / 16) + 1; ++x) {
+	int tilemap_w = (TILEMAP_SCREEN_W / 16) + 1;
+	int tilemap_h = (TILEMAP_SCREEN_H / 16) + 1;
+	if (g_vars.level_num == 9) { /* minotaur boss expects original screen resolution */
+		offset = 0;
+		tilemap_w = 320 / 16;
+		tilemap_h = (200 - PANEL_H) / 16;
+	}
+	for (int y = 0; y < tilemap_h; ++y) {
+		for (int x = 0; x < tilemap_w; ++x) {
 			const uint8_t tile_num = level_get_tile(offset + x);
 			g_vars.tile_attr2_flags |= g_res.level.tile_attributes2[tile_num];
-			if (_redraw_tilemap || g_vars.animated_tile_flag_tbl[tile_num] != 0) {
-				const uint8_t num = g_vars.level_animated_tiles_current_tbl[tile_num];
-				level_draw_tile(num, x, y);
-			}
-		}
-		offset += 256;
-	}
-}
-
-static void level_draw_tilemap() {
-	if (_redraw_tilemap) {
-		return;
-	}
-	if (g_vars.tilemap.redraw_flag1 == 0) {
-		const bool changed = (g_vars.tilemap.x != g_vars.tilemap.prev_x) || (g_vars.tilemap.y != g_vars.tilemap.prev_y);
-		if (!changed) {
-			return;
-		}
-		g_vars.tilemap.prev_x = g_vars.tilemap.x;
-		g_vars.tilemap.prev_y = g_vars.tilemap.y;
-		if (g_vars.tilemap.redraw_flag2 == 0) {
-			return;
-		}
-	}
-	g_vars.tilemap.redraw_flag1 = 0;
-	g_vars.tilemap.redraw_flag2 = 0;
-	g_vars.tile_attr2_flags = 0;
-	uint16_t offset = (g_vars.tilemap.y << 8) | g_vars.tilemap.x;
-	for (int y = 0; y < (TILEMAP_SCREEN_H / 16) + 1; ++y) {
-		for (int x = 0; x < TILEMAP_SCREEN_W / 16; ++x) {
-			const uint8_t tile_num = level_get_tile(offset + x);
-			g_vars.tile_attr2_flags |= g_res.level.tile_attributes2[tile_num];
-			level_draw_tile(tile_num, x, y);
+			const uint8_t num = g_vars.level_animated_tiles_current_tbl[tile_num];
+			level_draw_tile(num, x, y);
 		}
 		offset += 256;
 	}
@@ -621,7 +592,6 @@ static void level_init_tilemap() {
 	g_vars.tilemap.redraw_flag2 = 1;
 	g_vars.tilemap.prev_x = _undefined;
 	g_vars.tilemap.prev_y = _undefined;
-	level_draw_tilemap();
 	video_transition_open();
 }
 
@@ -2388,17 +2358,6 @@ static void level_update_player_flying() {
 
 static void level_update_player() {
 	g_vars.objects_tbl[0].spr_num = 0xFFFF;
-	if (g_vars.input.keystate[0x3B]) {
-		if (g_vars.restart_level_flag == 0) {
-			level_player_die();
-			g_vars.restart_level_flag = 1;
-			return;
-		}
-	}
-	if (g_vars.input.keystate[0x3C]) {
-		g_vars.player_death_flag = 1;
-		return;
-	}
 	input_check_ctrl_alt_w();
 	if (_demo_inputs) {
 		if (g_vars.input.demo_offset < g_res.keyblen) {
@@ -3014,7 +2973,6 @@ static void level_update_gates() {
 				g_vars.boss_level5.idle_counter = 8;
 				memset(&g_vars.objects_tbl[91], 0xFF, sizeof(struct object_t) * 6);
 			}
-			level_draw_tilemap();
 			level_update_objects_decors();
 			level_update_objects_items();
 			level_update_objects_monsters();
@@ -3267,14 +3225,18 @@ static void level_update_light_palette() {
 	}
 }
 
-static void level_sync() {
+static void level_wait() {
 	update_input();
-	g_sys.copy_bitmap(g_res.vga, GAME_SCREEN_W, GAME_SCREEN_H);
-	g_sys.update_screen();
-	g_sys.render_clear_sprites();
 	const int diff = (g_vars.timestamp + (1000 / 30)) - g_sys.get_timestamp();
 	g_sys.sleep(MAX(diff, 10));
 	g_vars.timestamp = g_sys.get_timestamp();
+}
+
+static void level_sync() {
+	g_sys.copy_bitmap(g_res.vga, GAME_SCREEN_W, GAME_SCREEN_H);
+	g_sys.update_screen();
+	g_sys.render_clear_sprites();
+	level_wait();
 }
 
 static void level_draw_objects() {
@@ -3482,7 +3444,6 @@ static void level_player_death_animation() {
 		level_update_objects_bonuses();
 		level_update_objects_bonus_scores();
 		level_update_tilemap();
-		level_draw_tilemap();
 		level_draw_panel();
 		level_draw_orbs();
 		level_draw_objects();
@@ -3572,6 +3533,7 @@ static int level_completed_bonuses_animation_helper() {
 }
 
 static void level_completed_bonuses_animation() {
+	video_set_sprite_pos_flags(1); /* center */
 	if (g_vars.light.state != 0) {
 		g_vars.light.palette_flag1 = 0;
 		g_vars.light.palette_flag2 = 1;
@@ -3728,6 +3690,7 @@ static void level_completed_bonuses_animation() {
 			g_vars.objects_tbl[1].x_pos += 2;
 		}
 	} while (g_vars.objects_tbl[2].x_pos > -52);
+	video_set_sprite_pos_flags(0);
 }
 
 static void update_object_demo_animation(struct object_t *obj) {
@@ -3868,6 +3831,7 @@ void do_gameover_animation() {
 		g_vars.objects_tbl[i].spr_num = 0xFFFF;
 	}
 	video_load_sprites();
+	video_set_sprite_pos_flags(1); /* center */
 	g_vars.tilemap.x = g_vars.tilemap.scroll_dx = 0;
 	g_vars.tilemap.y = g_vars.tilemap.scroll_dy = 0;
 	static const char *gameover = "GAMEOVER";
@@ -3909,11 +3873,14 @@ void do_gameover_animation() {
 		do_gameover_animation_helper();
 		level_draw_objects();
 		level_update_panel();
-		level_sync();
+		g_sys.update_screen();
+		g_sys.render_clear_sprites();
+		level_wait();
 		if (g_sys.input.quit) {
 			return;
 		}
 	} while (timer_counter < 630 && !g_sys.input.space);
+	video_set_sprite_pos_flags(0);
 }
 
 void do_level() {
@@ -3949,7 +3916,6 @@ void do_level() {
 		g_vars.tilemap_adjust_player_pos_flag = false;
 		level_update_scrolling();
 		level_update_tilemap();
-		level_draw_tilemap();
 		level_draw_panel();
 		level_draw_orbs();
 		level_draw_objects();

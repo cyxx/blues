@@ -37,7 +37,7 @@ game_p2.o: $(P2_SRCS:.c=.o)
 	ld -r -o $@ $^
 	objcopy --localize-hidden $@
 
-blues: main.o sys_sdl2.o util.o game_bb.o game_ja.o game_p2.o
+blues: main.o mixer.o sys_sdl2.o util.o game_bb.o game_ja.o game_p2.o
 	$(CC) $(LDFLAGS) -o $@ $^ $(SDL_LIBS) $(MODPLUG_LIBS)
 
 clean:

@@ -11,6 +11,7 @@
 #define DBG_SYSTEM    (1 << 4)
 #define DBG_UNPACK    (1 << 5)
 #define DBG_SCREEN    (1 << 6)
+#define DBG_SOUND     (1 << 7)
 
 extern int g_debug_mask;
 

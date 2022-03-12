@@ -11,6 +11,15 @@
 #define MAX_SPRITESHEET_H 1024
 #define MAX_FRONT_TILES 168
 
+static int _spr_pos_flags;
+
+static int _offset_x_center, _offset_y_center;
+
+void video_init() {
+	_offset_x_center = (GAME_SCREEN_W > 320) ? (GAME_SCREEN_W - 320) / 2 : 0;
+	_offset_y_center = (GAME_SCREEN_H > 200) ? (GAME_SCREEN_H - 200) / 2 : 0;
+}
+
 static void decode_planar(const uint8_t *src, uint8_t *dst, int dst_pitch, int w, int h, uint8_t transparent_color) {
 	const int plane_size = h * w / 8;
 	for (int y = 0; y < h; ++y) {
@@ -279,7 +288,15 @@ void video_load_sprites() {
 	}
 }
 
+void video_set_sprite_pos_flags(int flags) {
+	_spr_pos_flags = flags;
+}
+
 void video_draw_sprite(int num, int x, int y, int flag) {
+	if (_spr_pos_flags) {
+		x += _offset_x_center;
+		y += _offset_y_center;
+	}
 	g_sys.render_add_sprite(RENDER_SPR_GAME, num, x, y, flag != 0);
 }
 

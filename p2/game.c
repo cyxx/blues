@@ -16,10 +16,6 @@ void update_input() {
 	g_vars.input.key_down  = (g_sys.input.direction & INPUT_DIRECTION_DOWN) != 0  ? 0xFF : 0;
 	g_vars.input.key_space = g_sys.input.space ? 0xFF : 0;
 	g_vars.input.key_jump  = g_sys.input.jump  ? 0xFF : 0;
-
-	g_vars.input.keystate[2] = g_sys.input.digit1;
-	g_vars.input.keystate[3] = g_sys.input.digit2;
-	g_vars.input.keystate[4] = g_sys.input.digit3;
 }
 
 static void wait_input(int timeout) {
@@ -182,9 +178,8 @@ void do_gameover_screen() {
 	uint8_t *data = load_file("GAMEOVER.SQZ");
 	if (data) {
 		video_copy_img(data);
-		video_copy_background();
 		g_sys.set_screen_palette(gameover_palette_data, 0, 16, 6);
-		g_sys.copy_bitmap(g_res.vga, GAME_SCREEN_W, GAME_SCREEN_H);
+		update_screen_img(g_res.background, 0);
 		do_gameover_animation();
 		g_sys.fade_out_palette();
 		free(data);
@@ -214,16 +209,15 @@ static bool do_menu() {
 		update_screen_img(data + 768, 0);
 		g_sys.fade_in_palette();
 		free(data);
-		memset(g_vars.input.keystate, 0, sizeof(g_vars.input.keystate));
 		const uint32_t start = g_sys.get_timestamp();
 		while (!g_sys.input.quit) {
 			update_input();
-			if (g_vars.input.keystate[2] || g_vars.input.keystate[0x4F] || g_sys.input.space) {
+			if (g_sys.input.digit1 || g_sys.input.space) {
 				g_sys.input.space = 0;
 				g_sys.fade_out_palette();
 				break;
 			}
-			if (g_vars.input.keystate[3] || g_vars.input.keystate[0x50]) {
+			if (g_sys.input.digit2 || g_vars.input.key_down) {
 				g_sys.fade_out_palette();
 				break;
 			}
@@ -241,13 +235,13 @@ static void do_photos_screen() {
 }
 
 void input_check_ctrl_alt_e() {
-	if (g_vars.input.keystate[0x1D] && g_vars.input.keystate[0x38] && g_vars.input.keystate[0x12]) {
+	if (0) {
 		do_photos_screen();
 	}
 }
 
 void input_check_ctrl_alt_w() {
-	if (g_vars.input.keystate[0x1D] && g_vars.input.keystate[0x38] && g_vars.input.keystate[0x11]) {
+	if (0) {
 		do_credits();
 		wait_input(60);
 	}
@@ -318,9 +312,8 @@ uint16_t random_get_number3(uint16_t x) {
 	return rol16(x, 3);
 }
 
-static void game_run(const char *data_path) {
-	res_init(data_path, GAME_SCREEN_W * GAME_SCREEN_H);
-	sound_init();
+static void game_run() {
+	video_init();
 	video_convert_tiles(g_res.uniondat, g_res.unionlen);
 	g_vars.level_num = g_options.start_level;
 	do_programmed_in_1992_screen();
@@ -359,12 +352,13 @@ static void game_run(const char *data_path) {
 			print_debug(DBG_GAME, "previous level %d current %d", level_num, g_vars.level_num);
 		} while (!g_res.dos_demo && g_vars.level_num != level_num);
 	}
-	sound_fini();
-	res_fini();
 }
 
 EXPORT_SYMBOL struct game_t game_p2 = {
 	"Prehistorik 2",
+	res_init,
+	res_fini,
+	sound_init,
+	sound_fini,
 	game_run
 };
-

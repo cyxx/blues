@@ -199,7 +199,6 @@ extern const uint8_t *player_anim_table[];
 
 /* game.c */
 extern void	update_input();
-extern void	game_main();
 extern void	do_game_over_screen();
 extern void	do_game_win_screen();
 extern void	do_difficulty_screen();

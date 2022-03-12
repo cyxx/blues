@@ -266,7 +266,7 @@ static void do_inter_screen() {
 	fade_out_palette();
 }
 
-void game_main() {
+static void game_run() {
 	play_music(0);
 	screen_init();
 	g_vars.start_level = 0;
@@ -351,15 +351,11 @@ void game_main() {
 	}
 }
 
-static void game_run(const char *data_path) {
-	res_init(data_path, GAME_SCREEN_W * GAME_SCREEN_H);
-	sound_init();
-	game_main();
-	sound_fini();
-	res_fini();
-}
-
 EXPORT_SYMBOL struct game_t game_bb = {
 	"Blues Brothers",
+	res_init,
+	res_fini,
+	sound_init,
+	sound_fini,
 	game_run
 };
