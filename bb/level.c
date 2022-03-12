@@ -1162,7 +1162,8 @@ void do_level_enter_door(struct object_t *obj) {
 			if (g_vars.two_players_flag) {
 				do_level_update_panel_2nd_player();
 			}
-			screen_flip();
+			g_sys.copy_bitmap(g_res.vga, GAME_SCREEN_W, GAME_SCREEN_H);
+			g_sys.update_screen();
 			screen_do_transition1(1);
 			obj->unk3D = 0;
 			obj->sprite_type = 0;
@@ -1224,9 +1225,9 @@ static void do_level_update_input(struct object_t *obj) {
 		obj->direction_lr |= OBJECT_DIRECTION_LEFT;
 	}
 	_si = triggers_get_tile_type(obj->xpos16, obj->ypos16);
-	if (g_vars.inp_key_up && !g_vars.inp_key_space) {
+	if ((g_options.jump_button ? g_vars.inp_key_jump : g_vars.inp_key_up) && !g_vars.inp_key_space) {
 		obj->direction_ud = OBJECT_DIRECTION_UP;
-		if (!g_vars.inp_key_up_prev && obj->sprite_type != 0) {
+		if ((g_options.jump_button ? !g_vars.inp_key_jump_prev : !g_vars.inp_key_up_prev) && obj->sprite_type != 0) {
 			obj->yfriction = 0;
 			_di = triggers_get_tile_type(obj->xpos16, obj->ypos16 - 2);
 			if (_di == 10 && (_si == 0 || _si == 1)) {
@@ -1255,6 +1256,7 @@ static void do_level_update_input(struct object_t *obj) {
 	}
 	g_vars.inp_key_up_prev = g_vars.inp_key_up;
 	g_vars.inp_key_down_prev = g_vars.inp_key_down;
+	g_vars.inp_key_jump_prev = g_vars.inp_key_jump;
 	if (obj->grab_state == 0) {
 		if (obj->carry_crate_flag != 0 && _si == 5) { // crate
 			obj->grab_type = 0;
@@ -1301,12 +1303,10 @@ static void do_level_update_scrolling(struct object_t *obj) {
 		if ((g_vars.screen_scrolling_dirmask & 2) != 0 && obj->screen_xpos < TILEMAP_SCREEN_W / 2) {
 			g_vars.screen_scrolling_dirmask &= ~2;
 			g_vars.switch_player_scrolling_flag = 0;
-			g_vars.inp_keyboard[0xC1] = 0;
 		}
 		if ((g_vars.screen_scrolling_dirmask & 1) != 0 && obj->screen_xpos > TILEMAP_SCREEN_W / 2) {
 			g_vars.screen_scrolling_dirmask &= ~1;
 			g_vars.switch_player_scrolling_flag = 0;
-			g_vars.inp_keyboard[0xC1] = 0;
 		}
 	} else {
 		int _si = (obj->xvelocity >> 3) + obj->unk1C;
@@ -1871,18 +1871,6 @@ static void do_level_update_objects() {
 		obj->direction_lr = 0;
 		obj->direction_ud = 0;
 		if (obj->type < 2) {
-			if (g_vars.inp_keyboard[0xC1] != 0) { // F7, change player
-				if (!g_vars.switch_player_scrolling_flag && g_vars.two_players_flag) {
-					if (!g_vars.player2_scrolling_flag && !g_vars.objects[OBJECT_NUM_PLAYER1].scrolling_lock_flag) {
-						g_vars.player2_scrolling_flag = 1;
-						g_vars.switch_player_scrolling_flag = 1;
-					} else if (g_vars.player2_scrolling_flag && !g_vars.objects[OBJECT_NUM_PLAYER2].scrolling_lock_flag) {
-						g_vars.player2_scrolling_flag = 1;
-						g_vars.switch_player_scrolling_flag = 1;
-					}
-				}
-				g_vars.inp_keyboard[0xC1] = 0;
-			}
 			if (obj->blinking_counter != 0) {
 				--obj->blinking_counter;
 			}
@@ -2099,7 +2087,7 @@ void do_level() {
 	if (g_options.amiga_copper_bars) {
 		g_sys.set_copper_bars(_copper_data + g_vars.level * 18);
 	}
-	g_vars.inp_keyboard[0xB9] = 0; // SPACE
+	// g_vars.inp_keyboard[0xB9] = 0; // SPACE
 	// g_vars.screen_draw_offset = TILEMAP_OFFSET_Y * 40;
 	g_vars.update_objects_counter = 0;
 	g_vars.game_over_flag = 0;
@@ -2110,25 +2098,9 @@ void do_level() {
 	g_sys.render_set_sprites_clipping_rect(0, TILEMAP_OFFSET_Y, TILEMAP_SCREEN_W, TILEMAP_SCREEN_H);
 	bool screen_transition_flag = true;
 	do {
+		screen_clear_sprites(0);
 		const uint32_t timestamp = g_sys.get_timestamp();
 		update_input();
-		if (g_vars.inp_keyboard[0xBF] != 0) { // F5, quit game
-			play_sound(SOUND_0);
-			g_vars.inp_keyboard[0xBF] = 0;
-			g_vars.quit_level_flag = 1;
-			g_vars.play_level_flag = 0;
-			g_vars.objects[OBJECT_NUM_PLAYER1].unk60 = 0;
-			g_vars.objects[OBJECT_NUM_PLAYER2].unk60 = 0;
-			g_vars.objects[OBJECT_NUM_PLAYER1].data5F = 0;
-			g_vars.objects[OBJECT_NUM_PLAYER2].data5F = 0;
-			if (!g_vars.play_demo_flag) {
-				g_vars.start_level = 0;
-			}
-		} else if (g_vars.inp_keyboard[0xC4] != 0) { // F10
-			play_sound(SOUND_0);
-			while (g_vars.inp_keyboard[0xC4] != 0 && g_vars.inp_keyboard[0xB] == 0);
-			while (g_vars.inp_keyboard[0xC4] != 0 && g_vars.inp_keyboard[0xB] != 0);
-		}
 		// demo
 		do_level_update_scrolling2();
 		do_level_update_objects();
@@ -2138,18 +2110,17 @@ void do_level() {
 		++g_vars.level_loop_counter;
 		draw_level_panel();
 
+		g_sys.copy_bitmap(g_res.vga, GAME_SCREEN_W, GAME_SCREEN_H);
 		if (screen_transition_flag) {
 			screen_transition_flag = false;
-			g_sys.update_screen(g_res.vga, 0);
 			screen_do_transition2();
 		} else {
-			g_sys.update_screen(g_res.vga, 1);
+			g_sys.update_screen();
 		}
 		memset(g_res.vga, 0, GAME_SCREEN_W * GAME_SCREEN_H);
 
 		const int diff = (timestamp + (1000 / 30)) - g_sys.get_timestamp();
 		g_sys.sleep(diff < 10 ? 10 : diff);
-		screen_clear_sprites();
 
 	} while (!g_sys.input.quit && !g_vars.quit_level_flag);
 	// g_vars.screen_draw_offset -= TILEMAP_OFFSET_Y * 40;
@@ -2158,5 +2129,4 @@ void do_level() {
 		g_sys.set_copper_bars(0);
 	}
 	g_sys.render_set_sprites_clipping_rect(0, 0, GAME_SCREEN_W, GAME_SCREEN_H);
-	g_vars.inp_keyboard[0xBF] = 0;
 }

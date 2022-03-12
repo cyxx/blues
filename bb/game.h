@@ -152,15 +152,16 @@ struct vars_t {
 	bool two_players_flag;
 	bool switch_player_scrolling_flag;
 	int music_num;
-	uint8_t inp_keyboard[256];
+	bool inp_key_jump;
+	bool inp_key_jump_prev;
 	bool inp_key_space;
+	bool inp_key_space_prev;
 	bool inp_key_up;
+	bool inp_key_up_prev;
 	bool inp_key_down;
+	bool inp_key_down_prev;
 	bool inp_key_right;
 	bool inp_key_left;
-	bool inp_key_up_prev;
-	bool inp_key_down_prev;
-	bool inp_key_space_prev;
 	struct door_t doors[MAX_DOORS];
 	struct object_t objects[MAX_OBJECTS];
 	int vinyls_count;
@@ -219,13 +220,12 @@ extern void	level_call_object_func(struct object_t *);
 
 /* screen.c */
 extern void	screen_init();
-extern void	screen_clear_sprites();
+extern void	screen_clear_sprites(int pos_flag);
 extern void	screen_add_sprite(int x, int y, int frame);
 extern void	fade_out_palette();
 extern void	screen_adjust_palette_color(int color, int b, int c);
 extern void	screen_vsync();
 extern void	screen_draw_frame(const uint8_t *frame, int fh, int fw, int x, int y);
-extern void	screen_flip();
 extern void	screen_unk5();
 extern void	screen_do_transition1(int a);
 extern void	screen_do_transition2();

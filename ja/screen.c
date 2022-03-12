@@ -46,17 +46,8 @@ void video_copy_vga(int size) {
 	} else {
 		assert(size == 0x7D00);
 		g_sys.set_screen_palette(g_res.tmp, 0, 256, 6);
-		const uint8_t *src = g_res.tmp + 768;
-		if (GAME_SCREEN_W * GAME_SCREEN_H == 64000) {
-			memcpy(g_res.vga, src, 64000);
-		} else {
-			memset(g_res.vga, 0, GAME_SCREEN_W * GAME_SCREEN_H);
-			for (int y = 0; y < MIN(200, GAME_SCREEN_H); ++y) {
-				memcpy(g_res.vga + y * GAME_SCREEN_W, src, MIN(320, GAME_SCREEN_W));
-				src += 320;
-			}
-		}
-		g_sys.update_screen(g_res.vga, 0);
+		memcpy(g_res.vga, g_res.tmp + 768, 64000);
+		g_sys.copy_bitmap(g_res.vga, 320, 200);
 	}
 }
 

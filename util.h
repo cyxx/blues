@@ -22,6 +22,10 @@ extern void	print_warning(const char *msg, ...);
 extern void	print_error(const char *msg, ...);
 extern void	print_info(const char *msg, ...);
 
+#ifdef NDEBUG
+#define print_debug(x, ...)
+#endif
+
 extern FILE *	fopen_nocase(const char *path, const char *filename);
 extern uint16_t	fread_le16(FILE *fp);
 

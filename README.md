@@ -37,11 +37,11 @@ The data files of the DOS version, full game or [demo](http://cd.textfiles.com/c
 
 ## Changes
 
-Compared to the original DOS executables, the rewritten engines feature :
+Compared to the original DOS executables, the rewritten engines feature:
 
 - horizontal scrolling
 - configurable screen size
-- game cheats : unlimited lifes and energy, no hit
+- game cheats: unlimited lifes and energy, no hit
 
 
 ## Running
@@ -66,4 +66,4 @@ Usage: blues [OPTIONS]...
 
 ## Downloads
 
-[blues-sdl2-win32.zip](https://www.dropbox.com/s/vv8mh0vrk8l6xro/blues-gh-sdl2-win32.zip?dl=0) - Win32 executable
+[blues-sdl2-win32.zip](https://www.dropbox.com/s/rybnnn4s3rmicva/blues-gh-sdl2-win32.zip?dl=0) - Win32 executable

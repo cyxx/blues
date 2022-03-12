@@ -8,15 +8,19 @@
 #define MAX_SPRITESHEET_W 512
 #define MAX_SPRITESHEET_H 512
 
-static int _offset_x, _offset_y;
+static int _spr_pos_flag;
+
+static int _offset_x_center, _offset_y_bottom, _offset_y_center;
 
 void screen_init() {
 	memset(g_res.vga, 0, GAME_SCREEN_W * GAME_SCREEN_H);
-	_offset_x = (GAME_SCREEN_W > 320) ? (GAME_SCREEN_W - 320) / 2 : 0; // center horizontally
-	_offset_y = (GAME_SCREEN_H > 200) ? (GAME_SCREEN_H - 200) : 0; // align to bottom
+	_offset_x_center = (GAME_SCREEN_W > 320) ? (GAME_SCREEN_W - 320) / 2 : 0; // center horizontally
+	_offset_y_center = (GAME_SCREEN_H > 200) ? (GAME_SCREEN_H - 200) / 2 : 0; // center vertically
+	_offset_y_bottom = (GAME_SCREEN_H > 200) ? (GAME_SCREEN_H - 200) : 0; // align to bottom
 }
 
-void screen_clear_sprites() {
+void screen_clear_sprites(int pos_flag) {
+	_spr_pos_flag = pos_flag;
 	g_sys.render_clear_sprites();
 }
 
@@ -32,11 +36,6 @@ static void add_game_sprite(int x, int y, int frame, int xflip) {
 	if (frame >= SPRITES_COUNT) {
 		spr_type = RENDER_SPR_LEVEL;
 		frame -= SPRITES_COUNT;
-	} else {
-		if (y >= 161 && frame >= 120) {
-			x += _offset_x;
-			y += _offset_y;
-		}
 	}
 	g_sys.render_add_sprite(spr_type, frame, x - w / 2, y - h, xflip);
 }
@@ -60,6 +59,13 @@ void screen_add_sprite(int x, int y, int frame) {
 			return;
 		}
 	}
+	if (_spr_pos_flag) { /* introduction screens */
+		x += _offset_x_center;
+		y += _offset_y_center;
+	} else if ((frame >= 120 && frame < SPRITES_COUNT) && y >= 161) { /* bottom panel */
+		x += _offset_x_center;
+		y += _offset_y_bottom;
+	}
 	add_game_sprite(x, y, frame, 0);
 }
 
@@ -82,9 +88,9 @@ void screen_vsync() {
 }
 
 void screen_draw_frame(const uint8_t *frame, int fh, int fw, int x, int y) {
-	x += _offset_x;
+	x += _offset_x_center;
 	if (y == 161) {
-		y += _offset_y;
+		y += _offset_y_bottom;
 	}
 	y += fh + 2;
 	if (g_options.amiga_status_bar || g_res.amiga_data) {
@@ -102,10 +108,6 @@ void screen_draw_frame(const uint8_t *frame, int fh, int fw, int x, int y) {
 		assert(fw <= w);
 		decode_spr(frame, w, fw, h, 4, g_res.vga, GAME_SCREEN_W, x, y, false);
 	}
-}
-
-void screen_flip() {
-	g_sys.update_screen(g_res.vga, 1);
 }
 
 void screen_unk5() {
@@ -183,8 +185,8 @@ static void draw_number_amiga(int digit, int x, int y) {
 
 void screen_draw_number(int num, int x, int y, int color) {
 	if (y >= 161) {
-		x += _offset_x;
-		y += _offset_y;
+		x += _offset_x_center;
+		y += _offset_y_bottom;
 	}
 	y += TILEMAP_OFFSET_Y;
 	if (g_options.amiga_status_bar || g_res.amiga_data) {

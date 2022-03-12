@@ -2446,7 +2446,7 @@ static void level_update_player() {
 	mask <<= 1;
 	mask |= g_vars.input.key_left & 1;
 	mask <<= 1;
-	mask |= g_vars.input.key_up & 1;
+	mask |= (g_options.jump_button ? g_vars.input.key_jump : g_vars.input.key_up) & 1;
 	mask <<= 1;
 	mask |= g_vars.input.key_down & 1;
 	mask <<= 1;
@@ -2664,7 +2664,7 @@ static void level_update_player_collision() {
 						level_add_object75_score(obj_player, (int16_t)data[num >> 1]);
 					}
 				}
-				g_vars.objects_tbl[1].data.p.y_velocity = (g_vars.input.key_up != 0) ? -224 : -64;
+				g_vars.objects_tbl[1].data.p.y_velocity = (g_options.jump_button ? g_vars.input.key_jump : g_vars.input.key_up) ? -224 : -64;
 				g_vars.player_jumping_counter = 0;
 				g_vars.objects_tbl[1].y_pos -= g_vars.monster.collide_y_dist;
 			} else if (g_vars.objects_tbl[1].data.p.y_velocity <= 32) {
@@ -3269,7 +3269,8 @@ static void level_update_light_palette() {
 
 static void level_sync() {
 	update_input();
-	g_sys.update_screen(g_res.vga, 1);
+	g_sys.copy_bitmap(g_res.vga, GAME_SCREEN_W, GAME_SCREEN_H);
+	g_sys.update_screen();
 	g_sys.render_clear_sprites();
 	const int diff = (g_vars.timestamp + (1000 / 30)) - g_sys.get_timestamp();
 	g_sys.sleep(MAX(diff, 10));

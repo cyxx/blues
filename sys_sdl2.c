@@ -5,7 +5,6 @@
 
 #define COPPER_BARS_H 80
 #define MAX_SPRITES 256
-#define MAX_SPRITESHEETS 3
 
 static const int FADE_STEPS = 16;
 
@@ -16,7 +15,7 @@ struct spritesheet_t {
 	SDL_Texture *texture;
 };
 
-static struct spritesheet_t _spritesheets[MAX_SPRITESHEETS];
+static struct spritesheet_t _spritesheets[RENDER_SPR_COUNT];
 
 struct sprite_t {
 	int sheet;
@@ -44,7 +43,7 @@ static uint32_t _copper_palette[COPPER_BARS_H];
 static SDL_GameController *_controller;
 static SDL_Joystick *_joystick;
 
-static int sdl2_init() {
+static void sdl2_init() {
 	SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_JOYSTICK | SDL_INIT_GAMECONTROLLER);
 	SDL_ShowCursor(SDL_DISABLE);
 	_screen_w = _screen_h = 0;
@@ -72,7 +71,6 @@ static int sdl2_init() {
 			}
 		}
 	}
-	return 0;
 }
 
 static void sdl2_fini() {
@@ -188,9 +186,9 @@ static void sdl2_set_screen_palette(const uint8_t *colors, int offset, int count
 	SDL_Color *palette_colors = &_palette->colors[offset];
 	const int shift = 8 - depth;
 	for (int i = 0; i < count; ++i) {
-		int r = colors[0];
-		int g = colors[1];
-		int b = colors[2];
+		int r = *colors++;
+		int g = *colors++;
+		int b = *colors++;
 		if (depth != 8) {
 			r = (r << shift) | (r >> (depth - shift));
 			g = (g << shift) | (g >> (depth - shift));
@@ -200,7 +198,6 @@ static void sdl2_set_screen_palette(const uint8_t *colors, int offset, int count
 		palette_colors[i].r = r;
 		palette_colors[i].g = g;
 		palette_colors[i].b = b;
-		colors += 3;
 	}
 	for (int i = 0; i < ARRAYSIZE(_spritesheets); ++i) {
 		struct spritesheet_t *sheet = &_spritesheets[i];
@@ -286,11 +283,21 @@ static void sdl2_transition_screen(enum sys_transition_e type, bool open) {
 	} while (r.x > 0 && (type == TRANSITION_CURTAIN || r.y > 0));
 }
 
-static void sdl2_update_screen(const uint8_t *p, int present) {
-	if (_copper_color_key != -1) {
+static void sdl2_copy_bitmap(const uint8_t *p, int w, int h) {
+	if (w != _screen_w || h != _screen_h) {
+		memset(_screen_buffer, 0, _screen_w * _screen_h * sizeof(uint32_t));
+		const int offset_x = (_screen_w - w) / 2;
+		const int offset_y = (_screen_h - h) / 2;
+		for (int j = 0; j < h; ++j) {
+			for (int i = 0; i < w; ++i) {
+				_screen_buffer[(offset_y + j) * _screen_w + (offset_x + i)] = _screen_palette[*p++];
+			}
+		}
+	} else if (_copper_color_key != -1) {
 		for (int j = 0; j < _screen_h; ++j) {
-			if (j / 2 < COPPER_BARS_H) {
-				const uint32_t line_color = _copper_palette[j / 2];
+			const int color = (j * 200 / _screen_h) / 2;
+			if (color < COPPER_BARS_H) {
+				const uint32_t line_color = _copper_palette[color];
 				for (int i = 0; i < _screen_w; ++i) {
 					_screen_buffer[j * _screen_w + i] = (p[i] == _copper_color_key) ? line_color : _screen_palette[p[i]];
 				}
@@ -307,38 +314,39 @@ static void sdl2_update_screen(const uint8_t *p, int present) {
 		}
 	}
 	SDL_UpdateTexture(_texture, 0, _screen_buffer, _screen_w * sizeof(uint32_t));
-	if (present) {
-		SDL_Rect r;
-		r.x = _shake_dx;
-		r.y = _shake_dy;
-		r.w = _screen_w;
-		r.h = _screen_h;
-		SDL_RenderClear(_renderer);
-		SDL_RenderCopy(_renderer, _texture, 0, &r);
+}
 
-		// sprites
-		SDL_RenderSetClipRect(_renderer, &_sprites_cliprect);
-		for (int i = 0; i < _sprites_count; ++i) {
-			const struct sprite_t *spr = &_sprites[i];
-			struct spritesheet_t *sheet = &_spritesheets[spr->sheet];
-			if (spr->num >= sheet->count) {
-				continue;
-			}
-			SDL_Rect r;
-			r.x = spr->x + _shake_dx;
-			r.y = spr->y + _shake_dy;
-			r.w = sheet->r[spr->num].w;
-			r.h = sheet->r[spr->num].h;
-			if (!spr->xflip) {
-				SDL_RenderCopy(_renderer, sheet->texture, &sheet->r[spr->num], &r);
-			} else {
-				SDL_RenderCopyEx(_renderer, sheet->texture, &sheet->r[spr->num], &r, 0., 0, SDL_FLIP_HORIZONTAL);
-			}
+static void sdl2_update_screen() {
+	SDL_Rect r;
+	r.x = _shake_dx;
+	r.y = _shake_dy;
+	r.w = _screen_w;
+	r.h = _screen_h;
+	SDL_RenderClear(_renderer);
+	SDL_RenderCopy(_renderer, _texture, 0, &r);
+
+	// sprites
+	SDL_RenderSetClipRect(_renderer, &_sprites_cliprect);
+	for (int i = 0; i < _sprites_count; ++i) {
+		const struct sprite_t *spr = &_sprites[i];
+		struct spritesheet_t *sheet = &_spritesheets[spr->sheet];
+		if (spr->num >= sheet->count) {
+			continue;
 		}
-		SDL_RenderSetClipRect(_renderer, 0);
-
-		SDL_RenderPresent(_renderer);
+		SDL_Rect r;
+		r.x = spr->x + _shake_dx;
+		r.y = spr->y + _shake_dy;
+		r.w = sheet->r[spr->num].w;
+		r.h = sheet->r[spr->num].h;
+		if (!spr->xflip) {
+			SDL_RenderCopy(_renderer, sheet->texture, &sheet->r[spr->num], &r);
+		} else {
+			SDL_RenderCopyEx(_renderer, sheet->texture, &sheet->r[spr->num], &r, 0., 0, SDL_FLIP_HORIZONTAL);
+		}
 	}
+	SDL_RenderSetClipRect(_renderer, 0);
+
+	SDL_RenderPresent(_renderer);
 }
 
 static void sdl2_shake_screen(int dx, int dy) {
@@ -379,6 +387,10 @@ static void handle_keyevent(int keysym, bool keydown, struct input_t *input, boo
 	case SDLK_RETURN:
 	case SDLK_SPACE:
 		input->space = keydown;
+		break;
+	case SDLK_LSHIFT:
+	case SDLK_RSHIFT:
+		input->jump = keydown;
 		break;
 	case SDLK_ESCAPE:
 		if (keydown) {
@@ -437,13 +449,10 @@ static void handle_controlleraxis(int axis, int value, struct input_t *input) {
 static void handle_controllerbutton(int button, bool pressed, struct input_t *input, bool *paused) {
 	switch (button) {
 	case SDL_CONTROLLER_BUTTON_A:
-	case SDL_CONTROLLER_BUTTON_B:
-	case SDL_CONTROLLER_BUTTON_X:
-	case SDL_CONTROLLER_BUTTON_Y:
 		input->space = pressed;
 		break;
-	case SDL_CONTROLLER_BUTTON_BACK:
-		g_sys.input.quit = true;
+	case SDL_CONTROLLER_BUTTON_B:
+		input->jump = pressed;
 		break;
 	case SDL_CONTROLLER_BUTTON_START:
 		if (!pressed) {
@@ -520,8 +529,13 @@ static void handle_joystickaxismotion(int axis, int value, struct input_t *input
 }
 
 static void handle_joystickbutton(int button, int pressed, struct input_t *input) {
-	if (button == 0) {
+	switch (button) {
+	case 0:
 		input->space = pressed;
+		break;
+	case 1:
+		input->jump = pressed;
+		break;
 	}
 }
 
@@ -717,6 +731,9 @@ static void render_set_sprites_clipping_rect(int x, int y, int w, int h) {
 	_sprites_cliprect.h = h;
 }
 
+static void print_log(FILE *fp, const char *s) {
+}
+
 struct sys_t g_sys = {
 	.init = sdl2_init,
 	.fini = sdl2_fini,
@@ -727,6 +744,7 @@ struct sys_t g_sys = {
 	.set_palette_color = sdl2_set_palette_color,
 	.fade_in_palette = sdl2_fade_in_palette,
 	.fade_out_palette = sdl2_fade_out_palette,
+	.copy_bitmap = sdl2_copy_bitmap,
 	.update_screen = sdl2_update_screen,
 	.shake_screen = sdl2_shake_screen,
 	.transition_screen = sdl2_transition_screen,
@@ -741,5 +759,6 @@ struct sys_t g_sys = {
 	.render_unload_sprites = render_unload_sprites,
 	.render_add_sprite = render_add_sprite,
 	.render_clear_sprites = render_clear_sprites,
-	.render_set_sprites_clipping_rect = render_set_sprites_clipping_rect
+	.render_set_sprites_clipping_rect = render_set_sprites_clipping_rect,
+	.print_log = print_log,
 };

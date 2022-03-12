@@ -61,9 +61,7 @@ static void convert_planar_tile_4bpp(const uint8_t *src, uint8_t *dst, int dst_p
 
 void video_draw_string(int offset, int hspace, const char *s) {
 	offset += hspace;
-	const int y = (offset * 8) / 320 + (GAME_SCREEN_H - 200) / 2;
-	const int x = (offset * 8) % 320 + (GAME_SCREEN_W - 320) / 2;
-	uint8_t *dst = g_res.vga + y * GAME_SCREEN_W + x;
+	uint8_t *dst = g_res.vga + offset * 8;
 	while (*s) {
 		uint8_t code = *s++;
 		if (code != 0x20) {
@@ -71,7 +69,7 @@ void video_draw_string(int offset, int hspace, const char *s) {
 			if (code > 9) {
 				code -= 2;
 			}
-			decode_planar(g_res.allfonts + code * 48, dst, GAME_SCREEN_W, 8, 12, 0);
+			decode_planar(g_res.allfonts + code * 48, dst, 320, 8, 12, 0);
 		}
 		dst += 8;
 	}

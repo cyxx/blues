@@ -1,5 +1,5 @@
 
-/* uncompress data packed with DIET by T.Matsumoto */
+/* uncompress data packed with DIET.EXE */
 
 #include "unpack.h"
 #include "util.h"

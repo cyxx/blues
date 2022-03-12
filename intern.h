@@ -11,7 +11,7 @@
 #include <stdbool.h>
 
 #define ARRAYSIZE(a) (sizeof(a)/sizeof(a[0]))
-#define SWAP(x, y) do { typeof(x) tmp = x; x = y; y = tmp; } while(0)
+#define SWAP(x, y) do { __typeof__(x) tmp = x; x = y; y = tmp; } while(0)
 
 #undef MIN
 static inline int MIN(int a, int b) {
@@ -51,6 +51,7 @@ struct options_t {
 	int screen_w;
 	int screen_h;
 	bool dos_scrolling;
+	bool jump_button;
 	// 'bb' only options
 	bool amiga_copper_bars;
 	bool amiga_colors;
@@ -62,7 +63,6 @@ struct options_t {
 
 struct game_t {
 	const char *name;
-	//int (*detect)(const char *data_path);
 	void (*run)(const char *data_path);
 };
 

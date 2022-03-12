@@ -27,7 +27,8 @@ static void do_end_of_level() {
 	ja_decode_motif(g_vars.level_num % 9, color_index);
 	static const uint8_t white[] = { 0x3F, 0x3F, 0x3F };
 	g_sys.set_palette_color(color_index, white);
-	g_sys.update_screen(g_res.vga, 1);
+	g_sys.copy_bitmap(g_res.vga, GAME_SCREEN_W, GAME_SCREEN_H);
+	g_sys.update_screen();
 	g_sys.sleep(1000);
 	g_sys.fade_out_palette();
 }
@@ -398,7 +399,7 @@ static void level_update_player_anim_1(struct player_t *player) {
 static void level_update_player_anim_5(struct player_t *player) {
 	level_player_update_hdirection(player);
 	player->obj.spr_num = 5;
-	if (player_jump_counter(&player->obj) != 0 && (player_flags2(&player->obj) & 1) == 0 && g_vars.input_key_up) {
+	if (player_jump_counter(&player->obj) != 0 && (player_flags2(&player->obj) & 1) == 0 && (g_options.jump_button ? g_vars.input_key_jump : g_vars.input_key_up)) {
 		--player_jump_counter(&player->obj);
 		const int dy = (int8_t)player_anim_dy[player_jump_counter(&player->obj)] + player_y_delta(&player->obj);
 		if (dy >= -70) {
@@ -550,7 +551,7 @@ static void level_update_player_anim_12(struct player_t *player) {
 static void level_update_player_anim_18(struct player_t *player) {
 	level_player_update_hdirection(player);
 	player->obj.spr_num = 18;
-	if (player_jump_counter(&player->obj) != 0 && g_vars.input_key_up) {
+	if (player_jump_counter(&player->obj) != 0 && (g_options.jump_button ? g_vars.input_key_jump : g_vars.input_key_up)) {
 		--player_jump_counter(&player->obj);
 		player_y_delta(&player->obj) += (int8_t)player_anim_dy[player_jump_counter(&player->obj)];
 	}
@@ -594,7 +595,7 @@ static void level_update_player_anim_19(struct player_t *player) {
 static void level_update_player_anim_26(struct player_t *player) {
 	level_player_update_hdirection(player);
 	player->obj.spr_num = 26;
-	if (player_jump_counter(&player->obj) == 0 || !g_vars.input_key_up) {
+	if (player_jump_counter(&player->obj) == 0 || (g_options.jump_button ? !g_vars.input_key_jump : !g_vars.input_key_up)) {
 		return;
 	}
 	--player_jump_counter(&player->obj);
@@ -737,7 +738,7 @@ static void level_update_player_from_input(struct player_t *player) {
 	} else {
 		mask <<= 4;
 		if ((player_flags(&player->obj) & 0x10) == 0) {
-			mask |= (g_vars.input_key_up & 8);
+			mask |= (g_options.jump_button ? g_vars.input_key_jump : g_vars.input_key_up) & 8;
 		}
 		mask |= (g_vars.input_key_right & 4);
 		if (player_jump_counter(&player->obj) == 7) {
@@ -2695,7 +2696,8 @@ static void level_sync() {
 			--g_vars.level_time;
 		}
 	}
-	g_sys.update_screen(g_res.vga, 1);
+	g_sys.copy_bitmap(g_res.vga, GAME_SCREEN_W, GAME_SCREEN_H);
+	g_sys.update_screen();
 	g_sys.render_clear_sprites();
 	const int diff = (g_vars.timestamp + (1000 / 30)) - g_sys.get_timestamp();
 	g_sys.sleep(MAX(diff, 10));

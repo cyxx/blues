@@ -28,43 +28,40 @@ static const char *USAGE =
 ;
 
 static struct game_t *detect_game(const char *data_path) {
-#if 0
-	extern struct game_t bb_game;
-	extern struct game_t ja_game;
-	extern struct game_t p2_game;
-	static struct game_t *games[] = {
-		&bb_game,
-		&ja_game,
-		&p2_game,
-		0
-	};
-	for (int i = 0; games[i]; ++i) {
-		if (games[i]->detect(data_path)) {
-			return games[i];
-		}
-	}
-	return 0;
-#else
 	extern struct game_t game;
 	return &game;
-#endif
 }
 
+#if defined(PSP)
+/* stubs */
+void sound_init() {
+}
+void sound_fini() {
+}
+void play_sound(int num) {
+}
+void play_music(int num) {
+}
+#endif
+
 int main(int argc, char *argv[]) {
-	g_options.start_xpos16 = -1;
-	g_options.start_ypos16 = -1;
-	g_options.screen_w = 320;
-	g_options.screen_h = 200;
-	g_options.dos_scrolling = false;
-	g_options.amiga_copper_bars = true;
-	g_options.amiga_colors = true;
-	// g_options.amiga_status_bar = true;
-	g_options.cga_colors = false;
-	g_options.hybrid_color = false;
 	const char *data_path = DEFAULT_DATA_PATH;
 	int scale_factor = DEFAULT_SCALE_FACTOR;
 	const char *scale_filter = DEFAULT_SCALE_FILTER;
 	bool fullscreen = false;
+	g_options.start_xpos16 = -1;
+	g_options.start_ypos16 = -1;
+	g_options.amiga_copper_bars = true;
+	g_options.amiga_colors = true;
+	// g_options.amiga_status_bar = true;
+#if defined(PSP)
+	g_options.screen_w = 480;
+	g_options.screen_h = 272;
+	g_options.jump_button = true;
+#else
+	g_options.screen_w = 320;
+	g_options.screen_h = 200;
+	// g_options.jump_button = true;
 	if (argc == 2) {
 		struct stat st;
 		if (stat(argv[1], &st) == 0 && S_ISDIR(st.st_mode)) {
@@ -121,7 +118,14 @@ int main(int argc, char *argv[]) {
 			if (sscanf(optarg, "%dx%d", &g_options.screen_w, &g_options.screen_h) == 2) {
 				// align to tile 16x16
 				g_options.screen_w =  (g_options.screen_w + 15) & ~15;
-				g_options.screen_h = ((g_options.screen_h + 15) & ~15) + 40; // PANEL_H
+				g_options.screen_h = ((g_options.screen_h + 15) & ~15) + 40; // PANEL_H;
+				// do not allow lower resolution than the original
+				if (g_options.screen_w < 320) {
+					g_options.screen_w = 320;
+				}
+				if (g_options.screen_h < 200) {
+					g_options.screen_h = 200;
+				}
 			}
 			break;
 		case 10:
@@ -138,6 +142,7 @@ int main(int argc, char *argv[]) {
 			return -1;
 		}
 	}
+#endif
 	struct game_t *game = detect_game(data_path);
 	if (!game) {
 		fprintf(stdout, "No data files found\n");

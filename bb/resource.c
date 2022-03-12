@@ -314,11 +314,11 @@ void load_img(const char *filename, int screen_w, int dither_pattern) {
 		size = read_compressed_file(filename, g_res.tmp);
 	}
 	assert(size <= 32000);
-	load_iff(g_res.tmp, size, g_res.vga, screen_w, dither_pattern);
+	load_iff(g_res.tmp, size, g_res.vga, 320, dither_pattern);
+	g_sys.copy_bitmap(g_res.vga, 320, 200);
 	if (dither_pattern < 0) {
 		g_sys.set_screen_palette(g_res.palette, 0, 16, 8);
 	}
-	g_sys.update_screen(g_res.vga, 0);
 }
 
 void load_m(const char *filename) {

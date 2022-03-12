@@ -15,6 +15,7 @@ void update_input() {
 	g_vars.input_key_up    = (g_sys.input.direction & INPUT_DIRECTION_UP) != 0    ? 0xFF : 0;
 	g_vars.input_key_down  = (g_sys.input.direction & INPUT_DIRECTION_DOWN) != 0  ? 0xFF : 0;
 	g_vars.input_key_space = g_sys.input.space ? 0xFF : 0;
+	g_vars.input_key_jump  = g_sys.input.jump  ? 0xFF : 0;
 
 	g_vars.input_keystate[2] = g_sys.input.digit1;
 	g_vars.input_keystate[3] = g_sys.input.digit2;
@@ -52,7 +53,8 @@ static void scroll_screen_palette() {
 	for (int i = 0; i < count; ++i) {
 		g_sys.set_palette_color(225 + i, g_res.tmp + (225 + g_vars.level_time + i) * 3);
 	}
-	g_sys.update_screen(g_res.vga, 1);
+	g_sys.copy_bitmap(g_res.vga, 320, 200);
+	g_sys.update_screen();
 }
 
 static void do_select_screen_scroll_palette(int start, int end, int step, int count) {
@@ -66,7 +68,8 @@ static void do_select_screen_scroll_palette(int start, int end, int step, int co
 			g_vars.palette_buffer[i] = color;
 		}
 		g_sys.set_screen_palette(g_vars.palette_buffer + start * 3, start, end - start + 1, 6);
-		g_sys.update_screen(g_res.vga, 1);
+		g_sys.copy_bitmap(g_res.vga, 320, 200);
+		g_sys.update_screen();
 		g_sys.sleep(20);
 	} while (--count != 0);
 }

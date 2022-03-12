@@ -1,6 +1,8 @@
 
 #include <stdarg.h>
 #include <sys/param.h>
+#include <sys/unistd.h>
+#include "sys.h"
 #include "util.h"
 
 int g_debug_mask = 0;
@@ -21,6 +23,7 @@ void string_upper(char *p) {
 	}
 }
 
+#ifndef NDEBUG
 void print_debug(int debug_channel, const char *msg, ...) {
 	if (g_debug_mask & debug_channel) {
 		char buf[256];
@@ -29,8 +32,10 @@ void print_debug(int debug_channel, const char *msg, ...) {
 		vsprintf(buf, msg, va);
 		va_end(va);
 		fprintf(stdout, "%s\n", buf);
+		g_sys.print_log(stdout, buf);
 	}
 }
+#endif
 
 void print_warning(const char *msg, ...) {
 	char buf[256];
@@ -39,6 +44,7 @@ void print_warning(const char *msg, ...) {
 	vsprintf(buf, msg, va);
 	va_end(va);
 	fprintf(stderr, "WARNING: %s\n", buf);
+	g_sys.print_log(stderr, buf);
 }
 
 void print_error(const char *msg, ...) {
@@ -48,6 +54,7 @@ void print_error(const char *msg, ...) {
 	vsprintf(buf, msg, va);
 	va_end(va);
 	fprintf(stderr, "ERROR: %s!\n", buf);
+	g_sys.print_log(stderr, buf);
 	exit(-1);
 }
 
@@ -58,6 +65,7 @@ void print_info(const char *msg, ...) {
 	vsprintf(buf, msg, va);
 	va_end(va);
 	fprintf(stdout, "%s\n", buf);
+	g_sys.print_log(stdout, buf);
 }
 
 FILE *fopen_nocase(const char *path, const char *filename) {

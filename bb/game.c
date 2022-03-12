@@ -23,12 +23,12 @@ struct vars_t g_vars;
 
 void update_input() {
 	g_sys.process_events();
-	g_vars.inp_key_left = ((g_sys.input.direction & INPUT_DIRECTION_LEFT) != 0) || g_vars.inp_keyboard[0x4B] || g_vars.inp_keyboard[0x7A];
-	g_vars.inp_key_right = ((g_sys.input.direction & INPUT_DIRECTION_RIGHT) != 0) || g_vars.inp_keyboard[0x4D] || g_vars.inp_keyboard[0x79];
-	g_vars.inp_key_up = ((g_sys.input.direction & INPUT_DIRECTION_UP) != 0) || g_vars.inp_keyboard[0x48] || g_vars.inp_keyboard[0x7C];
-	g_vars.inp_key_down = ((g_sys.input.direction & INPUT_DIRECTION_DOWN) != 0) || g_vars.inp_keyboard[0x50] || g_vars.inp_keyboard[0x7B];
-	g_vars.inp_key_space = g_sys.input.space || g_vars.inp_keyboard[0x39] || g_vars.inp_keyboard[0x77];
-	// g_vars.inp_key_tab = g_vars.inp_keyboard[0xF] || g_vars.inp_keyboard[0x78];
+	g_vars.inp_key_left  = ((g_sys.input.direction & INPUT_DIRECTION_LEFT) != 0);
+	g_vars.inp_key_right = ((g_sys.input.direction & INPUT_DIRECTION_RIGHT) != 0);
+	g_vars.inp_key_up    = ((g_sys.input.direction & INPUT_DIRECTION_UP) != 0);
+	g_vars.inp_key_down  = ((g_sys.input.direction & INPUT_DIRECTION_DOWN) != 0);
+	g_vars.inp_key_space = g_sys.input.space;
+	g_vars.inp_key_jump  = g_sys.input.jump;
 }
 
 static void do_title_screen() {
@@ -78,8 +78,8 @@ static void do_select_player() {
 	if (g_res.spr_count <= SPRITES_COUNT) {
 		screen_load_graphics(g_options.cga_colors ? g_res.cga_lut_sqv : 0, 0);
 	}
-	screen_clear_sprites();
 	do {
+		screen_clear_sprites(1);
 		update_input();
 		const uint32_t timestamp = g_sys.get_timestamp();
 		switch (state) {
@@ -205,11 +205,10 @@ static void do_select_player() {
 			}
 			continue;
 		}
-		screen_flip();
+		g_sys.update_screen();
 		screen_vsync();
 		const int diff = (timestamp + (1000 / 30)) - g_sys.get_timestamp();
 		g_sys.sleep(diff < 10 ? 10 : diff);
-		screen_clear_sprites();
 		if (g_sys.input.space || g_vars.play_demo_flag) {
 			quit = 1;
 		}
@@ -222,14 +221,14 @@ static void do_inter_screen_helper(int xpos, int ypos, int c) {
 		if (c != 0) {
 			screen_vsync();
 		}
-		screen_clear_sprites();
+		screen_clear_sprites(1);
 	}
 	for (int i = 0; i < 40; ++i) {
 		screen_add_sprite(xpos - 20 + 1 + i, ypos - 20 + 1 + i, 125);
 		if (c != 0) {
 			screen_vsync();
 		}
-		screen_clear_sprites();
+		screen_clear_sprites(1);
 	}
 }
 
@@ -237,7 +236,7 @@ static void do_inter_screen() {
 	static const uint8_t xpos[] = { 0xFA, 0x50, 0xF0, 0xC8, 0x50, 0x50 };
 	static const uint8_t ypos[] = { 0xAA, 0x37, 0x28, 0x5F, 0xA5, 0xAA };
 	load_img(g_res.amiga_data ? "inter.lbm" : "inter.sqz", GAME_SCREEN_W, g_options.cga_colors ? 9 : -1);
-	screen_clear_sprites();
+	screen_clear_sprites(1);
 	if (g_vars.level > 1) {
 		for (int i = 0; i < g_vars.level - 1; ++i) {
 			do_inter_screen_helper(xpos[i], ypos[i], 0);
@@ -251,12 +250,12 @@ static void do_inter_screen() {
 		do_inter_screen_helper(xpos[g_vars.level - 1], ypos[g_vars.level - 1], 1);
 	}
 	// screen_do_transition2();
-	screen_flip();
+	g_sys.update_screen();
 	if (g_vars.level < MAX_LEVELS - 1) {
 		play_sound(SOUND_2);
 		screen_add_sprite(xpos[g_vars.level], ypos[g_vars.level], 126);
 	}
-	screen_flip();
+	g_sys.update_screen();
 	const uint32_t timestamp = g_sys.get_timestamp() + 4 * 1000;
 	do {
 		update_input();
@@ -270,7 +269,6 @@ static void do_inter_screen() {
 void game_main() {
 	play_music(0);
 	screen_init();
-	screen_flip();
 	g_vars.start_level = 0;
 	if (g_res.amiga_data) {
 		load_spr("sprite", g_res.spr_sqv, 0);

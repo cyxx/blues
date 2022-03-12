@@ -129,7 +129,7 @@ struct vars_t {
 	int player;
 	bool input_keystate[128];
 	uint32_t timestamp;
-	uint8_t input_key_left, input_key_right, input_key_down, input_key_up, input_key_space;
+	uint8_t input_key_left, input_key_right, input_key_down, input_key_up, input_key_space, input_key_jump;
 	uint16_t buffer[128 * 2]; /* level objects state 0xFFFF, 0xFF20 or g_vars.objects_table index */
 	int16_t dragon_coords[1 + 128];
 	struct player_t players_table[2];

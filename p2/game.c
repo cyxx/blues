@@ -15,6 +15,7 @@ void update_input() {
 	g_vars.input.key_up    = (g_sys.input.direction & INPUT_DIRECTION_UP) != 0    ? 0xFF : 0;
 	g_vars.input.key_down  = (g_sys.input.direction & INPUT_DIRECTION_DOWN) != 0  ? 0xFF : 0;
 	g_vars.input.key_space = g_sys.input.space ? 0xFF : 0;
+	g_vars.input.key_jump  = g_sys.input.jump  ? 0xFF : 0;
 
 	g_vars.input.keystate[2] = g_sys.input.digit1;
 	g_vars.input.keystate[3] = g_sys.input.digit2;
@@ -51,7 +52,8 @@ static void do_programmed_in_1992_screen() {
 	video_draw_string(offset, 1, "PROGRAMMED IN 1992 ON AT >286 12MHZ>");
 	offset += 0x1E0;
 	video_draw_string(offset, 3, "> > > ENJOY OLDIES<<");
-	g_sys.update_screen(g_res.vga, 1);
+	g_sys.copy_bitmap(g_res.vga, 320, 200);
+	g_sys.update_screen();
 	wait_input(100);
 	video_clear();
 }
@@ -76,23 +78,14 @@ static void do_credits() {
 	video_draw_string(offset, 2, "CRISTELLE> GIL ESPECHE AND CORINNE>");
 	offset += 0x1E0;
 	video_draw_string(offset, 0, "SEBASTIEN BECHET AND OLIVIER AKA DELTA>");
-	g_sys.update_screen(g_res.vga, 1);
+	g_sys.copy_bitmap(g_res.vga, 320, 200);
+	g_sys.update_screen();
 }
 
 static void update_screen_img(const uint8_t *src, int present) {
-	const int size = GAME_SCREEN_W * GAME_SCREEN_H;
-	if (size < 64000) {
-		return;
-	} else if (size == 64000) {
-		g_sys.update_screen(src, present);
-	} else {
-		memset(g_res.vga, 0, size);
-		const int y_offs = (GAME_SCREEN_H - 200) / 2;
-		const int x_offs = (GAME_SCREEN_W - 320) / 2;
-		for (int y = 0; y < 200; ++y) {
-			memcpy(g_res.vga + (y_offs + y) * GAME_SCREEN_W + x_offs, src + y * 320, 320);
-		}
-		g_sys.update_screen(g_res.vga, present);
+	g_sys.copy_bitmap(src, 320, 200);
+	if (present) {
+		g_sys.update_screen();
 	}
 }
 
@@ -190,8 +183,8 @@ void do_gameover_screen() {
 	if (data) {
 		video_copy_img(data);
 		video_copy_background();
-		g_sys.update_screen(g_res.vga, 0);
 		g_sys.set_screen_palette(gameover_palette_data, 0, 16, 6);
+		g_sys.copy_bitmap(g_res.vga, GAME_SCREEN_W, GAME_SCREEN_H);
 		do_gameover_animation();
 		g_sys.fade_out_palette();
 		free(data);
@@ -205,8 +198,8 @@ static void do_menu2() {
 	if (data) {
 		video_copy_img(data);
 		video_copy_background();
-		g_sys.update_screen(g_res.vga, 0);
 		g_sys.set_screen_palette(data + 32000, 0, 16, 6);
+		g_sys.copy_bitmap(g_res.vga, GAME_SCREEN_W, GAME_SCREEN_H);
 		g_sys.fade_in_palette();
 		do_demo_animation();
 		g_sys.fade_out_palette();

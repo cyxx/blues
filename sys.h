@@ -14,11 +14,13 @@
 #define RENDER_SPR_GAME  0 /* player sprites */
 #define RENDER_SPR_LEVEL 1 /* level sprites */
 #define RENDER_SPR_FG    2 /* foreground tiles */
+#define RENDER_SPR_COUNT 3
 
 struct input_t {
 	uint8_t direction;
 	bool quit;
 	bool space;
+	bool jump;
 	bool digit1, digit2, digit3;
 };
 
@@ -36,7 +38,7 @@ enum sys_transition_e {
 
 struct sys_t {
 	struct input_t	input;
-	int	(*init)();
+	void	(*init)();
 	void	(*fini)();
 	void	(*set_screen_size)(int w, int h, const char *caption, int scale, const char *filter, bool fullscreen);
 	void	(*set_screen_palette)(const uint8_t *colors, int offset, int count, int depth);
@@ -45,7 +47,8 @@ struct sys_t {
 	void	(*set_palette_color)(int i, const uint8_t *colors);
 	void	(*fade_in_palette)();
 	void	(*fade_out_palette)();
-	void	(*update_screen)(const uint8_t *p, int present);
+	void	(*copy_bitmap)(const uint8_t *p, int w, int h);
+	void	(*update_screen)();
 	void	(*shake_screen)(int dx, int dy);
 	void	(*transition_screen)(enum sys_transition_e type, bool open);
 	void	(*process_events)();
@@ -60,6 +63,7 @@ struct sys_t {
 	void	(*render_add_sprite)(int spr_type, int frame, int x, int y, int xflip);
 	void	(*render_clear_sprites)();
 	void	(*render_set_sprites_clipping_rect)(int x, int y, int w, int h);
+	void	(*print_log)(FILE *fp, const char *s);
 };
 
 extern struct sys_t g_sys;
